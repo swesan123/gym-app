@@ -7,7 +7,6 @@ import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -24,6 +23,8 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors
             .blue, // Sets the primary color theme of the application to blue
+        scaffoldBackgroundColor: Colors
+            .white, // Sets the background color of the entire app to white
       ),
       home:
           AuthWrapper(), // Sets the home widget of the application to AuthWrapper
