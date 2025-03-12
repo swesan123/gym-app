@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'workout_entry_screen.dart';
+import 'entries_screen.dart';
 import 'exercise_list_screen.dart';
 import 'progress_tracking_screen.dart';
 import 'account_screen.dart';
@@ -12,7 +12,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   final List<Widget> _screens = [
-    WorkoutEntryScreen(),
+    EntriesScreen(), // Update to EntriesScreen
     ExerciseListScreen(),
     ProgressTrackingScreen(),
     AccountScreen(),

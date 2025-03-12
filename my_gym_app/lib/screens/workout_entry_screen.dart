@@ -4,17 +4,61 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:developer' as developer;
 
 class WorkoutEntryScreen extends StatefulWidget {
+  final String? entryId;
+  final String? entryName;
+
+  WorkoutEntryScreen({this.entryId, this.entryName});
+
   @override
   _WorkoutEntryScreenState createState() => _WorkoutEntryScreenState();
 }
 
 class _WorkoutEntryScreenState extends State<WorkoutEntryScreen> {
   final List<WorkoutEntry> _workoutEntries = [];
+  final TextEditingController entryNameController = TextEditingController();
+  int entryCount = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.entryId != null) {
+      _loadEntry(widget.entryId!);
+    } else {
+      _setDefaultEntryName();
+    }
+  }
+
+  void _setDefaultEntryName() {
+    entryNameController.text = 'Entry$entryCount';
+  }
 
   void _addWorkoutEntry() {
     setState(() {
       _workoutEntries.add(WorkoutEntry());
     });
+  }
+
+  Future<void> _loadEntry(String entryId) async {
+    try {
+      DocumentSnapshot entryDoc = await FirebaseFirestore.instance
+          .collection('entries')
+          .doc(entryId)
+          .get();
+
+      if (entryDoc.exists) {
+        var data = entryDoc.data() as Map<String, dynamic>;
+        entryNameController.text = data['entryName'];
+        List<dynamic> exercises = data['exercises'];
+        setState(() {
+          _workoutEntries.clear();
+          for (var exercise in exercises) {
+            _workoutEntries.add(WorkoutEntry.fromMap(exercise));
+          }
+        });
+      }
+    } catch (e) {
+      developer.log("Error loading entry: $e", level: 1000);
+    }
   }
 
   Future<void> _saveWorkout(WorkoutEntry entry) async {
@@ -39,7 +83,7 @@ class _WorkoutEntryScreenState extends State<WorkoutEntryScreen> {
 
       // Check if an exercise with the same name already exists
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-          .collection('workouts')
+          .collection('exercises')
           .where('userId', isEqualTo: user.uid)
           .where('exercise', isEqualTo: entry.exerciseController.text.trim())
           .get();
@@ -48,7 +92,7 @@ class _WorkoutEntryScreenState extends State<WorkoutEntryScreen> {
         // Update the existing exercise
         DocumentSnapshot documentSnapshot = querySnapshot.docs.first;
         await FirebaseFirestore.instance
-            .collection('workouts')
+            .collection('exercises')
             .doc(documentSnapshot.id)
             .update({
           'sets': int.parse(entry.setsController.text),
@@ -59,7 +103,7 @@ class _WorkoutEntryScreenState extends State<WorkoutEntryScreen> {
         developer.log("Workout updated successfully.", level: 800);
       } else {
         // Create a new exercise
-        await FirebaseFirestore.instance.collection('workouts').add({
+        await FirebaseFirestore.instance.collection('exercises').add({
           'userId': user.uid,
           'exercise': entry.exerciseController.text.trim(),
           'sets': int.parse(entry.setsController.text),
@@ -79,6 +123,75 @@ class _WorkoutEntryScreenState extends State<WorkoutEntryScreen> {
     }
   }
 
+  Future<void> _saveEntry() async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        developer.log("No user is currently signed in.", level: 1000);
+        return;
+      }
+
+      // Check if entry name is unique
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('entries')
+          .where('userId', isEqualTo: user.uid)
+          .where('entryName', isEqualTo: entryNameController.text.trim())
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty && widget.entryId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text('Entry name already used. Please choose another name.')),
+        );
+        return;
+      }
+
+      // Save the entry
+      List<Map<String, dynamic>> exercises = _workoutEntries.map((entry) {
+        return {
+          'exercise': entry.exerciseController.text.trim(),
+          'sets': int.parse(entry.setsController.text),
+          'reps': int.parse(entry.repsController.text),
+          'weight': double.parse(entry.weightController.text),
+        };
+      }).toList();
+
+      if (widget.entryId != null) {
+        await FirebaseFirestore.instance
+            .collection('entries')
+            .doc(widget.entryId)
+            .update({
+          'entryName': entryNameController.text.trim(),
+          'exercises': exercises,
+          'date': DateTime.now().toIso8601String(),
+        });
+      } else {
+        await FirebaseFirestore.instance.collection('entries').add({
+          'userId': user.uid,
+          'entryName': entryNameController.text.trim(),
+          'exercises': exercises,
+          'date': DateTime.now().toIso8601String(),
+        });
+      }
+
+      developer.log("Entry saved successfully.", level: 800);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Entry Saved!')));
+
+      // Clear the entries and set a new default entry name
+      setState(() {
+        _workoutEntries.clear();
+        entryCount++;
+        _setDefaultEntryName();
+      });
+    } catch (e) {
+      developer.log("Error saving entry: $e", level: 1000);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error saving entry')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     User? user = FirebaseAuth.instance.currentUser;
@@ -87,7 +200,32 @@ class _WorkoutEntryScreenState extends State<WorkoutEntryScreen> {
         level: 800);
 
     return Scaffold(
-      appBar: AppBar(title: Text('Workout Entry')),
+      appBar: AppBar(
+        title: TextField(
+          controller: entryNameController,
+          decoration: InputDecoration(
+            hintText: 'Entry Name',
+            border: InputBorder.none,
+            hintStyle: TextStyle(color: Colors.grey),
+          ),
+          style: TextStyle(color: Colors.grey, fontSize: 20),
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.save, color: Colors.grey),
+            onPressed: _saveEntry,
+          ),
+          Padding(
+            padding:
+                const EdgeInsets.only(right: 32.0), // Shift the button left
+            child: IconButton(
+              icon: Icon(Icons.add, color: Colors.grey),
+              onPressed: _addWorkoutEntry,
+            ),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
@@ -167,11 +305,6 @@ class _WorkoutEntryScreenState extends State<WorkoutEntryScreen> {
               }).toList(),
             ),
           ),
-          SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _addWorkoutEntry,
-            child: Text('Add Exercise'),
-          ),
         ],
       ),
     );
@@ -179,8 +312,21 @@ class _WorkoutEntryScreenState extends State<WorkoutEntryScreen> {
 }
 
 class WorkoutEntry {
-  final TextEditingController exerciseController = TextEditingController();
-  final TextEditingController setsController = TextEditingController();
-  final TextEditingController repsController = TextEditingController();
-  final TextEditingController weightController = TextEditingController();
+  final TextEditingController exerciseController;
+  final TextEditingController setsController;
+  final TextEditingController repsController;
+  final TextEditingController weightController;
+
+  WorkoutEntry()
+      : exerciseController = TextEditingController(),
+        setsController = TextEditingController(),
+        repsController = TextEditingController(),
+        weightController = TextEditingController();
+
+  WorkoutEntry.fromMap(Map<String, dynamic> map)
+      : exerciseController = TextEditingController(text: map['exercise']),
+        setsController = TextEditingController(text: map['sets'].toString()),
+        repsController = TextEditingController(text: map['reps'].toString()),
+        weightController =
+            TextEditingController(text: map['weight'].toString());
 }

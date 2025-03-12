@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
             .white, // Sets the background color of the entire app to white
       ),
       home:
-          AuthWrapper(), // Sets the home widget of the application to AuthWrapper
+          const AuthWrapper(), // Sets the home widget of the application to AuthWrapper
     );
   }
 }
