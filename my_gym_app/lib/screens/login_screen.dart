@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 import 'signup_screen.dart';
+import 'home_screen.dart';
+
+
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -18,10 +21,12 @@ class LoginScreenState extends State<LoginScreen> {
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen()));
     } catch (e) {
       Logger().e(e.toString());
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
