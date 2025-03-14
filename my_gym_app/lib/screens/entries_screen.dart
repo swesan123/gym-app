@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import 'workout_entry_screen.dart';
 import 'dart:developer' as developer;
 
@@ -51,8 +52,9 @@ class _EntriesScreenState extends State<EntriesScreen> {
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(user?.uid)
             .collection('entries')
-            .where('userId', isEqualTo: user?.uid)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -75,9 +77,11 @@ class _EntriesScreenState extends State<EntriesScreen> {
             itemCount: entries.length,
             itemBuilder: (context, index) {
               var data = entries[index].data() as Map<String, dynamic>;
+              var date = DateTime.parse(data['date']);
+              var formattedDate = DateFormat('MMMM d, yyyy').format(date);
               return ListTile(
                 title: Text(data['entryName']),
-                subtitle: Text(data['date']),
+                subtitle: Text(formattedDate),
                 onTap: () {
                   Navigator.push(
                     context,
