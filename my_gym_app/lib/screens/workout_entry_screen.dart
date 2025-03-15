@@ -14,292 +14,251 @@ class WorkoutEntryScreen extends StatefulWidget {
 }
 
 class _WorkoutEntryScreenState extends State<WorkoutEntryScreen> {
-  final List<WorkoutEntry> _workoutEntries = [];
-  final TextEditingController entryNameController = TextEditingController();
-  int entryCount = 1;
-  bool _hasChanges = false;
+  final List<String> muscleGroups = [
+    'Chest',
+    'Back',
+    'Shoulders',
+    'Arms',
+    'Legs',
+    'Glutes',
+    'Core',
+    'Neck'
+  ];
+  List<String> exercises = [];
+  String selectedMuscleGroup = '';
+  String selectedExercise = '';
+  final TextEditingController _repsController = TextEditingController();
+  final TextEditingController _setsController = TextEditingController();
+  final TextEditingController _weightController = TextEditingController();
+  final TextEditingController _newExerciseController = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    if (widget.entryId != null) {
-      _loadEntry(widget.entryId!);
-    } else {
-      _setDefaultEntryName();
-    }
-  }
+  Future<void> _loadExercises(String muscleGroup) async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-  void _setDefaultEntryName() {
-    entryNameController.text = 'Entry$entryCount';
-  }
-
-  void _addWorkoutEntry() {
-    setState(() {
-      _workoutEntries.add(WorkoutEntry());
-      _hasChanges = true;
-    });
-  }
-
-  Future<void> _loadEntry(String entryId) async {
     try {
-      DocumentSnapshot entryDoc = await FirebaseFirestore.instance
+      QuerySnapshot exerciseSnapshot = await FirebaseFirestore.instance
           .collection('users')
-          .doc(FirebaseAuth.instance.currentUser!.uid)
-          .collection('entries')
-          .doc(entryId)
+          .doc(user.uid)
+          .collection('exercises')
+          .doc(muscleGroup)
+          .collection('userExercises')
           .get();
 
-      if (entryDoc.exists) {
-        var data = entryDoc.data() as Map<String, dynamic>;
-        entryNameController.text = data['entryName'];
-        List<dynamic> exercises = data['exercises'];
-        setState(() {
-          _workoutEntries.clear();
-          for (var exercise in exercises) {
-            _workoutEntries.add(WorkoutEntry.fromMap(exercise));
-          }
-        });
-      }
+      setState(() {
+        exercises = exerciseSnapshot.docs.map((doc) => doc.id).toList();
+      });
     } catch (e) {
-      developer.log("Error loading entry: $e", level: 1000);
+      developer.log("Error loading exercises: $e", level: 1000);
     }
   }
 
-  Future<void> _saveEntry() async {
-    if (!_hasChanges) return;
+  Future<void> _addExercise(String muscleGroup, String exerciseName) async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
     try {
-      User? user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        developer.log("No user is currently signed in.", level: 1000);
-        return;
-      }
-
-      String entryId = widget.entryId ??
-          FirebaseFirestore.instance.collection('entries').doc().id;
-      String entryName = entryNameController.text.trim();
-      String dateTime = DateTime.now().toIso8601String();
-
-      // Prepare the exercises data
-      List<Map<String, dynamic>> exercises = _workoutEntries.map((entry) {
-        return {
-          'exercise': entry.exerciseController.text.trim(),
-          'sets': int.parse(entry.setsController.text),
-          'reps': int.parse(entry.repsController.text),
-          'weight': double.parse(entry.weightController.text),
-        };
-      }).toList();
-
-      // Save the entry metadata and exercises in the user's entries subcollection
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
-          .collection('entries')
-          .doc(entryId)
-          .set({
-        'userId': user.uid,
-        'entryName': entryName,
-        'date': dateTime,
-        'exercises': exercises,
-      });
+          .collection('exercises')
+          .doc(muscleGroup)
+          .collection('userExercises')
+          .doc(exerciseName)
+          .set({});
 
-      // Save each exercise as a separate document in the user's exercises subcollection
-      for (var entry in _workoutEntries) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('exercises')
-            .add({
-          'entryId': entryId,
-          'exercise': entry.exerciseController.text.trim(),
-          'sets': int.parse(entry.setsController.text),
-          'reps': int.parse(entry.repsController.text),
-          'weight': double.parse(entry.weightController.text),
-          'date': dateTime,
-        });
-      }
-
-      developer.log("Entry and exercises saved successfully.", level: 800);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Entry Saved!')));
-
-      // Clear the entries and set a new default entry name
+      await _loadExercises(muscleGroup);
       setState(() {
-        _workoutEntries.clear();
-        entryCount++;
-        _setDefaultEntryName();
-        _hasChanges = false;
+        selectedExercise = exerciseName;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Exercise added to $muscleGroup')),
+      );
     } catch (e) {
-      developer.log("Error saving entry: $e", level: 1000);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error saving entry')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding exercise: $e')),
+      );
     }
   }
 
-  Future<void> _deleteEntry() async {
+  Future<void> _saveWorkoutEntry() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
     try {
-      if (widget.entryId != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(FirebaseAuth.instance.currentUser!.uid)
-            .collection('entries')
-            .doc(widget.entryId)
-            .delete();
-        developer.log("Entry deleted successfully.", level: 800);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Entry Deleted!')));
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      developer.log("Error deleting entry: $e", level: 1000);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error deleting entry')));
-    }
-  }
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('exercises')
+          .doc(selectedMuscleGroup)
+          .collection('userExercises')
+          .doc(selectedExercise)
+          .collection('exerciseInfo')
+          .add({
+        'reps': int.parse(_repsController.text),
+        'sets': int.parse(_setsController.text),
+        'weight': double.parse(_weightController.text),
+        'date': DateTime.now(),
+      });
 
-  Future<void> _deleteWorkoutEntry(int index) async {
-    setState(() {
-      _workoutEntries.removeAt(index);
-      _hasChanges = true;
-    });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Workout entry saved')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving workout entry: $e')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    User? user = FirebaseAuth.instance.currentUser;
-
-    developer.log("Building WorkoutEntryScreen for user: ${user?.uid}",
-        level: 800);
-
-    return WillPopScope(
-      onWillPop: () async {
-        await _saveEntry();
-        return true;
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: TextField(
-            controller: entryNameController,
-            decoration: InputDecoration(
-              hintText: 'Entry Name',
-              border: InputBorder.none,
-              hintStyle: TextStyle(color: Colors.grey),
-            ),
-            style: TextStyle(color: Colors.grey, fontSize: 20),
-            textAlign: TextAlign.center,
-            onChanged: (value) {
-              _hasChanges = true;
-            },
-          ),
-          actions: [
-            IconButton(
-              icon: Icon(Icons.delete, color: Colors.red),
-              onPressed: _deleteEntry,
-            ),
-            Padding(
-              padding:
-                  const EdgeInsets.only(right: 32.0), // Shift the button left
-              child: IconButton(
-                icon: Icon(Icons.add, color: Colors.grey),
-                onPressed: _addWorkoutEntry,
-              ),
-            ),
-          ],
-        ),
-        body: Column(
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.entryName ?? 'New Workout Entry'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
           children: [
-            Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Table(
-                border: TableBorder.all(),
-                columnWidths: {
-                  0: FlexColumnWidth(2),
-                  1: FlexColumnWidth(1),
-                  2: FlexColumnWidth(1),
-                  3: FlexColumnWidth(1),
-                  4: FlexColumnWidth(0.5),
-                },
-                children: _workoutEntries.asMap().entries.map((entry) {
-                  int index = entry.key;
-                  WorkoutEntry workoutEntry = entry.value;
-                  return TableRow(
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: TextField(
-                          controller: workoutEntry.exerciseController,
-                          decoration: InputDecoration(labelText: 'Exercise'),
-                          onChanged: (value) {
-                            _hasChanges = true;
-                          },
-                        ),
+            Table(
+              columnWidths: {
+                0: FlexColumnWidth(2),
+                1: FlexColumnWidth(3),
+                2: FlexColumnWidth(2),
+                3: FlexColumnWidth(2),
+                4: FlexColumnWidth(2),
+              },
+              children: [
+                TableRow(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: DropdownButtonFormField<String>(
+                        decoration: InputDecoration(labelText: 'Muscle Group'),
+                        value: selectedMuscleGroup.isEmpty
+                            ? null
+                            : selectedMuscleGroup,
+                        items: muscleGroups.map((String muscleGroup) {
+                          return DropdownMenuItem<String>(
+                            value: muscleGroup,
+                            child: Text(muscleGroup),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            selectedMuscleGroup = value!;
+                            selectedExercise = '';
+                            exercises = [];
+                            _loadExercises(selectedMuscleGroup);
+                          });
+                        },
                       ),
-                      Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: TextField(
-                          controller: workoutEntry.setsController,
-                          decoration: InputDecoration(labelText: 'Sets'),
-                          keyboardType: TextInputType.number,
-                          onChanged: (value) {
-                            _hasChanges = true;
-                          },
-                        ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: DropdownButtonFormField<String>(
+                        decoration: InputDecoration(labelText: 'Exercise'),
+                        value:
+                            selectedExercise.isEmpty ? null : selectedExercise,
+                        items: selectedMuscleGroup.isEmpty
+                            ? []
+                            : [
+                                ...exercises.map((String exercise) {
+                                  return DropdownMenuItem<String>(
+                                    value: exercise,
+                                    child: Text(exercise),
+                                  );
+                                }).toList(),
+                                DropdownMenuItem<String>(
+                                  value: 'Add New Exercise',
+                                  child: Text('Add New Exercise'),
+                                ),
+                              ],
+                        onChanged: (value) {
+                          if (value == 'Add New Exercise') {
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return AlertDialog(
+                                  title: Text('Add New Exercise'),
+                                  content: TextField(
+                                    controller: _newExerciseController,
+                                    decoration: InputDecoration(
+                                      labelText: 'Exercise Name',
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () async {
+                                        if (_newExerciseController
+                                            .text.isNotEmpty) {
+                                          await _addExercise(
+                                              selectedMuscleGroup,
+                                              _newExerciseController.text);
+                                          _newExerciseController.clear();
+                                          Navigator.of(context).pop();
+                                        }
+                                      },
+                                      child: Text('Add'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          } else {
+                            setState(() {
+                              selectedExercise = value!;
+                            });
+                          }
+                        },
                       ),
-                      Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: TextField(
-                          controller: workoutEntry.repsController,
-                          decoration: InputDecoration(labelText: 'Reps'),
-                          keyboardType: TextInputType.number,
-                          onChanged: (value) {
-                            _hasChanges = true;
-                          },
-                        ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: TextField(
+                        controller: _repsController,
+                        decoration: InputDecoration(labelText: 'Reps'),
+                        keyboardType: TextInputType.number,
                       ),
-                      Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: TextField(
-                          controller: workoutEntry.weightController,
-                          decoration: InputDecoration(labelText: 'Weight (kg)'),
-                          keyboardType: TextInputType.number,
-                          onChanged: (value) {
-                            _hasChanges = true;
-                          },
-                        ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: TextField(
+                        controller: _setsController,
+                        decoration: InputDecoration(labelText: 'Sets'),
+                        keyboardType: TextInputType.number,
                       ),
-                      IconButton(
-                        icon: Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _deleteWorkoutEntry(index),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: TextField(
+                        controller: _weightController,
+                        decoration: InputDecoration(labelText: 'Weight'),
+                        keyboardType: TextInputType.number,
                       ),
-                    ],
-                  );
-                }).toList(),
-              ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed:
+                  selectedMuscleGroup.isNotEmpty && selectedExercise.isNotEmpty
+                      ? _saveWorkoutEntry
+                      : null,
+              child: Text('Save Workout Entry'),
             ),
           ],
         ),
       ),
     );
   }
-}
-
-class WorkoutEntry {
-  final TextEditingController exerciseController;
-  final TextEditingController setsController;
-  final TextEditingController repsController;
-  final TextEditingController weightController;
-
-  WorkoutEntry()
-      : exerciseController = TextEditingController(),
-        setsController = TextEditingController(),
-        repsController = TextEditingController(),
-        weightController = TextEditingController();
-
-  WorkoutEntry.fromMap(Map<String, dynamic> map)
-      : exerciseController = TextEditingController(text: map['exercise']),
-        setsController = TextEditingController(text: map['sets'].toString()),
-        repsController = TextEditingController(text: map['reps'].toString()),
-        weightController =
-            TextEditingController(text: map['weight'].toString());
 }
