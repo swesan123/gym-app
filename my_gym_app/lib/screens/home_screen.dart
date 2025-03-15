@@ -3,6 +3,8 @@ import 'entries_screen.dart';
 import 'exercise_list_screen.dart';
 import 'progress_tracking_screen.dart';
 import 'account_screen.dart';
+import 'programs_screen.dart'; // Import the ProgramsScreen
+import 'in_progress_workout_screen.dart'; // Import the InProgressWorkoutScreen
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -12,6 +14,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   final List<Widget> _screens = [
+    InProgressWorkoutScreen(), // Add InProgressWorkoutScreen to the list
+    ProgramsScreen(), // Add ProgramsScreen to the list
     EntriesScreen(), // Update to EntriesScreen
     ExerciseListScreen(),
     ProgressTrackingScreen(),
@@ -31,7 +35,12 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         items: [
           BottomNavigationBarItem(
-              icon: Icon(Icons.fitness_center), label: 'Workout'),
+              icon: Icon(Icons.fitness_center),
+              label: 'Workout'), // Add Workout item
+          BottomNavigationBarItem(
+              icon: Icon(Icons.list_alt),
+              label: 'Programs'), // Add Programs item
+          BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Entries'),
           BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Exercises'),
           BottomNavigationBarItem(
               icon: Icon(Icons.show_chart), label: 'Progress'),

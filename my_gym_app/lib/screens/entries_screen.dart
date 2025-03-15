@@ -20,19 +20,26 @@ class _EntriesScreenState extends State<EntriesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: TextField(
-          controller: searchController,
-          decoration: InputDecoration(
-            hintText: 'Search Entries',
-            border: InputBorder.none,
-            hintStyle: TextStyle(color: Colors.grey),
+        title: Text('Entries'),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(48.0),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: TextField(
+              controller: searchController,
+              decoration: InputDecoration(
+                hintText: 'Search Entries',
+                border: InputBorder.none,
+                hintStyle: TextStyle(color: Colors.grey),
+              ),
+              style: TextStyle(color: Colors.white, fontSize: 20),
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value.trim();
+                });
+              },
+            ),
           ),
-          style: TextStyle(color: Colors.white, fontSize: 20),
-          onChanged: (value) {
-            setState(() {
-              searchQuery = value.trim();
-            });
-          },
         ),
         actions: [
           Padding(
@@ -69,9 +76,19 @@ class _EntriesScreenState extends State<EntriesScreen> {
           }
 
           final entries = snapshot.data!.docs.where((doc) {
-            final entryName = (doc.data() as Map<String, dynamic>)['entryName'];
-            return entryName.contains(searchQuery);
+            final data = doc.data() as Map<String, dynamic>;
+            final entryName = data['entryName'];
+            return entryName != null && entryName.contains(searchQuery);
           }).toList();
+
+          // Sort entries by latest time
+          entries.sort((a, b) {
+            var dateA =
+                DateTime.parse((a.data() as Map<String, dynamic>)['date']);
+            var dateB =
+                DateTime.parse((b.data() as Map<String, dynamic>)['date']);
+            return dateB.compareTo(dateA);
+          });
 
           return ListView.builder(
             itemCount: entries.length,
@@ -79,9 +96,10 @@ class _EntriesScreenState extends State<EntriesScreen> {
               var data = entries[index].data() as Map<String, dynamic>;
               var date = DateTime.parse(data['date']);
               var formattedDate = DateFormat('MMMM d, yyyy').format(date);
+              var formattedTime = DateFormat('hh:mm a').format(date);
               return ListTile(
                 title: Text(data['entryName']),
-                subtitle: Text(formattedDate),
+                subtitle: Text('$formattedDate at $formattedTime'),
                 onTap: () {
                   Navigator.push(
                     context,
