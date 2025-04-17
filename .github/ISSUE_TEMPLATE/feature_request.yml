@@ -1,0 +1,53 @@
+---
+name: Feature Request / Task
+description: Suggest a new feature or describe a development task
+title: "[Feature] "
+labels: ["type: feature"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🧩 Summary
+        Provide a one-sentence summary of the feature or task.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Short Summary
+      placeholder: e.g., Add workout logging screen
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 📚 Description
+      description: Provide a detailed description of what the task involves and why it's needed.
+      placeholder: Include technical context, screenshots, or use cases if needed.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: acceptance
+    attributes:
+      label: ✅ Acceptance Criteria
+      description: What must be true for this to be considered complete?
+      options:
+        - label: Functionality meets description
+        - label: Responsive and accessible
+        - label: Integrated with backend or services
+        - label: Tested and verified
+
+  - type: input
+    id: related
+    attributes:
+      label: 🔗 Related Issues
+      placeholder: e.g., #42, #17
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: 💬 Additional Notes
+      description: Optional design files, references, or implementation hints
