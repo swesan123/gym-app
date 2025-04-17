@@ -3,7 +3,7 @@ name: Sync GitHub Labels
 on:
   push:
     paths:
-      - .github/labels.json
+      - .github/labels.yml
   workflow_dispatch:
 
 jobs:
@@ -14,5 +14,4 @@ jobs:
       - name: Sync labels
         uses: crazy-max/ghaction-github-labeler@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          yaml_file: .github/labels.json
+          yaml-file: .github/labels.yml
