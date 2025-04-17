@@ -16,4 +16,4 @@ jobs:
         uses: imjohnbo/issue-bot@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          issues: .github/issues.yml
+          issues-file: .github/issues.yml
