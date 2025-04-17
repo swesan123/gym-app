@@ -1,0 +1,64 @@
+
+@startuml
+
+class Workout {
+  - id: String
+  - date: DateTime
+  - exercises: List<ExerciseEntry>
+  + toMap(): Map
+  + fromMap(): Workout
+}
+
+class ExerciseEntry {
+  - name: String
+  - sets: List<SetEntry>
+  + toMap(): Map
+  + fromMap(): ExerciseEntry
+}
+
+class SetEntry {
+  - reps: int
+  - weight: double
+  + toMap(): Map
+  + fromMap(): SetEntry
+}
+
+class WorkoutService {
+  + saveWorkout(w: Workout)
+  + getWorkouts(): List<Workout>
+  + getProgressData(): List<DataPoint>
+}
+
+class AuthService {
+  + signIn(): User
+  + signOut(): void
+  + getCurrentUser(): User
+}
+
+class WorkoutProvider {
+  - currentWorkout: Workout
+  - history: List<Workout>
+  + startWorkout()
+  + logSet()
+  + finishWorkout()
+}
+
+class WorkoutScreen {
+  + build(): Widget
+}
+
+class ProgressScreen {
+  + build(): Widget
+}
+
+Workout "1" *-- "many" ExerciseEntry
+ExerciseEntry "1" *-- "many" SetEntry
+WorkoutProvider --> Workout
+WorkoutProvider --> WorkoutService
+WorkoutProvider --> ExerciseEntry
+WorkoutProvider --> SetEntry
+WorkoutScreen --> WorkoutProvider
+ProgressScreen --> WorkoutProvider
+WorkoutProvider --> AuthService
+
+@enduml
