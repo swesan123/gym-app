@@ -79,6 +79,9 @@ lib/
 ## 🗂 Project Board
 [Click here to view the GitHub Project Board](https://github.com/users/swesan123/projects/7)
 
+## 📄 Requirements Document
+[Download SRS (GymTracker_SRS_v1.0.pdf)](https://github.com/swesan123/gym-app/blob/main/docs/GymTracker_SRS_v1.0.pdf)
+
 ## License
 
 This project is for **personal use** only and is not intended for commercial distribution.
