@@ -1,0 +1,40 @@
+issues:
+  - title: Create workout data model
+    body: Define a Workout class with attributes like date, exercises, and optional notes. Add Firestore mapping functions.
+    labels: ["type: feature", "backend"]
+
+  - title: Build workout logging screen
+    body: UI to add exercises, log sets, reps, and weights. Save data locally for now.
+    labels: ["type: feature", "web", "ui"]
+
+  - title: Connect workout logging to Firestore
+    body: Implement Firestore save functionality for completed workouts using WorkoutService.
+    labels: ["type: feature", "firebase", "backend"]
+
+  - title: Create workout history screen
+    body: Display a scrollable list or calendar view of past workouts. Data pulled from Firestore.
+    labels: ["type: feature", "web", "ui"]
+
+  - title: Add authentication with Firebase
+    body: Enable sign-up/sign-in using Firebase Authentication (email & password).
+    labels: ["type: feature", "firebase", "backend"]
+
+  - title: Display progress chart
+    body: Visualize progress (e.g. total volume over time) using fl_chart.
+    labels: ["type: feature", "ui", "web"]
+
+  - title: Add rest timer widget
+    body: Add a customizable rest timer during sets. Optional vibration or beep feedback.
+    labels: ["type: enhancement", "ui"]
+
+  - title: Implement responsive design
+    body: Ensure UI scales well across desktop and mobile screens using LayoutBuilder or MediaQuery.
+    labels: ["type: enhancement", "ui", "web"]
+
+  - title: Create reusable exercise tile widget
+    body: Extract a component for displaying each exercise entry. Used in log and history views.
+    labels: ["type: refactor", "ui"]
+
+  - title: Set up constants and utilities
+    body: Move repeated strings, colors, and Firestore paths to a constants file.
+    labels: ["type: chore", "backend"]
