@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'routes/app_routes.dart';
 
 /// The entry point for the application.
 ///
@@ -34,7 +35,8 @@ class MyGymApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
       ),
-      home: const HomeScreen(),
+      initialRoute: '/',
+      onGenerateRoute: AppRoutes.generateRoute,
     );
   }
 }
