@@ -4,22 +4,41 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import type { TrackingType } from "@/lib/database.types";
-import { isSplit } from "@/lib/constants";
+import { isWorkoutSplitsTableUnavailable } from "@/lib/queries/read";
 import { createClient } from "@/lib/supabase/server";
 import { formatWorkoutWeek } from "@/lib/week";
 import { computeSetVolume } from "@/lib/volume";
 
 export async function createWorkoutDraftAndRedirect(split: string) {
-  if (!isSplit(split)) throw new Error("Invalid split");
+  const splitName = split.trim();
+  if (!splitName) throw new Error("Choose a split");
 
   const supabase = await createClient();
+
+  const { data: known, error: splitErr } = await supabase
+    .from("workout_splits")
+    .select("id")
+    .eq("name", splitName)
+    .maybeSingle();
+
+  if (splitErr && !isWorkoutSplitsTableUnavailable(splitErr)) {
+    throw new Error(splitErr.message);
+  }
+
+  const splitsTableMissing =
+    !!splitErr && isWorkoutSplitsTableUnavailable(splitErr);
+
+  if (!splitsTableMissing && !known) {
+    throw new Error("Unknown split. Add it under Settings → Splits.");
+  }
+
   const today = new Date();
   const dateStr = today.toISOString().slice(0, 10);
   const week = formatWorkoutWeek(today);
 
   const { data: workout, error: wErr } = await supabase
     .from("workouts")
-    .insert({ date: dateStr, week, split, status: "draft" })
+    .insert({ date: dateStr, week, split: splitName, status: "draft" })
     .select("id")
     .single();
 
@@ -30,7 +49,7 @@ export async function createWorkoutDraftAndRedirect(split: string) {
   const { data: exercises, error: eErr } = await supabase
     .from("exercises")
     .select("id, default_sets")
-    .eq("split", split);
+    .eq("split", splitName);
 
   if (eErr || !exercises?.length) {
     await supabase.from("workouts").delete().eq("id", workout.id);

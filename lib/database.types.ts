@@ -10,7 +10,6 @@ export type Database = {
           id: string;
           name: string;
           muscle: string;
-          workout_type: string;
           split: string;
           default_sets: number;
           tracking_type: TrackingType;
@@ -21,7 +20,6 @@ export type Database = {
           id?: string;
           name: string;
           muscle: string;
-          workout_type: string;
           split: string;
           default_sets?: number;
           tracking_type: TrackingType;
@@ -32,11 +30,30 @@ export type Database = {
           id?: string;
           name?: string;
           muscle?: string;
-          workout_type?: string;
           split?: string;
           default_sets?: number;
           tracking_type?: TrackingType;
           notes?: string | null;
+          created_at?: string;
+        };
+      };
+      workout_splits: {
+        Row: {
+          id: string;
+          name: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          sort_order?: number;
           created_at?: string;
         };
       };

@@ -3,12 +3,15 @@
 import type { FormEvent } from "react";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { createExercise, deleteExercise, updateExercise } from "@/app/actions/exercises";
+import { SplitsMigrationBanner } from "@/components/SplitsMigrationBanner";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { MUSCLES } from "@/lib/constants";
 import type { Database, TrackingType } from "@/lib/database.types";
-import { SPLITS } from "@/lib/constants";
+import type { WorkoutSplitRow } from "@/lib/queries/read";
 
 type ExerciseRow = Database["public"]["Tables"]["exercises"]["Row"];
 
@@ -19,10 +22,20 @@ const TRACKING: TrackingType[] = [
   "timed",
 ];
 
+function muscleOptions(current?: string | null): string[] {
+  const s = new Set<string>(MUSCLES as unknown as string[]);
+  if (current?.trim()) s.add(current.trim());
+  return [...s].sort((a, b) => a.localeCompare(b));
+}
+
 export function ExerciseSettingsClient({
   exercises,
+  splits,
+  splitsTableReady,
 }: {
   exercises: ExerciseRow[];
+  splits: WorkoutSplitRow[];
+  splitsTableReady: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -31,6 +44,11 @@ export function ExerciseSettingsClient({
   const [editing, setEditing] = useState<ExerciseRow | null>(null);
   const [adding, setAdding] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const sortedSplits = useMemo(
+    () => [...splits].sort((a, b) => a.name.localeCompare(b.name)),
+    [splits],
+  );
 
   const sorted = useMemo(
     () =>
@@ -76,7 +94,6 @@ export function ExerciseSettingsClient({
     const fd = new FormData(e.currentTarget);
     const name = String(fd.get("name") ?? "");
     const muscle = String(fd.get("muscle") ?? "");
-    const workout_type = String(fd.get("workout_type") ?? "");
     const split = String(fd.get("split") ?? "");
     const default_sets = Number(fd.get("default_sets"));
     const tracking_type = String(fd.get("tracking_type")) as TrackingType;
@@ -87,7 +104,6 @@ export function ExerciseSettingsClient({
         await createExercise({
           name,
           muscle,
-          workout_type,
           split,
           default_sets: Number.isFinite(default_sets) ? default_sets : 3,
           tracking_type,
@@ -103,17 +119,26 @@ export function ExerciseSettingsClient({
   return (
     <>
       <div className="mx-auto max-w-lg px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Exercises</h1>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              Edit metadata used for new workouts.
+              Edit moves used when you start a split.{" "}
+              <Link
+                href="/settings/splits"
+                className="font-medium text-emerald-700 underline dark:text-emerald-400"
+              >
+                Manage splits
+              </Link>
+              .
             </p>
           </div>
           <Button type="button" disabled={pending} onClick={() => setAdding(true)}>
             Add
           </Button>
         </div>
+
+        {!splitsTableReady ? <SplitsMigrationBanner className="mt-4" /> : null}
 
         {error ? (
           <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100">
@@ -187,27 +212,53 @@ export function ExerciseSettingsClient({
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
               Muscle
-              <input
+              <select
                 name="muscle"
                 required
                 defaultValue={editing.muscle}
                 className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
-              />
+              >
+                {muscleOptions(editing.muscle).map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
               Split
-              <input
-                name="split"
-                required
-                defaultValue={editing.split}
-                list="split-presets"
-                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
-              />
-              <datalist id="split-presets">
-                {SPLITS.map((s) => (
-                  <option key={s} value={s} />
-                ))}
-              </datalist>
+              {splitsTableReady ? (
+                <select
+                  name="split"
+                  required
+                  defaultValue={editing.split}
+                  className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                >
+                  {!sortedSplits.some((s) => s.name === editing.split) ? (
+                    <option value={editing.split}>{editing.split}</option>
+                  ) : null}
+                  {sortedSplits.map((s) => (
+                    <option key={s.id} value={s.name}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <>
+                  <input
+                    name="split"
+                    list="edit-split-suggestions"
+                    required
+                    defaultValue={editing.split}
+                    className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                  />
+                  <datalist id="edit-split-suggestions">
+                    {sortedSplits.map((s) => (
+                      <option key={s.id} value={s.name} />
+                    ))}
+                  </datalist>
+                </>
+              )}
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
               Default sets
@@ -264,34 +315,53 @@ export function ExerciseSettingsClient({
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
             Muscle
-            <input name="muscle" required className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950" />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-            Workout type
             <select
-              name="workout_type"
+              name="muscle"
               required
-              defaultValue="Upper"
+              defaultValue={MUSCLES[0]}
               className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
             >
-              <option value="Upper">Upper</option>
-              <option value="Lower">Lower</option>
+              {MUSCLES.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
             </select>
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
             Split
-            <input
-              name="split"
-              required
-              list="split-presets-add"
-              placeholder="Upper A"
-              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
-            />
-            <datalist id="split-presets-add">
-              {SPLITS.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
+            {splitsTableReady ? (
+              <select
+                name="split"
+                required
+                defaultValue={sortedSplits[0]?.name ?? ""}
+                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              >
+                {sortedSplits.map((s) => (
+                  <option key={s.id} value={s.name}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <>
+                <input
+                  name="split"
+                  list="add-split-suggestions"
+                  required
+                  placeholder={
+                    sortedSplits[0]?.name ?? "e.g. Push day"
+                  }
+                  defaultValue={sortedSplits[0]?.name ?? ""}
+                  className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                />
+                <datalist id="add-split-suggestions">
+                  {sortedSplits.map((s) => (
+                    <option key={s.id} value={s.name} />
+                  ))}
+                </datalist>
+              </>
+            )}
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
             Default sets
@@ -320,6 +390,28 @@ export function ExerciseSettingsClient({
               ))}
             </select>
           </label>
+          {sortedSplits.length === 0 ? (
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              {splitsTableReady ? (
+                <>
+                  Add a split under{" "}
+                  <Link href="/settings/splits" className="underline">
+                    Settings → Splits
+                  </Link>{" "}
+                  first.
+                </>
+              ) : (
+                <>
+                  Enter a split name above (suggestions appear after you have exercises).
+                  After running the database migration, you can manage splits under{" "}
+                  <Link href="/settings/splits" className="underline">
+                    Settings → Splits
+                  </Link>
+                  .
+                </>
+              )}
+            </p>
+          ) : null}
         </form>
       </Modal>
 

@@ -3,13 +3,16 @@ import Link from "next/link";
 import { createWorkoutDraftAndRedirect } from "@/app/actions/workouts";
 import { Button } from "@/components/ui/button";
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
-import { SPLITS } from "@/lib/constants";
+import { SplitsMigrationBanner } from "@/components/SplitsMigrationBanner";
+import { fetchSplitsCatalog } from "@/lib/queries/read";
 import { hasSupabaseEnv } from "@/lib/env";
 
-export default function StartWorkoutPage() {
+export default async function StartWorkoutPage() {
   if (!hasSupabaseEnv()) {
     return <MissingSupabaseConfig />;
   }
+
+  const { splits, splitsTableReady } = await fetchSplitsCatalog();
 
   return (
     <div className="mx-auto max-w-lg px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
@@ -26,18 +29,43 @@ export default function StartWorkoutPage() {
         Exercises and sets are created automatically.
       </p>
 
-      <div className="mt-6 flex flex-col gap-3">
-        {SPLITS.map((split) => (
-          <form
-            key={split}
-            action={createWorkoutDraftAndRedirect.bind(null, split)}
-          >
-            <Button type="submit" variant="secondary" className="w-full py-4">
-              {split}
+      {!splitsTableReady ? <SplitsMigrationBanner className="mt-4" /> : null}
+
+      {splits.length === 0 ? (
+        <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/40">
+          <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+            No splits defined yet.
+          </p>
+          <p className="mt-2 text-sm text-amber-800 dark:text-amber-200">
+            Add split names (e.g. Upper A, Push day), then assign exercises to them.
+          </p>
+          <Link href="/settings/splits" className="mt-4 inline-block">
+            <Button type="button" variant="secondary">
+              Go to Splits
             </Button>
-          </form>
-        ))}
-      </div>
+          </Link>
+        </div>
+      ) : (
+        <div className="mt-6 flex flex-col gap-3">
+          {splits.map((s) => (
+            <form
+              key={s.id}
+              action={createWorkoutDraftAndRedirect.bind(null, s.name)}
+            >
+              <Button type="submit" variant="secondary" className="w-full py-4">
+                {s.name}
+              </Button>
+            </form>
+          ))}
+        </div>
+      )}
+
+      <p className="mt-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+        Need another split?{" "}
+        <Link href="/settings/splits" className="font-medium text-emerald-700 underline dark:text-emerald-400">
+          Add one in Settings
+        </Link>
+      </p>
     </div>
   );
 }

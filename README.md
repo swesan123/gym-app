@@ -9,12 +9,14 @@ Mobile-first workout logging with Next.js, Tailwind, Supabase, and basic PWA sup
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-2. In Supabase (hosted or local Postgres), apply the SQL migration and seed:
+2. In Supabase (hosted or local Postgres), apply **all** migrations in order, then seed:
 
-   - Schema: [`supabase/migrations/20250506120000_initial.sql`](supabase/migrations/20250506120000_initial.sql)
-   - Data: [`supabase/seed.sql`](supabase/seed.sql)
+   - [`supabase/migrations/20250506120000_initial.sql`](supabase/migrations/20250506120000_initial.sql) — tables, RLS, view  
+   - [`supabase/migrations/20250507120000_dedupe_global_weight_options.sql`](supabase/migrations/20250507120000_dedupe_global_weight_options.sql) — dedupe global weights + partial unique index  
+   - [`supabase/migrations/20250508120000_splits_catalog_drop_workout_type.sql`](supabase/migrations/20250508120000_splits_catalog_drop_workout_type.sql) — `workout_splits` catalog + drops legacy `workout_type` on `exercises`  
+   - [`supabase/seed.sql`](supabase/seed.sql) — default splits (if missing), exercises + weight presets (run after migrations; weight `ON CONFLICT` needs the dedupe migration)
 
-   Run both in order (SQL editor or `psql`). The migration enables row-level security with permissive allow-all policies for anonymous clients — suitable only if your deployment is private.
+   Paste each file into the SQL editor and run (or use `psql`). The migration enables row-level security with permissive allow-all policies for anonymous clients — suitable only if your deployment is private.
 
 3. Install and run:
 

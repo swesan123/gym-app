@@ -33,7 +33,6 @@ export async function updateExercise(input: {
 export async function createExercise(input: {
   name: string;
   muscle: string;
-  workout_type: string;
   split: string;
   default_sets: number;
   tracking_type: TrackingType;
@@ -42,7 +41,6 @@ export async function createExercise(input: {
   const { error } = await supabase.from("exercises").insert({
     name: input.name.trim(),
     muscle: input.muscle.trim(),
-    workout_type: input.workout_type.trim(),
     split: input.split.trim(),
     default_sets: input.default_sets,
     tracking_type: input.tracking_type,

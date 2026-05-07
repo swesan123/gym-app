@@ -1,30 +1,36 @@
--- Seed default exercises (split / tracking per MVP spec)
-insert into public.exercises (name, muscle, workout_type, split, default_sets, tracking_type) values
-('Assisted Pull-ups', 'Back', 'Upper', 'Upper A', 3, 'assisted'),
-('Seated Row', 'Back', 'Upper', 'Upper A', 3, 'weighted'),
-('Machine Shoulder Press', 'Shoulders', 'Upper', 'Upper A', 3, 'weighted'),
-('Cable Lateral Raise', 'Shoulders', 'Upper', 'Upper A', 3, 'weighted'),
-('Seated Bicep Curl', 'Biceps', 'Upper', 'Upper A', 3, 'weighted'),
-('Dips', 'Chest', 'Upper', 'Upper B', 3, 'assisted'),
-('Pushups', 'Chest', 'Upper', 'Upper B', 3, 'bodyweight'),
-('Chest Fly', 'Chest', 'Upper', 'Upper B', 3, 'weighted'),
-('Rear Delt Fly', 'Rear Delts', 'Upper', 'Upper B', 3, 'weighted'),
-('Hip Thrust', 'Glutes', 'Lower', 'Lower A', 3, 'weighted'),
-('Leg Press', 'Quads', 'Lower', 'Lower A', 3, 'weighted'),
-('Leg Extension', 'Quads', 'Lower', 'Lower A', 3, 'weighted'),
-('Machine Ab Crunch', 'Abs', 'Lower', 'Lower A', 3, 'weighted'),
-('Plank', 'Abs', 'Lower', 'Lower A', 2, 'timed'),
-('Leg Curl', 'Hamstrings', 'Lower', 'Lower B', 3, 'weighted'),
-('Standing Calf Raise', 'Calves', 'Lower', 'Lower B', 3, 'weighted'),
-('Abductor Machine', 'Glutes', 'Lower', 'Lower B', 3, 'weighted'),
-('Adductor Machine', 'Adductors', 'Lower', 'Lower B', 3, 'weighted'),
-('Leg Raises', 'Abs', 'Lower', 'Lower B', 3, 'bodyweight'),
-('Romanian Deadlift', 'Hamstrings', 'Lower', 'Lower C', 3, 'weighted'),
-('Goblet Squat', 'Quads', 'Lower', 'Lower C', 3, 'weighted'),
-('Weighted Lunges', 'Quads', 'Lower', 'Lower C', 3, 'weighted'),
-('Glute Bridge', 'Glutes', 'Lower', 'Lower C', 3, 'weighted');
+-- Default splits (safe if migration already inserted them)
+insert into public.workout_splits (name, sort_order) values
+('Upper A', 1), ('Upper B', 2), ('Lower A', 3), ('Lower B', 4), ('Lower C', 5)
+on conflict (name) do nothing;
 
--- Global weight presets: 2.5 .. 200 step 2.5
+-- Seed default exercises (split encodes upper/lower layout; no separate workout_type)
+insert into public.exercises (name, muscle, split, default_sets, tracking_type) values
+('Assisted Pull-ups', 'Back', 'Upper A', 3, 'assisted'),
+('Seated Row', 'Back', 'Upper A', 3, 'weighted'),
+('Machine Shoulder Press', 'Shoulders', 'Upper A', 3, 'weighted'),
+('Cable Lateral Raise', 'Shoulders', 'Upper A', 3, 'weighted'),
+('Seated Bicep Curl', 'Biceps', 'Upper A', 3, 'weighted'),
+('Dips', 'Chest', 'Upper B', 3, 'assisted'),
+('Pushups', 'Chest', 'Upper B', 3, 'bodyweight'),
+('Chest Fly', 'Chest', 'Upper B', 3, 'weighted'),
+('Rear Delt Fly', 'Rear Delts', 'Upper B', 3, 'weighted'),
+('Hip Thrust', 'Glutes', 'Lower A', 3, 'weighted'),
+('Leg Press', 'Quads', 'Lower A', 3, 'weighted'),
+('Leg Extension', 'Quads', 'Lower A', 3, 'weighted'),
+('Machine Ab Crunch', 'Abs', 'Lower A', 3, 'weighted'),
+('Plank', 'Abs', 'Lower A', 2, 'timed'),
+('Leg Curl', 'Hamstrings', 'Lower B', 3, 'weighted'),
+('Standing Calf Raise', 'Calves', 'Lower B', 3, 'weighted'),
+('Abductor Machine', 'Glutes', 'Lower B', 3, 'weighted'),
+('Adductor Machine', 'Adductors', 'Lower B', 3, 'weighted'),
+('Leg Raises', 'Abs', 'Lower B', 3, 'bodyweight'),
+('Romanian Deadlift', 'Hamstrings', 'Lower C', 3, 'weighted'),
+('Goblet Squat', 'Quads', 'Lower C', 3, 'weighted'),
+('Weighted Lunges', 'Quads', 'Lower C', 3, 'weighted'),
+('Glute Bridge', 'Glutes', 'Lower C', 3, 'weighted');
+
+-- Global weight presets: 2.5 .. 200 step 2.5 (safe if seed runs again)
 insert into public.weight_options (exercise_id, value)
 select null, g
-from generate_series(2.5::numeric, 200::numeric, 2.5::numeric) as g;
+from generate_series(2.5::numeric, 200::numeric, 2.5::numeric) as g
+on conflict (value) where exercise_id is null do nothing;

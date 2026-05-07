@@ -18,15 +18,13 @@ import type { TrackingType } from "@/lib/database.types";
 import { parseOptionalNumber } from "@/lib/parse";
 import { computeSetVolume } from "@/lib/volume";
 
-const RIR_QUICK = [0, 1, 2, 3, 4, 5, 6] as const;
-
-function weightLabel(t: TrackingType) {
-  if (t === "assisted") return "Assistance";
-  if (t === "bodyweight") return "Extra weight";
-  return "Weight";
+function weightHeader(tt: TrackingType) {
+  if (tt === "assisted") return "Assist";
+  if (tt === "bodyweight") return "Extra wt";
+  return "Wt";
 }
 
-function SetRowEditor({
+function SetTableRow({
   row,
   weightPresets,
   readOnly,
@@ -73,148 +71,180 @@ function SetRowEditor({
   }, [readOnly, row.id, reps, weight, rir, duration, note]);
 
   const datalistId = `weights-${row.id}`;
+  const tt = row.tracking_type;
+
+  const cellInput =
+    "box-border h-10 min-h-10 w-full min-w-0 rounded border border-zinc-300 bg-white px-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-950";
 
   return (
-    <li className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800/60">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-          Set {row.set_number}
-        </p>
-        {!readOnly ? (
-          <Button
-            variant="ghost"
-            type="button"
-            className="min-h-9 px-2 py-1 text-sm text-red-700 dark:text-red-400"
-            onClick={() => onRequestRemove(row.id)}
-          >
-            Remove
-          </Button>
-        ) : null}
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        {row.tracking_type === "timed" ? (
-          <label className="col-span-2 flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-            Seconds
-            <input
-              inputMode="decimal"
-              disabled={readOnly}
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
-            />
-          </label>
-        ) : (
-          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-            Reps
-            <input
-              inputMode="decimal"
-              disabled={readOnly}
-              value={reps}
-              onChange={(e) => setReps(e.target.value)}
-              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
-            />
-          </label>
-        )}
-
-        {(row.tracking_type === "weighted" ||
-          row.tracking_type === "assisted" ||
-          row.tracking_type === "bodyweight") && (
-          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-            {weightLabel(row.tracking_type)}
-            <input
-              inputMode="decimal"
-              disabled={readOnly}
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              list={readOnly ? undefined : datalistId}
-              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
-            />
-            {!readOnly ? (
-              <datalist id={datalistId}>
-                {weightPresets.map((v) => (
-                  <option key={v} value={v} />
-                ))}
-              </datalist>
-            ) : null}
-          </label>
-        )}
-
-        {row.tracking_type !== "timed" && (
-          <label className="col-span-2 flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-            RIR
-            <div className="flex flex-wrap gap-2">
-              <input
-                inputMode="decimal"
-                disabled={readOnly}
-                value={rir}
-                onChange={(e) => setRir(e.target.value)}
-                className="min-h-11 min-w-[5rem] flex-1 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
-              />
-              {!readOnly ? (
-                <div className="flex flex-wrap gap-1">
-                  {RIR_QUICK.map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setRir(String(r))}
-                      className="min-h-11 min-w-11 rounded-lg border border-zinc-300 bg-white text-sm font-semibold dark:border-zinc-600 dark:bg-zinc-900"
-                    >
-                      {r}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </label>
-        )}
-
-        {row.tracking_type === "timed" && (
-          <label className="col-span-2 flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-            RIR (optional)
-            <input
-              inputMode="decimal"
-              disabled={readOnly}
-              value={rir}
-              onChange={(e) => setRir(e.target.value)}
-              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
-            />
-          </label>
-        )}
-      </div>
-
-      <label className="mt-3 flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-        Note
+    <tr className="border-b border-zinc-100 dark:border-zinc-800">
+      <td className="sticky left-0 z-10 bg-white py-1 pr-1 text-center text-xs font-semibold tabular-nums dark:bg-zinc-900">
+        {row.set_number}
+      </td>
+      {tt === "timed" ? (
+        <td className="py-1 pr-1">
+          <input
+            inputMode="decimal"
+            disabled={readOnly}
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            className={cellInput}
+            aria-label="Seconds"
+          />
+        </td>
+      ) : (
+        <td className="py-1 pr-1">
+          <input
+            inputMode="decimal"
+            disabled={readOnly}
+            value={reps}
+            onChange={(e) => setReps(e.target.value)}
+            className={cellInput}
+            aria-label="Reps"
+          />
+        </td>
+      )}
+      {(tt === "weighted" || tt === "assisted" || tt === "bodyweight") && (
+        <td className="py-1 pr-1">
+          <input
+            inputMode="decimal"
+            disabled={readOnly}
+            value={weight}
+            onChange={(e) => setWeight(e.target.value)}
+            list={readOnly ? undefined : datalistId}
+            className={cellInput}
+            aria-label={weightHeader(tt)}
+          />
+          {!readOnly ? (
+            <datalist id={datalistId}>
+              {weightPresets.map((v, i) => (
+                <option key={`${datalistId}-${i}`} value={v} />
+              ))}
+            </datalist>
+          ) : null}
+        </td>
+      )}
+      <td className="py-1 pr-1">
+        <input
+          inputMode="decimal"
+          disabled={readOnly}
+          value={rir}
+          onChange={(e) => setRir(e.target.value)}
+          className={cellInput}
+          aria-label="RIR"
+        />
+      </td>
+      <td className="py-1 pr-1 text-right text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
+        {volumeLocal == null ? "—" : Math.round(volumeLocal).toLocaleString()}
+      </td>
+      <td className="max-w-[7rem] py-1 pr-1 sm:max-w-[10rem]">
         <input
           disabled={readOnly}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+          className={cellInput}
+          aria-label="Note"
         />
-      </label>
+      </td>
+      {!readOnly ? (
+        <td className="py-1 text-center">
+          <button
+            type="button"
+            onClick={() => onRequestRemove(row.id)}
+            className="rounded px-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+          >
+            ×
+          </button>
+        </td>
+      ) : (
+        <td className="py-1" />
+      )}
+    </tr>
+  );
+}
 
-      <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        Volume:{" "}
-        <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-          {volumeLocal == null ? "—" : Math.round(volumeLocal).toLocaleString()}
-        </span>
-      </p>
+function ExerciseSetTable({
+  exerciseName,
+  trackingType,
+  sets,
+  rows,
+  weightPresets,
+  readOnly,
+  pending,
+  onAddSet,
+  onRequestRemove,
+}: {
+  exerciseName: string;
+  trackingType: TrackingType;
+  sets: { id: string; set_number: number }[];
+  rows: FlatSetRow[];
+  weightPresets: number[];
+  readOnly?: boolean;
+  pending: boolean;
+  onAddSet: () => void;
+  onRequestRemove: (setId: string) => void;
+}) {
+  const tt = trackingType;
+  const showWeightCol =
+    tt === "weighted" || tt === "assisted" || tt === "bodyweight";
 
-      {!readOnly && weightPresets.length > 0 ? (
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-          {weightPresets.slice(0, 24).map((w) => (
-            <button
-              key={w}
-              type="button"
-              onClick={() => setWeight(String(w))}
-              className="shrink-0 rounded-full border border-zinc-300 bg-white px-3 py-1 text-sm dark:border-zinc-600 dark:bg-zinc-900"
-            >
-              {w}
-            </button>
-          ))}
+  return (
+    <section className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="border-b border-zinc-100 px-2 py-2 dark:border-zinc-800">
+        <h2 className="text-base font-bold leading-tight text-zinc-900 dark:text-zinc-50">
+          {exerciseName}
+        </h2>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[320px] border-collapse text-left text-sm">
+          <thead>
+            <tr className="border-b border-zinc-200 bg-zinc-50 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-zinc-400">
+              <th className="sticky left-0 z-10 w-8 bg-zinc-50 py-2 pl-1 pr-1 text-center dark:bg-zinc-800/50">
+                #
+              </th>
+              <th className="min-w-[3rem] py-2 pr-1">
+                {tt === "timed" ? "Sec" : "Reps"}
+              </th>
+              {showWeightCol ? (
+                <th className="min-w-[3.5rem] py-2 pr-1">{weightHeader(tt)}</th>
+              ) : null}
+              <th className="min-w-[2.75rem] py-2 pr-1">RIR</th>
+              <th className="min-w-[2.5rem] py-2 pr-1 text-right">Vol</th>
+              <th className="min-w-[5rem] py-2 pr-1">Note</th>
+              {!readOnly ? <th className="w-8 py-2 text-center" /> : null}
+            </tr>
+          </thead>
+          <tbody>
+            {sets.map((s) => {
+              const flat = rows.find((r) => r.id === s.id);
+              if (!flat) return null;
+              return (
+                <SetTableRow
+                  key={s.id}
+                  row={flat}
+                  weightPresets={weightPresets}
+                  readOnly={readOnly}
+                  onRequestRemove={onRequestRemove}
+                />
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {!readOnly ? (
+        <div className="border-t border-zinc-100 px-2 py-2 dark:border-zinc-800">
+          <Button
+            variant="secondary"
+            type="button"
+            className="w-full min-h-10 py-2 text-sm"
+            disabled={pending}
+            onClick={onAddSet}
+          >
+            + Set
+          </Button>
         </div>
       ) : null}
-    </li>
+    </section>
   );
 }
 
@@ -254,6 +284,11 @@ export function ActiveWorkout({
     });
   };
 
+  /** Defer opening the confirm modal so the same pointer gesture cannot "land" on the backdrop and dismiss it (mobile / touch). */
+  const requestRemoveSet = (setId: string) => {
+    window.setTimeout(() => setRemoveTarget(setId), 0);
+  };
+
   const onFinish = () => {
     startTransition(async () => {
       try {
@@ -279,12 +314,12 @@ export function ActiveWorkout({
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95">
-        <div className="mx-auto flex max-w-lg items-center justify-between gap-2">
+      <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/95 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-2">
           <Button
             variant="ghost"
             type="button"
-            className="min-h-11 px-2"
+            className="min-h-10 px-2 text-sm"
             onClick={() => router.push("/")}
           >
             ← Home
@@ -293,22 +328,23 @@ export function ActiveWorkout({
             <Button
               type="button"
               disabled={pending}
+              className="min-h-10"
               onClick={() => setFinishOpen(true)}
             >
               Finish
             </Button>
           ) : null}
         </div>
-        <div className="mx-auto mt-2 max-w-lg">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">{split}</p>
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
+        <div className="mx-auto max-w-3xl px-0 pt-1">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">{split}</p>
+          <h1 className="text-lg font-bold leading-snug text-zinc-900 dark:text-zinc-50">
             {readOnly ? "Workout (completed)" : "Active workout"}
           </h1>
         </div>
       </header>
 
       {error ? (
-        <div className="mx-auto max-w-lg px-4 pt-3 text-sm text-red-600">
+        <div className="mx-auto max-w-3xl px-3 pt-2 text-sm text-red-600">
           {error}
         </div>
       ) : null}
@@ -316,40 +352,20 @@ export function ActiveWorkout({
       {readOnly ? (
         <WorkoutSummary groups={groups} />
       ) : (
-        <div className="mx-auto flex max-w-lg flex-col gap-4 px-4 pb-28 pt-4">
+        <div className="mx-auto flex max-w-3xl flex-col gap-3 px-2 pb-28 pt-2 sm:px-3">
           {groups.map((g) => (
-            <section
+            <ExerciseSetTable
               key={g.exercise_id}
-              className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
-            >
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
-                {g.exercise_name}
-              </h2>
-              <ul className="mt-3 space-y-3">
-                {g.sets.map((s) => {
-                  const flat = rows.find((r) => r.id === s.id);
-                  if (!flat) return null;
-                  return (
-                    <SetRowEditor
-                      key={s.id}
-                      row={flat}
-                      weightPresets={weightPresets}
-                      readOnly={readOnly}
-                      onRequestRemove={setRemoveTarget}
-                    />
-                  );
-                })}
-              </ul>
-              <Button
-                variant="secondary"
-                type="button"
-                className="mt-3 w-full"
-                disabled={pending}
-                onClick={() => handleAddSet(g.exercise_id)}
-              >
-                Add set
-              </Button>
-            </section>
+              exerciseName={g.exercise_name}
+              trackingType={g.tracking_type}
+              sets={g.sets}
+              rows={rows}
+              weightPresets={weightPresets}
+              readOnly={readOnly}
+              pending={pending}
+              onAddSet={() => handleAddSet(g.exercise_id)}
+              onRequestRemove={requestRemoveSet}
+            />
           ))}
         </div>
       )}

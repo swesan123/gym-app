@@ -52,6 +52,7 @@ export function Modal({
         aria-modal="true"
         aria-labelledby="modal-title"
         className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-zinc-900"
+        onMouseDown={(e) => e.stopPropagation()}
       >
         <h2 id="modal-title" className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
           {title}
