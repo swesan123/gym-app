@@ -35,7 +35,14 @@ jobs:
             echo "Set it to the Supabase pooler/direct Postgres URI used for CI migrations."
             exit 1
           fi
-          supabase db push --include-all --db-url "$SUPABASE_MIGRATION_DB_URL"
+          # Database was bootstrapped outside CLI history; mark known versions as applied
+          # so CI migrations are idempotent and non-interactive.
+          supabase migration repair --status applied 20250506120000 --db-url "$SUPABASE_MIGRATION_DB_URL" || true
+          supabase migration repair --status applied 20250507120000 --db-url "$SUPABASE_MIGRATION_DB_URL" || true
+          supabase migration repair --status applied 20250508120000 --db-url "$SUPABASE_MIGRATION_DB_URL" || true
+          supabase migration repair --status applied 20260507005425 --db-url "$SUPABASE_MIGRATION_DB_URL" || true
+          supabase migration repair --status applied 20260507011724 --db-url "$SUPABASE_MIGRATION_DB_URL" || true
+          supabase db push --include-all --yes --db-url "$SUPABASE_MIGRATION_DB_URL"
 
   deploy-vercel:
     name: Deploy to Vercel
