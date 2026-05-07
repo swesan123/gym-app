@@ -28,8 +28,14 @@ jobs:
 
       - name: Apply migrations
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: supabase db push --db-url "$SUPABASE_DB_URL"
+          SUPABASE_MIGRATION_DB_URL: ${{ secrets.SUPABASE_MIGRATION_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_MIGRATION_DB_URL" ]; then
+            echo "Missing GitHub secret: SUPABASE_MIGRATION_DB_URL"
+            echo "Set it to the Supabase pooler/direct Postgres URI used for CI migrations."
+            exit 1
+          fi
+          supabase db push --db-url "$SUPABASE_MIGRATION_DB_URL"
 
   deploy-vercel:
     name: Deploy to Vercel
