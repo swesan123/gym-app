@@ -35,7 +35,7 @@ jobs:
             echo "Set it to the Supabase pooler/direct Postgres URI used for CI migrations."
             exit 1
           fi
-          supabase db push --db-url "$SUPABASE_MIGRATION_DB_URL"
+          supabase db push --include-all --db-url "$SUPABASE_MIGRATION_DB_URL"
 
   deploy-vercel:
     name: Deploy to Vercel
