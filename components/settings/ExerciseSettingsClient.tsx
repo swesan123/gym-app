@@ -28,6 +28,13 @@ function muscleOptions(current?: string | null): string[] {
   return [...s].sort((a, b) => a.localeCompare(b));
 }
 
+function parseNullableNumber(raw: FormDataEntryValue | null): number | null {
+  const value = String(raw ?? "").trim();
+  if (!value) return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
 export function ExerciseSettingsClient({
   exercises,
   splits,
@@ -69,6 +76,10 @@ export function ExerciseSettingsClient({
     const split = String(fd.get("split") ?? "");
     const default_sets = Number(fd.get("default_sets"));
     const tracking_type = String(fd.get("tracking_type")) as TrackingType;
+    const notes = String(fd.get("notes") ?? "").trim() || null;
+    const machine_start_weight = parseNullableNumber(fd.get("machine_start_weight"));
+    const machine_end_weight = parseNullableNumber(fd.get("machine_end_weight"));
+    const machine_increment = parseNullableNumber(fd.get("machine_increment"));
 
     startTransition(async () => {
       try {
@@ -80,6 +91,10 @@ export function ExerciseSettingsClient({
           split,
           default_sets: Number.isFinite(default_sets) ? default_sets : 3,
           tracking_type,
+          notes,
+          machine_start_weight,
+          machine_end_weight,
+          machine_increment,
         });
         setEditing(null);
         refresh();
@@ -97,6 +112,10 @@ export function ExerciseSettingsClient({
     const split = String(fd.get("split") ?? "");
     const default_sets = Number(fd.get("default_sets"));
     const tracking_type = String(fd.get("tracking_type")) as TrackingType;
+    const notes = String(fd.get("notes") ?? "").trim() || null;
+    const machine_start_weight = parseNullableNumber(fd.get("machine_start_weight"));
+    const machine_end_weight = parseNullableNumber(fd.get("machine_end_weight"));
+    const machine_increment = parseNullableNumber(fd.get("machine_increment"));
 
     startTransition(async () => {
       try {
@@ -107,6 +126,10 @@ export function ExerciseSettingsClient({
           split,
           default_sets: Number.isFinite(default_sets) ? default_sets : 3,
           tracking_type,
+          notes,
+          machine_start_weight,
+          machine_end_weight,
+          machine_increment,
         });
         setAdding(false);
         refresh();
@@ -129,6 +152,13 @@ export function ExerciseSettingsClient({
                 className="font-medium text-emerald-700 underline dark:text-emerald-400"
               >
                 Manage splits
+              </Link>
+              {" "}and{" "}
+              <Link
+                href="/settings/profile"
+                className="font-medium text-emerald-700 underline dark:text-emerald-400"
+              >
+                profile
               </Link>
               .
             </p>
@@ -159,6 +189,11 @@ export function ExerciseSettingsClient({
                     {ex.split} · {ex.muscle} · {ex.tracking_type} ·{" "}
                     {ex.default_sets} sets
                   </p>
+                  {ex.notes ? (
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                      {ex.notes}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex shrink-0 flex-col gap-2">
                   <Button
@@ -287,6 +322,51 @@ export function ExerciseSettingsClient({
                 ))}
               </select>
             </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              Exercise notes
+              <textarea
+                name="notes"
+                rows={3}
+                defaultValue={editing.notes ?? ""}
+                placeholder="Machine settings, setup cues, or reminders"
+                className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              />
+            </label>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                Machine start
+                <input
+                  name="machine_start_weight"
+                  type="number"
+                  inputMode="decimal"
+                  step="any"
+                  defaultValue={editing.machine_start_weight ?? ""}
+                  className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                Machine end
+                <input
+                  name="machine_end_weight"
+                  type="number"
+                  inputMode="decimal"
+                  step="any"
+                  defaultValue={editing.machine_end_weight ?? ""}
+                  className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                Machine increment
+                <input
+                  name="machine_increment"
+                  type="number"
+                  inputMode="decimal"
+                  step="any"
+                  defaultValue={editing.machine_increment ?? ""}
+                  className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                />
+              </label>
+            </div>
           </form>
         ) : null}
       </Modal>
@@ -390,6 +470,47 @@ export function ExerciseSettingsClient({
               ))}
             </select>
           </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            Exercise notes
+            <textarea
+              name="notes"
+              rows={3}
+              placeholder="Machine settings, setup cues, or reminders"
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base dark:border-zinc-600 dark:bg-zinc-950"
+            />
+          </label>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              Machine start
+              <input
+                name="machine_start_weight"
+                type="number"
+                inputMode="decimal"
+                step="any"
+                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              Machine end
+              <input
+                name="machine_end_weight"
+                type="number"
+                inputMode="decimal"
+                step="any"
+                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              Machine increment
+              <input
+                name="machine_increment"
+                type="number"
+                inputMode="decimal"
+                step="any"
+                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              />
+            </label>
+          </div>
           {sortedSplits.length === 0 ? (
             <p className="text-sm text-amber-800 dark:text-amber-200">
               {splitsTableReady ? (

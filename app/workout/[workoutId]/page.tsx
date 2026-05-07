@@ -4,7 +4,9 @@ import { ActiveWorkout } from "@/components/workout/ActiveWorkout";
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
+  fetchBodyWeight,
   fetchGlobalWeightPresets,
+  fetchPreviousWeightsForWorkout,
   fetchSetsForWorkout,
 } from "@/lib/queries/read";
 import { createClient } from "@/lib/supabase/server";
@@ -29,9 +31,11 @@ export default async function WorkoutSessionPage({ params }: Props) {
     notFound();
   }
 
-  const [rows, weightPresets] = await Promise.all([
+  const [rows, weightPresets, previousWeights, bodyWeight] = await Promise.all([
     fetchSetsForWorkout(workoutId),
     fetchGlobalWeightPresets(),
+    fetchPreviousWeightsForWorkout(workoutId),
+    fetchBodyWeight(),
   ]);
 
   return (
@@ -41,6 +45,8 @@ export default async function WorkoutSessionPage({ params }: Props) {
       status={workout.status}
       rows={rows}
       weightPresets={weightPresets}
+      previousWeights={previousWeights}
+      bodyWeight={bodyWeight}
     />
   );
 }

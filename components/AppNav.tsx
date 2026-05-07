@@ -6,6 +6,7 @@ const links = [
   { href: "/progress", label: "Progress" },
   { href: "/settings/splits", label: "Splits" },
   { href: "/settings/exercises", label: "Exercises" },
+  { href: "/settings/profile", label: "Profile" },
 ] as const;
 
 export function AppNav() {

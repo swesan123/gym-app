@@ -12,6 +12,10 @@ export async function updateExercise(input: {
   split: string;
   default_sets: number;
   tracking_type: TrackingType;
+  notes: string | null;
+  machine_start_weight: number | null;
+  machine_end_weight: number | null;
+  machine_increment: number | null;
 }) {
   const supabase = await createClient();
   const { error } = await supabase
@@ -22,6 +26,10 @@ export async function updateExercise(input: {
       split: input.split.trim(),
       default_sets: input.default_sets,
       tracking_type: input.tracking_type,
+      notes: input.notes,
+      machine_start_weight: input.machine_start_weight,
+      machine_end_weight: input.machine_end_weight,
+      machine_increment: input.machine_increment,
     })
     .eq("id", input.id);
 
@@ -36,6 +44,10 @@ export async function createExercise(input: {
   split: string;
   default_sets: number;
   tracking_type: TrackingType;
+  notes: string | null;
+  machine_start_weight: number | null;
+  machine_end_weight: number | null;
+  machine_increment: number | null;
 }) {
   const supabase = await createClient();
   const { error } = await supabase.from("exercises").insert({
@@ -44,6 +56,10 @@ export async function createExercise(input: {
     split: input.split.trim(),
     default_sets: input.default_sets,
     tracking_type: input.tracking_type,
+    notes: input.notes,
+    machine_start_weight: input.machine_start_weight,
+    machine_end_weight: input.machine_end_weight,
+    machine_increment: input.machine_increment,
   });
 
   if (error) throw new Error(error.message);

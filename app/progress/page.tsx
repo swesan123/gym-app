@@ -1,3 +1,4 @@
+import { ProgressCharts } from "@/components/progress/ProgressCharts";
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv } from "@/lib/env";
@@ -29,6 +30,8 @@ export default async function ProgressPage() {
       <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
         Weekly volume by exercise and muscle (completed workouts).
       </p>
+
+      {rows.length > 0 ? <ProgressCharts rows={rows} /> : null}
 
       <div className="mt-6 overflow-x-auto rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <table className="min-w-[720px] w-full border-collapse text-left text-sm">

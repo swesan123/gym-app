@@ -19,19 +19,59 @@ import { parseOptionalNumber } from "@/lib/parse";
 import { computeSetVolume } from "@/lib/volume";
 
 function weightHeader(tt: TrackingType) {
-  if (tt === "assisted") return "Assist";
+  if (tt === "assisted") return "Weight";
   if (tt === "bodyweight") return "Extra wt";
   return "Wt";
+}
+
+const REPS_PRESETS = [4, 5, 6, 8, 10, 12, 15, 20];
+const RIR_PRESETS = [0, 1, 2, 3, 4];
+
+function buildMachineWeightPresets({
+  machineStartWeight,
+  machineEndWeight,
+  machineIncrement,
+}: {
+  machineStartWeight?: number | null;
+  machineEndWeight?: number | null;
+  machineIncrement?: number | null;
+}): number[] {
+  if (
+    machineStartWeight == null ||
+    machineEndWeight == null ||
+    machineIncrement == null ||
+    machineIncrement <= 0 ||
+    machineEndWeight < machineStartWeight
+  ) {
+    return [];
+  }
+
+  const values: number[] = [];
+  const maxSteps = 100;
+  for (let i = 0; i < maxSteps; i += 1) {
+    const value = machineStartWeight + i * machineIncrement;
+    if (value > machineEndWeight + 1e-9) break;
+    values.push(Number(value.toFixed(4)));
+  }
+  return values;
 }
 
 function SetTableRow({
   row,
   weightPresets,
+  previousWeight,
+  showPreviousWeight,
+  showWeightCol,
+  bodyWeight,
   readOnly,
   onRequestRemove,
 }: {
   row: FlatSetRow;
   weightPresets: number[];
+  previousWeight: number | null;
+  showPreviousWeight: boolean;
+  showWeightCol: boolean;
+  bodyWeight: number | null;
   readOnly?: boolean;
   onRequestRemove: (setId: string) => void;
 }) {
@@ -49,6 +89,7 @@ function SetTableRow({
     reps: parseOptionalNumber(reps),
     weight: parseOptionalNumber(weight),
     durationSeconds: parseOptionalNumber(duration),
+    bodyWeight,
   });
 
   useEffect(() => {
@@ -71,6 +112,8 @@ function SetTableRow({
   }, [readOnly, row.id, reps, weight, rir, duration, note]);
 
   const datalistId = `weights-${row.id}`;
+  const repsListId = `reps-${row.id}`;
+  const rirListId = `rir-${row.id}`;
   const tt = row.tracking_type;
 
   const cellInput =
@@ -99,12 +142,20 @@ function SetTableRow({
             disabled={readOnly}
             value={reps}
             onChange={(e) => setReps(e.target.value)}
+            list={readOnly ? undefined : repsListId}
             className={cellInput}
             aria-label="Reps"
           />
+          {!readOnly ? (
+            <datalist id={repsListId}>
+              {REPS_PRESETS.map((v) => (
+                <option key={`${repsListId}-${v}`} value={v} />
+              ))}
+            </datalist>
+          ) : null}
         </td>
       )}
-      {(tt === "weighted" || tt === "assisted" || tt === "bodyweight") && (
+      {showWeightCol && (
         <td className="py-1 pr-1">
           <input
             inputMode="decimal"
@@ -124,20 +175,33 @@ function SetTableRow({
           ) : null}
         </td>
       )}
+      {showPreviousWeight ? (
+        <td className="py-1 pl-2 pr-1 text-right text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
+          {previousWeight == null ? "—" : previousWeight.toLocaleString()}
+        </td>
+      ) : null}
       <td className="py-1 pr-1">
         <input
           inputMode="decimal"
           disabled={readOnly}
           value={rir}
           onChange={(e) => setRir(e.target.value)}
+          list={readOnly ? undefined : rirListId}
           className={cellInput}
           aria-label="RIR"
         />
+        {!readOnly ? (
+          <datalist id={rirListId}>
+            {RIR_PRESETS.map((v) => (
+              <option key={`${rirListId}-${v}`} value={v} />
+            ))}
+          </datalist>
+        ) : null}
       </td>
-      <td className="py-1 pr-1 text-right text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
+      <td className="min-w-[3.5rem] py-1 pl-2 pr-1 text-right text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
         {volumeLocal == null ? "—" : Math.round(volumeLocal).toLocaleString()}
       </td>
-      <td className="max-w-[7rem] py-1 pr-1 sm:max-w-[10rem]">
+      <td className="max-w-[7rem] py-1 pl-2 pr-1 sm:max-w-[10rem]">
         <input
           disabled={readOnly}
           value={note}
@@ -165,20 +229,28 @@ function SetTableRow({
 
 function ExerciseSetTable({
   exerciseName,
+  exerciseId,
+  exerciseNotes,
   trackingType,
   sets,
   rows,
   weightPresets,
+  previousWeights,
+  bodyWeight,
   readOnly,
   pending,
   onAddSet,
   onRequestRemove,
 }: {
   exerciseName: string;
+  exerciseId: string;
+  exerciseNotes?: string | null;
   trackingType: TrackingType;
   sets: { id: string; set_number: number }[];
   rows: FlatSetRow[];
   weightPresets: number[];
+  previousWeights: Record<string, number>;
+  bodyWeight: number | null;
   readOnly?: boolean;
   pending: boolean;
   onAddSet: () => void;
@@ -187,6 +259,7 @@ function ExerciseSetTable({
   const tt = trackingType;
   const showWeightCol =
     tt === "weighted" || tt === "assisted" || tt === "bodyweight";
+  const showPreviousWeight = showWeightCol;
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
@@ -194,6 +267,11 @@ function ExerciseSetTable({
         <h2 className="text-base font-bold leading-tight text-zinc-900 dark:text-zinc-50">
           {exerciseName}
         </h2>
+        {exerciseNotes ? (
+          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+            {exerciseNotes}
+          </p>
+        ) : null}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[320px] border-collapse text-left text-sm">
@@ -208,9 +286,12 @@ function ExerciseSetTable({
               {showWeightCol ? (
                 <th className="min-w-[3.5rem] py-2 pr-1">{weightHeader(tt)}</th>
               ) : null}
+              {showPreviousWeight ? (
+                <th className="min-w-[3.25rem] py-2 pl-2 pr-1 text-right">Last</th>
+              ) : null}
               <th className="min-w-[2.75rem] py-2 pr-1">RIR</th>
-              <th className="min-w-[2.5rem] py-2 pr-1 text-right">Vol</th>
-              <th className="min-w-[5rem] py-2 pr-1">Note</th>
+              <th className="min-w-[3.5rem] py-2 pl-2 pr-1 text-right">Vol</th>
+              <th className="min-w-[6rem] py-2 pl-2 pr-1">Note</th>
               {!readOnly ? <th className="w-8 py-2 text-center" /> : null}
             </tr>
           </thead>
@@ -220,9 +301,15 @@ function ExerciseSetTable({
               if (!flat) return null;
               return (
                 <SetTableRow
-                  key={s.id}
+                  key={`${s.id}-${flat.reps ?? ""}-${flat.weight ?? ""}-${flat.rir ?? ""}-${flat.duration_seconds ?? ""}-${flat.note ?? ""}`}
                   row={flat}
                   weightPresets={weightPresets}
+                  previousWeight={
+                    previousWeights[`${exerciseId}:${flat.set_number}`] ?? null
+                  }
+                  showPreviousWeight={showPreviousWeight}
+                  showWeightCol={showWeightCol}
+                  bodyWeight={bodyWeight}
                   readOnly={readOnly}
                   onRequestRemove={onRequestRemove}
                 />
@@ -254,12 +341,16 @@ export function ActiveWorkout({
   status,
   rows,
   weightPresets,
+  previousWeights,
+  bodyWeight,
 }: {
   workoutId: string;
   split: string;
   status: "draft" | "completed";
   rows: FlatSetRow[];
   weightPresets: number[];
+  previousWeights: Record<string, number>;
+  bodyWeight: number | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -269,6 +360,22 @@ export function ActiveWorkout({
   const [finishOpen, setFinishOpen] = useState(false);
 
   const groups = useMemo(() => groupFlatSets(rows), [rows]);
+  const exerciseWeightPresets = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const row of rows) {
+      if (map.has(row.exercise_id)) continue;
+      const machinePresets = buildMachineWeightPresets({
+        machineStartWeight: row.machine_start_weight,
+        machineEndWeight: row.machine_end_weight,
+        machineIncrement: row.machine_increment,
+      });
+      const merged = [...new Set([...weightPresets, ...machinePresets])].sort(
+        (a, b) => a - b,
+      );
+      map.set(row.exercise_id, merged);
+    }
+    return map;
+  }, [rows, weightPresets]);
 
   const onConfirmRemove = () => {
     if (!removeTarget) return;
@@ -357,10 +464,18 @@ export function ActiveWorkout({
             <ExerciseSetTable
               key={g.exercise_id}
               exerciseName={g.exercise_name}
+              exerciseId={g.exercise_id}
+              exerciseNotes={
+                rows.find((r) => r.exercise_id === g.exercise_id)?.exercise_notes
+              }
               trackingType={g.tracking_type}
               sets={g.sets}
               rows={rows}
-              weightPresets={weightPresets}
+              weightPresets={
+                exerciseWeightPresets.get(g.exercise_id) ?? weightPresets
+              }
+              previousWeights={previousWeights}
+              bodyWeight={bodyWeight}
               readOnly={readOnly}
               pending={pending}
               onAddSet={() => handleAddSet(g.exercise_id)}

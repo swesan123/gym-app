@@ -22,7 +22,11 @@ export async function fetchSetsForWorkout(
       note,
       exercises (
         name,
-        tracking_type
+        tracking_type,
+        notes,
+        machine_start_weight,
+        machine_end_weight,
+        machine_increment
       )
     `,
     )
@@ -34,6 +38,10 @@ export async function fetchSetsForWorkout(
     const ex = row.exercises as unknown as {
       name: string;
       tracking_type: TrackingType;
+      notes: string | null;
+      machine_start_weight: number | null;
+      machine_end_weight: number | null;
+      machine_increment: number | null;
     } | null;
 
     return {
@@ -48,6 +56,10 @@ export async function fetchSetsForWorkout(
       note: row.note,
       exercise_name: ex?.name ?? "Unknown",
       tracking_type: (ex?.tracking_type ?? "weighted") as TrackingType,
+      exercise_notes: ex?.notes ?? null,
+      machine_start_weight: ex?.machine_start_weight ?? null,
+      machine_end_weight: ex?.machine_end_weight ?? null,
+      machine_increment: ex?.machine_increment ?? null,
     };
   });
 
@@ -73,6 +85,90 @@ export async function fetchGlobalWeightPresets(): Promise<number[]> {
   const nums = (data ?? []).map((r) => Number(r.value));
   // Seed may be applied more than once; dedupe so list keys stay unique.
   return [...new Set(nums)].sort((a, b) => a - b);
+}
+
+export async function fetchBodyWeight(): Promise<number | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("user_training_profile")
+    .select("body_weight")
+    .eq("singleton", true)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data?.body_weight == null ? null : Number(data.body_weight);
+}
+
+export async function fetchPreviousWeightsForWorkout(
+  workoutId: string,
+): Promise<Record<string, number>> {
+  const supabase = await createClient();
+
+  const { data: workout, error: workoutErr } = await supabase
+    .from("workouts")
+    .select("id, date")
+    .eq("id", workoutId)
+    .single();
+  if (workoutErr || !workout) {
+    throw new Error(workoutErr?.message ?? "Workout not found");
+  }
+
+  const { data: currentSets, error: currentErr } = await supabase
+    .from("workout_sets")
+    .select("exercise_id, set_number")
+    .eq("workout_id", workoutId);
+  if (currentErr) throw new Error(currentErr.message);
+
+  const exerciseIds = [
+    ...new Set((currentSets ?? []).map((s) => s.exercise_id).filter(Boolean)),
+  ];
+  if (!exerciseIds.length) return {};
+
+  const { data: completedWorkouts, error: completedErr } = await supabase
+    .from("workouts")
+    .select("id, date, created_at")
+    .eq("status", "completed")
+    .lt("date", workout.date)
+    .order("date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(250);
+  if (completedErr) throw new Error(completedErr.message);
+
+  const workoutIds = (completedWorkouts ?? []).map((w) => w.id);
+  if (!workoutIds.length) return {};
+
+  const rankByWorkoutId = new Map<string, number>();
+  workoutIds.forEach((id, idx) => rankByWorkoutId.set(id, idx));
+
+  const { data: previousSetRows, error: previousErr } = await supabase
+    .from("workout_sets")
+    .select("workout_id, exercise_id, set_number, weight")
+    .in("workout_id", workoutIds)
+    .in("exercise_id", exerciseIds)
+    .not("weight", "is", null);
+  if (previousErr) throw new Error(previousErr.message);
+
+  const best = new Map<
+    string,
+    {
+      rank: number;
+      weight: number;
+    }
+  >();
+
+  for (const row of previousSetRows ?? []) {
+    const key = `${row.exercise_id}:${row.set_number}`;
+    const rank = rankByWorkoutId.get(row.workout_id) ?? Number.MAX_SAFE_INTEGER;
+    const weight = Number(row.weight);
+    const existing = best.get(key);
+    if (!existing || rank < existing.rank) {
+      best.set(key, { rank, weight });
+    }
+  }
+
+  return Object.fromEntries(
+    [...best.entries()].map(([key, value]) => [key, value.weight]),
+  );
 }
 
 export type WorkoutSplitRow = { id: string; name: string };

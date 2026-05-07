@@ -84,6 +84,13 @@ export async function updateWorkoutSet(input: {
   note?: string | null;
 }) {
   const supabase = await createClient();
+  const { data: profile } = await supabase
+    .from("user_training_profile")
+    .select("body_weight")
+    .eq("singleton", true)
+    .maybeSingle();
+  const bodyWeight =
+    profile?.body_weight == null ? null : Number(profile.body_weight);
 
   const { data: row, error: fetchErr } = await supabase
     .from("workout_sets")
@@ -114,6 +121,7 @@ export async function updateWorkoutSet(input: {
     reps,
     weight,
     durationSeconds,
+    bodyWeight,
   });
 
   const { error } = await supabase

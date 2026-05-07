@@ -6,6 +6,10 @@ export type FlatSetRow = SummarySet & {
   exercise_id: string;
   exercise_name: string;
   tracking_type: TrackingType;
+  exercise_notes?: string | null;
+  machine_start_weight?: number | null;
+  machine_end_weight?: number | null;
+  machine_increment?: number | null;
 };
 
 export function groupFlatSets(rows: FlatSetRow[]): SummaryExercise[] {

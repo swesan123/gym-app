@@ -14,6 +14,9 @@ export type Database = {
           default_sets: number;
           tracking_type: TrackingType;
           notes: string | null;
+          machine_start_weight: number | null;
+          machine_end_weight: number | null;
+          machine_increment: number | null;
           created_at: string;
         };
         Insert: {
@@ -24,6 +27,9 @@ export type Database = {
           default_sets?: number;
           tracking_type: TrackingType;
           notes?: string | null;
+          machine_start_weight?: number | null;
+          machine_end_weight?: number | null;
+          machine_increment?: number | null;
           created_at?: string;
         };
         Update: {
@@ -34,7 +40,30 @@ export type Database = {
           default_sets?: number;
           tracking_type?: TrackingType;
           notes?: string | null;
+          machine_start_weight?: number | null;
+          machine_end_weight?: number | null;
+          machine_increment?: number | null;
           created_at?: string;
+        };
+      };
+      user_training_profile: {
+        Row: {
+          singleton: boolean;
+          body_weight: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          singleton?: boolean;
+          body_weight?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          singleton?: boolean;
+          body_weight?: number | null;
+          created_at?: string;
+          updated_at?: string;
         };
       };
       workout_splits: {
