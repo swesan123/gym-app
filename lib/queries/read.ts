@@ -234,7 +234,7 @@ export async function fetchSplitsCatalog(): Promise<SplitsCatalog> {
   const { data, error } = await supabase
     .from("workout_splits")
     .select("id, name")
-    .order("sort_order", { ascending: true })
+    .order("sort_order", { ascending: false })
     .order("name", { ascending: true });
 
   if (!error) {

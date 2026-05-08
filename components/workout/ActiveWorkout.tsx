@@ -118,6 +118,8 @@ function SetTableRow({
 
   const cellInput =
     "box-border h-10 min-h-10 w-full min-w-0 rounded border border-zinc-300 bg-white px-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-950";
+  const readOnlyCellInput =
+    "box-border h-10 min-h-10 w-full min-w-0 rounded border border-zinc-300 bg-zinc-50 px-1.5 text-sm text-right tabular-nums text-zinc-700 cursor-default dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300";
 
   return (
     <tr className="border-b border-zinc-100 dark:border-zinc-800">
@@ -176,8 +178,14 @@ function SetTableRow({
         </td>
       )}
       {showPreviousWeight ? (
-        <td className="py-1 pl-2 pr-1 text-right text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
-          {previousWeight == null ? "—" : previousWeight.toLocaleString()}
+        <td className="min-w-[4.75rem] py-1 pl-2 pr-1">
+          <input
+            value={previousWeight == null ? "—" : previousWeight.toLocaleString()}
+            readOnly
+            tabIndex={-1}
+            aria-label="Last weight"
+            className={readOnlyCellInput}
+          />
         </td>
       ) : null}
       <td className="py-1 pr-1">
@@ -198,8 +206,14 @@ function SetTableRow({
           </datalist>
         ) : null}
       </td>
-      <td className="min-w-[3.5rem] py-1 pl-2 pr-1 text-right text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
-        {volumeLocal == null ? "—" : Math.round(volumeLocal).toLocaleString()}
+      <td className="min-w-[4.75rem] py-1 pl-2 pr-1">
+        <input
+          value={volumeLocal == null ? "—" : Math.round(volumeLocal).toLocaleString()}
+          readOnly
+          tabIndex={-1}
+          aria-label="Set volume"
+          className={readOnlyCellInput}
+        />
       </td>
       <td className="max-w-[7rem] py-1 pl-2 pr-1 sm:max-w-[10rem]">
         <input
@@ -287,11 +301,11 @@ function ExerciseSetTable({
                 <th className="min-w-[3.5rem] py-2 pr-1">{weightHeader(tt)}</th>
               ) : null}
               {showPreviousWeight ? (
-                <th className="min-w-[3.25rem] py-2 pl-2 pr-1 text-right">Last</th>
+                <th className="min-w-[4.75rem] py-2 pl-2 pr-1 text-right">Last</th>
               ) : null}
-              <th className="min-w-[2.75rem] py-2 pr-1">RIR</th>
-              <th className="min-w-[3.5rem] py-2 pl-2 pr-1 text-right">Vol</th>
-              <th className="min-w-[6rem] py-2 pl-2 pr-1">Note</th>
+              <th className="min-w-[4.5rem] py-2 pr-1">RIR</th>
+              <th className="min-w-[4.75rem] py-2 pl-2 pr-1 text-right">Vol</th>
+              <th className="min-w-[7.5rem] py-2 pl-2 pr-1">Note</th>
               {!readOnly ? <th className="w-8 py-2 text-center" /> : null}
             </tr>
           </thead>

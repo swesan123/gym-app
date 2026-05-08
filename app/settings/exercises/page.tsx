@@ -15,7 +15,7 @@ export default async function ExercisesSettingsPage() {
     supabase
       .from("exercises")
       .select("*")
-      .order("split", { ascending: true })
+      .order("created_at", { ascending: false })
       .order("name", { ascending: true }),
     fetchSplitsCatalog(),
   ]);

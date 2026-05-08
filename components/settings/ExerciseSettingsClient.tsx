@@ -52,16 +52,16 @@ export function ExerciseSettingsClient({
   const [adding, setAdding] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const sortedSplits = useMemo(
-    () => [...splits].sort((a, b) => a.name.localeCompare(b.name)),
-    [splits],
-  );
+  const sortedSplits = useMemo(() => [...splits], [splits]);
 
   const sorted = useMemo(
     () =>
-      [...exercises].sort((a, b) =>
-        `${a.split} ${a.name}`.localeCompare(`${b.split} ${b.name}`),
-      ),
+      [...exercises].sort((a, b) => {
+        const dateA = new Date(a.created_at).getTime();
+        const dateB = new Date(b.created_at).getTime();
+        if (dateA !== dateB) return dateB - dateA;
+        return a.name.localeCompare(b.name);
+      }),
     [exercises],
   );
 
@@ -235,7 +235,7 @@ export function ExerciseSettingsClient({
         }}
       >
         {editing ? (
-          <form id="edit-exercise-form" className="space-y-3" onSubmit={onSaveEdit}>
+          <form key={editing.id} id="edit-exercise-form" className="space-y-3" onSubmit={onSaveEdit}>
             <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
               Name
               <input
