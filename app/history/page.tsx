@@ -14,6 +14,7 @@ export default async function HistoryPage() {
   const { data: workouts, error } = await supabase
     .from("workouts")
     .select("*")
+    .order("date", { ascending: false })
     .order("created_at", { ascending: false });
 
   if (error) {
