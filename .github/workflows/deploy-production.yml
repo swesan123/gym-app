@@ -42,6 +42,8 @@ jobs:
           supabase migration repair --status applied 20250508120000 --db-url "$SUPABASE_MIGRATION_DB_URL" || true
           supabase migration repair --status applied 20260507005425 --db-url "$SUPABASE_MIGRATION_DB_URL" || true
           supabase migration repair --status applied 20260507011724 --db-url "$SUPABASE_MIGRATION_DB_URL" || true
+          supabase migration repair --status applied 20260508022535 --db-url "$SUPABASE_MIGRATION_DB_URL" || true
+          supabase migration repair --status applied 20260508022548 --db-url "$SUPABASE_MIGRATION_DB_URL" || true
           supabase db push --include-all --yes --db-url "$SUPABASE_MIGRATION_DB_URL"
 
   deploy-vercel:
