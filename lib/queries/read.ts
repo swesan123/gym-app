@@ -87,6 +87,37 @@ export async function fetchGlobalWeightPresets(): Promise<number[]> {
   return [...new Set(nums)].sort((a, b) => a - b);
 }
 
+export async function fetchExerciseWeightPresetsMap(
+  exerciseIds: string[],
+): Promise<Record<string, number[]>> {
+  const ids = [...new Set(exerciseIds.filter(Boolean))];
+  if (ids.length === 0) return {};
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("weight_options")
+    .select("exercise_id, value")
+    .in("exercise_id", ids)
+    .order("value", { ascending: true });
+
+  if (error) throw new Error(error.message);
+
+  const map = new Map<string, number[]>();
+  for (const row of data ?? []) {
+    if (!row.exercise_id) continue;
+    const nums = map.get(row.exercise_id) ?? [];
+    nums.push(Number(row.value));
+    map.set(row.exercise_id, nums);
+  }
+
+  return Object.fromEntries(
+    [...map.entries()].map(([exerciseId, values]) => [
+      exerciseId,
+      [...new Set(values)].sort((a, b) => a - b),
+    ]),
+  );
+}
+
 export async function fetchBodyWeight(): Promise<number | null> {
   const supabase = await createClient();
   const { data, error } = await supabase

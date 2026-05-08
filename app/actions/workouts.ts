@@ -213,3 +213,17 @@ export async function deleteWorkout(workoutId: string) {
   revalidatePath("/history");
   revalidatePath("/progress");
 }
+
+export async function discardDraft(workoutId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("workouts")
+    .delete()
+    .eq("id", workoutId)
+    .eq("status", "draft");
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/");
+  revalidatePath("/history");
+}

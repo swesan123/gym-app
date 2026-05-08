@@ -14,6 +14,10 @@ Mobile-first workout logging with Next.js, Tailwind, Supabase, and basic PWA sup
    - [`supabase/migrations/20250506120000_initial.sql`](supabase/migrations/20250506120000_initial.sql) — tables, RLS, view  
    - [`supabase/migrations/20250507120000_dedupe_global_weight_options.sql`](supabase/migrations/20250507120000_dedupe_global_weight_options.sql) — dedupe global weights + partial unique index  
    - [`supabase/migrations/20250508120000_splits_catalog_drop_workout_type.sql`](supabase/migrations/20250508120000_splits_catalog_drop_workout_type.sql) — `workout_splits` catalog + drops legacy `workout_type` on `exercises`  
+   - [`supabase/migrations/20260507032000_training_profile_machine_weights.sql`](supabase/migrations/20260507032000_training_profile_machine_weights.sql) — body weight profile + machine weight fields  
+   - [`supabase/migrations/20260508010000_dedupe_exercises_by_name_split.sql`](supabase/migrations/20260508010000_dedupe_exercises_by_name_split.sql) — remove duplicate exercises by `(name, split)`  
+   - [`supabase/migrations/20260508011000_seed_exercise_weight_ranges.sql`](supabase/migrations/20260508011000_seed_exercise_weight_ranges.sql) — per-exercise machine stacks / weight options  
+   - [`supabase/migrations/20260508012000_import_user_progress_history.sql`](supabase/migrations/20260508012000_import_user_progress_history.sql) — import historical completed workouts + sets  
    - [`supabase/seed.sql`](supabase/seed.sql) — default splits (if missing), exercises + weight presets (run after migrations; weight `ON CONFLICT` needs the dedupe migration)
 
    Paste each file into the SQL editor and run (or use `psql`). The migration enables row-level security with permissive allow-all policies for anonymous clients — suitable only if your deployment is private.
@@ -38,3 +42,19 @@ The default migration grants anon/authenticated full CRUD on app tables so you c
 ## Deploy (Vercel)
 
 Create a Vercel project from this repo, add the same `NEXT_PUBLIC_*` env vars, and ensure migrations + seed have been applied to production Supabase.
+
+## Backups (Google Drive)
+
+This repo includes a scheduled workflow at [`.github/workflows/backup-database.yml`](.github/workflows/backup-database.yml) that runs `pg_dump`, compresses the dump, uploads to Google Drive, and also stores a short-lived GitHub artifact.
+
+Required repository secrets:
+
+- `SUPABASE_MIGRATION_DB_URL` (Postgres connection string used for migrations/backups)
+- `GOOGLE_DRIVE_CREDENTIALS_JSON` (full service-account JSON credentials)
+- `GOOGLE_DRIVE_FOLDER_ID` (target Drive folder ID shared with that service account)
+
+Restore example:
+
+```bash
+gunzip -c gym-app-backup-YYYYMMDD-HHMMSS.sql.gz | psql "$SUPABASE_MIGRATION_DB_URL"
+```

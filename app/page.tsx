@@ -1,9 +1,9 @@
 import Link from "next/link";
 
+import { discardDraft } from "@/app/actions/workouts";
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv } from "@/lib/env";
-import { formatWorkoutWeek } from "@/lib/week";
 
 export default async function HomePage() {
   if (!hasSupabaseEnv()) {
@@ -11,16 +11,12 @@ export default async function HomePage() {
   }
 
   const supabase = await createClient();
-  const week = formatWorkoutWeek(new Date());
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const since = sevenDaysAgo.toISOString().slice(0, 10);
 
-  const [{ data: recent }, { data: draft }, { data: weekWorkouts }] =
+  const [{ data: draft }, { data: recentByDate }] =
     await Promise.all([
-      supabase
-        .from("workouts")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
       supabase
         .from("workouts")
         .select("id, split")
@@ -30,37 +26,18 @@ export default async function HomePage() {
         .maybeSingle(),
       supabase
         .from("workouts")
-        .select("id")
-        .eq("week", week)
-        .eq("status", "completed"),
+        .select("id, split, date")
+        .eq("status", "completed")
+        .gte("date", since)
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false }),
     ]);
-
-  const ids = weekWorkouts?.map((w) => w.id) ?? [];
-
-  let setCount = 0;
-  let volumeTotal = 0;
-
-  if (ids.length > 0) {
-    const { data: sets } = await supabase
-      .from("workout_sets")
-      .select("volume")
-      .in("workout_id", ids);
-
-    setCount = sets?.length ?? 0;
-    volumeTotal =
-      sets?.reduce((acc, s) => acc + (Number(s.volume) || 0), 0) ?? 0;
-  }
-
-  const workoutCount = ids.length;
 
   return (
     <div className="mx-auto max-w-lg px-4 pb-28 pt-[max(1.25rem,env(safe-area-inset-top))]">
       <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
         Gym Tracker
       </h1>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        Log fast. No spreadsheet rows.
-      </p>
 
       <div className="mt-8">
         <Link
@@ -79,54 +56,47 @@ export default async function HomePage() {
           <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
             {draft.split}
           </p>
-          <Link
-            href={`/workout/${draft.id}`}
-            className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 py-2 font-semibold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
-          >
-            Continue workout
-          </Link>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href={`/workout/${draft.id}`}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 py-2 font-semibold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+            >
+              Continue workout
+            </Link>
+            <form action={discardDraft.bind(null, draft.id)}>
+              <button
+                type="submit"
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-red-300 bg-white px-4 py-2 font-semibold text-red-700 hover:bg-red-50 dark:border-red-900 dark:bg-zinc-900 dark:text-red-400 dark:hover:bg-red-950/40"
+              >
+                Discard
+              </button>
+            </form>
+          </div>
         </div>
       ) : null}
 
-      <section className="mt-8 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-          This week ({week})
-        </h2>
-        <dl className="mt-3 grid grid-cols-3 gap-3 text-center">
-          <div className="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/80">
-            <dt className="text-xs text-zinc-500">Workouts</dt>
-            <dd className="text-xl font-bold">{workoutCount}</dd>
-          </div>
-          <div className="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/80">
-            <dt className="text-xs text-zinc-500">Sets</dt>
-            <dd className="text-xl font-bold">{setCount}</dd>
-          </div>
-          <div className="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/80">
-            <dt className="text-xs text-zinc-500">Volume</dt>
-            <dd className="text-xl font-bold">
-              {Math.round(volumeTotal).toLocaleString()}
-            </dd>
-          </div>
-        </dl>
-      </section>
-
       <section className="mt-8">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-          Most recent workout
+          Last 7 days
         </h2>
-        {recent ? (
-          <Link
-            href={`/history/${recent.id}`}
-            className="mt-3 block rounded-2xl border border-zinc-200 bg-white p-4 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800"
-          >
-            <p className="font-semibold">{recent.split}</p>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              {recent.date} · {recent.status === "draft" ? "Draft" : "Completed"}
-            </p>
-          </Link>
+        {recentByDate && recentByDate.length > 0 ? (
+          <ul className="mt-3 space-y-2">
+            {recentByDate.map((workout) => (
+              <li
+                key={workout.id}
+                className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900"
+              >
+                <span className="font-semibold">{workout.split}</span>
+                <span className="text-zinc-600 dark:text-zinc-400">
+                  {" "}
+                  · {workout.date}
+                </span>
+              </li>
+            ))}
+          </ul>
         ) : (
           <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-            No workouts yet.
+            No completed workouts in the last 7 days.
           </p>
         )}
       </section>

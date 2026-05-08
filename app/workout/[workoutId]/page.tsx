@@ -5,6 +5,7 @@ import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
   fetchBodyWeight,
+  fetchExerciseWeightPresetsMap,
   fetchGlobalWeightPresets,
   fetchPreviousWeightsForWorkout,
   fetchSetsForWorkout,
@@ -37,6 +38,9 @@ export default async function WorkoutSessionPage({ params }: Props) {
     fetchPreviousWeightsForWorkout(workoutId),
     fetchBodyWeight(),
   ]);
+  const exercisePresetMap = await fetchExerciseWeightPresetsMap(
+    rows.map((r) => r.exercise_id),
+  );
 
   return (
     <ActiveWorkout
@@ -45,6 +49,7 @@ export default async function WorkoutSessionPage({ params }: Props) {
       status={workout.status}
       rows={rows}
       weightPresets={weightPresets}
+      exercisePresetMap={exercisePresetMap}
       previousWeights={previousWeights}
       bodyWeight={bodyWeight}
     />
