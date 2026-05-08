@@ -66,7 +66,7 @@ jobs:
           echo "RCLONE_CONFIG=$RUNNER_TEMP/rclone/rclone.conf" >> "$GITHUB_ENV"
 
       - name: Upload backup to Google Drive
-        run: rclone copy "$BACKUP_FILE" gdrive:
+        run: rclone copy "$BACKUP_FILE" "gdrive:"
 
       - name: Upload backup artifact (optional)
         uses: actions/upload-artifact@v4
