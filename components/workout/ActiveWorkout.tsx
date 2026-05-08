@@ -26,6 +26,7 @@ function weightHeader(tt: TrackingType) {
 
 const REPS_PRESETS = [4, 5, 6, 8, 10, 12, 15, 20];
 const RIR_PRESETS = [0, 1, 2, 3, 4];
+const DURATION_PRESETS = [15, 20, 30, 45, 60, 90, 120];
 
 function buildMachineWeightPresets({
   machineStartWeight,
@@ -111,10 +112,23 @@ function SetTableRow({
     return () => clearTimeout(t);
   }, [readOnly, row.id, reps, weight, rir, duration, note]);
 
-  const datalistId = `weights-${row.id}`;
-  const repsListId = `reps-${row.id}`;
-  const rirListId = `rir-${row.id}`;
   const tt = row.tracking_type;
+  const repsOptions = [...new Set([...REPS_PRESETS, parseOptionalNumber(reps) ?? NaN])]
+    .filter((v) => Number.isFinite(v))
+    .sort((a, b) => a - b);
+  const weightOptions = [
+    ...new Set([...weightPresets, parseOptionalNumber(weight) ?? NaN]),
+  ]
+    .filter((v) => Number.isFinite(v))
+    .sort((a, b) => a - b);
+  const rirOptions = [...new Set([...RIR_PRESETS, parseOptionalNumber(rir) ?? NaN])]
+    .filter((v) => Number.isFinite(v))
+    .sort((a, b) => a - b);
+  const durationOptions = [
+    ...new Set([...DURATION_PRESETS, parseOptionalNumber(duration) ?? NaN]),
+  ]
+    .filter((v) => Number.isFinite(v))
+    .sort((a, b) => a - b);
 
   const cellInput =
     "box-border h-10 min-h-10 w-full min-w-0 rounded border border-zinc-300 bg-white px-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-950";
@@ -128,53 +142,55 @@ function SetTableRow({
       </td>
       {tt === "timed" ? (
         <td className="py-1 pr-1">
-          <input
-            inputMode="decimal"
+          <select
             disabled={readOnly}
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
             className={cellInput}
             aria-label="Seconds"
-          />
+          >
+            <option value="">—</option>
+            {durationOptions.map((v) => (
+              <option key={`duration-${row.id}-${v}`} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
         </td>
       ) : (
         <td className="py-1 pr-1">
-          <input
-            inputMode="decimal"
+          <select
             disabled={readOnly}
             value={reps}
             onChange={(e) => setReps(e.target.value)}
-            list={readOnly ? undefined : repsListId}
             className={cellInput}
             aria-label="Reps"
-          />
-          {!readOnly ? (
-            <datalist id={repsListId}>
-              {REPS_PRESETS.map((v) => (
-                <option key={`${repsListId}-${v}`} value={v} />
-              ))}
-            </datalist>
-          ) : null}
+          >
+            <option value="">—</option>
+            {repsOptions.map((v) => (
+              <option key={`reps-${row.id}-${v}`} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
         </td>
       )}
       {showWeightCol && (
         <td className="py-1 pr-1">
-          <input
-            inputMode="decimal"
+          <select
             disabled={readOnly}
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
-            list={readOnly ? undefined : datalistId}
             className={cellInput}
             aria-label={weightHeader(tt)}
-          />
-          {!readOnly ? (
-            <datalist id={datalistId}>
-              {weightPresets.map((v, i) => (
-                <option key={`${datalistId}-${i}`} value={v} />
-              ))}
-            </datalist>
-          ) : null}
+          >
+            <option value="">—</option>
+            {weightOptions.map((v) => (
+              <option key={`weight-${row.id}-${v}`} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
         </td>
       )}
       {showPreviousWeight ? (
@@ -189,22 +205,20 @@ function SetTableRow({
         </td>
       ) : null}
       <td className="py-1 pr-1">
-        <input
-          inputMode="decimal"
+        <select
           disabled={readOnly}
           value={rir}
           onChange={(e) => setRir(e.target.value)}
-          list={readOnly ? undefined : rirListId}
           className={cellInput}
           aria-label="RIR"
-        />
-        {!readOnly ? (
-          <datalist id={rirListId}>
-            {RIR_PRESETS.map((v) => (
-              <option key={`${rirListId}-${v}`} value={v} />
-            ))}
-          </datalist>
-        ) : null}
+        >
+          <option value="">—</option>
+          {rirOptions.map((v) => (
+            <option key={`rir-${row.id}-${v}`} value={v}>
+              {v}
+            </option>
+          ))}
+        </select>
       </td>
       <td className="min-w-[4.75rem] py-1 pl-2 pr-1">
         <input
