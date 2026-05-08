@@ -5,6 +5,7 @@ import { DeleteWorkoutButton } from "@/components/history/DeleteWorkoutButton";
 import { WorkoutSummary } from "@/components/workout/WorkoutSummary";
 import { groupFlatSets } from "@/components/workout/groupSets";
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
+import { formatDurationSeconds } from "@/lib/duration";
 import { hasSupabaseEnv } from "@/lib/env";
 import { fetchSetsForWorkout } from "@/lib/queries/read";
 import { createClient } from "@/lib/supabase/server";
@@ -31,6 +32,17 @@ export default async function HistoryDetailPage({ params }: Props) {
 
   const rows = await fetchSetsForWorkout(workoutId);
   const groups = groupFlatSets(rows);
+  const durationSeconds =
+    workout.completed_at && workout.created_at
+      ? Math.max(
+          0,
+          Math.round(
+            (new Date(workout.completed_at).getTime() -
+              new Date(workout.created_at).getTime()) /
+              1000,
+          ),
+        )
+      : null;
 
   return (
     <div className="pb-28 pt-[max(0.75rem,env(safe-area-inset-top))]">
@@ -55,6 +67,11 @@ export default async function HistoryDetailPage({ params }: Props) {
           {workout.date} · {workout.week} ·{" "}
           {workout.status === "draft" ? "Draft" : "Completed"}
         </p>
+        {workout.status === "completed" ? (
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            Duration: {formatDurationSeconds(durationSeconds)}
+          </p>
+        ) : null}
       </div>
 
       <WorkoutSummary groups={groups} />

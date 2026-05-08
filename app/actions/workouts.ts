@@ -191,9 +191,10 @@ export async function removeWorkoutSet(setId: string, workoutId: string) {
 
 export async function finishWorkout(workoutId: string) {
   const supabase = await createClient();
+  const completedAt = new Date().toISOString();
   const { error } = await supabase
     .from("workouts")
-    .update({ status: "completed" })
+    .update({ status: "completed", completed_at: completedAt })
     .eq("id", workoutId);
 
   if (error) throw new Error(error.message);

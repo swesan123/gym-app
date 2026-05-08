@@ -95,6 +95,7 @@ export type Database = {
           status: WorkoutStatus;
           notes: string | null;
           created_at: string;
+          completed_at: string | null;
         };
         Insert: {
           id?: string;
@@ -104,6 +105,7 @@ export type Database = {
           status?: WorkoutStatus;
           notes?: string | null;
           created_at?: string;
+          completed_at?: string | null;
         };
         Update: {
           id?: string;
@@ -113,6 +115,7 @@ export type Database = {
           status?: WorkoutStatus;
           notes?: string | null;
           created_at?: string;
+          completed_at?: string | null;
         };
       };
       workout_sets: {

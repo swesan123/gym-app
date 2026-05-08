@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
+import { formatDurationSeconds } from "@/lib/duration";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv } from "@/lib/env";
 
@@ -46,6 +47,17 @@ export default async function HistoryPage() {
       <ul className="mt-6 flex flex-col gap-3">
         {(workouts ?? []).map((w) => {
           const vol = volumeMap.get(w.id) ?? 0;
+          const durationSeconds =
+            w.completed_at && w.created_at
+              ? Math.max(
+                  0,
+                  Math.round(
+                    (new Date(w.completed_at).getTime() -
+                      new Date(w.created_at).getTime()) /
+                      1000,
+                  ),
+                )
+              : null;
           return (
             <li key={w.id}>
               <Link
@@ -59,6 +71,11 @@ export default async function HistoryPage() {
                       {w.date}
                       {w.status === "draft" ? " · Draft" : ""}
                     </p>
+                    {w.status === "completed" ? (
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        Duration: {formatDurationSeconds(durationSeconds)}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-zinc-500">Volume</p>
