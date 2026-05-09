@@ -93,7 +93,7 @@ export function applyProgressiveOverload(
   if (hasGrid) {
     if (p > 0) {
       // For positive overload, weighted/bodyweight move up; assisted moves down.
-      return isAssisted
+      const computed = isAssisted
         ? floorOnMachineGrid(
             raw,
             Number(machineStart),
@@ -106,6 +106,7 @@ export function applyProgressiveOverload(
             Number(machineEnd),
             Number(machineIncrement),
           );
+      return computed;
     }
     return nearestOnMachineGrid(
       raw,

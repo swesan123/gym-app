@@ -92,19 +92,18 @@ async function fetchLatestCompletedSetsByExercise(
   );
 }
 
-function shouldApplySmartProgression(
-  defaultSets: number,
+function shouldApplySmartProgressionForSet(
   defaultReps: number | null,
-  latestSets: CompletedSetPerf[] | undefined,
+  setPerf: CompletedSetPerf | undefined,
 ): boolean {
-  if (!latestSets || latestSets.length < defaultSets) return false;
   if (defaultReps == null) return false;
-
-  for (let setNumber = 1; setNumber <= defaultSets; setNumber += 1) {
-    const set = latestSets.find((s) => s.set_number === setNumber);
-    if (!set) return false;
-    if (set.reps == null || set.reps < defaultReps) return false;
-    if (set.rir == null || set.rir < SMART_PROGRESSION_RIR_TARGET) return false;
+  if (!setPerf) return false;
+  if (setPerf.reps == null || setPerf.reps < defaultReps) return false;
+  if (
+    setPerf.rir == null ||
+    setPerf.rir < SMART_PROGRESSION_RIR_TARGET
+  ) {
+    return false;
   }
   return true;
 }
@@ -186,22 +185,22 @@ export async function createWorkoutDraftAndRedirect(split: string) {
       ex.progressive_overload_pct == null
         ? null
         : Number(ex.progressive_overload_pct);
-    const defaultSets = Number(ex.default_sets ?? 0);
     const defaultReps = ex.default_reps != null ? Number(ex.default_reps) : null;
-    const progressionPassed = shouldApplySmartProgression(
-      defaultSets,
-      defaultReps,
-      latestPerfByExercise[ex.id],
-    );
-    const pctToApply =
-      progressionPassed && pctConfigured != null && pctConfigured > 0
-        ? pctConfigured
-        : 0;
+    const latestSets = latestPerfByExercise[ex.id] ?? [];
     return Array.from({ length: ex.default_sets }, (_, i) => {
       const set_number = i + 1;
       const key = `${ex.id}:${set_number}`;
       const lastW = previousByKey[key] ?? null;
       const reps = defaultReps;
+      const setPerf = latestSets.find((s) => s.set_number === set_number);
+      const progressionPassed = shouldApplySmartProgressionForSet(
+        defaultReps,
+        setPerf,
+      );
+      const pctToApply =
+        progressionPassed && pctConfigured != null && pctConfigured > 0
+          ? pctConfigured
+          : 0;
 
       let weight: number | null = null;
       if (usesLoggedWeightColumn(tt)) {
