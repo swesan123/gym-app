@@ -135,7 +135,7 @@ export async function fetchBodyWeight(): Promise<number | null> {
   return data?.body_weight == null ? null : Number(data.body_weight);
 }
 
-/** Latest logged weight per `(exercise_id, set_number)` from completed workouts strictly before `beforeDate` (YYYY-MM-DD). */
+/** Latest logged weight per `(exercise_id, set_number)` from completed workouts on or before `beforeDate` (YYYY-MM-DD). */
 export async function fetchPreviousWeightsBeforeDate(
   beforeDate: string,
   exerciseIds: string[],
@@ -149,7 +149,7 @@ export async function fetchPreviousWeightsBeforeDate(
     .from("workouts")
     .select("id, date, created_at")
     .eq("status", "completed")
-    .lt("date", beforeDate)
+    .lte("date", beforeDate)
     .order("date", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(250);
