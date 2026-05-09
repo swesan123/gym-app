@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CopyHistoryButton } from "@/components/history/CopyHistoryButton";
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
 import { formatDurationSeconds } from "@/lib/duration";
 import { hasSupabaseEnv } from "@/lib/env";
@@ -9,6 +10,22 @@ import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/database.types";
 
 type WorkoutRow = Database["public"]["Tables"]["workouts"]["Row"];
+type TrackingType = Database["public"]["Tables"]["exercises"]["Row"]["tracking_type"];
+type HistorySetRow = {
+  workout_id: string;
+  exercise_id: string;
+  set_number: number;
+  reps: number | null;
+  weight: number | null;
+  rir: number | null;
+  duration_seconds: number | null;
+  volume: number | null;
+  note: string | null;
+  exercises: {
+    name: string | null;
+    tracking_type: TrackingType | null;
+  } | null;
+};
 
 function formatWeekHeading(weekStr: string): string {
   const m = /^(\d{4})-W(\d{2})$/.exec(weekStr.trim());
@@ -33,6 +50,74 @@ function compareWorkoutsInWeek(
   return (
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
+}
+
+function formatWeight(tt: TrackingType | null, weight: number | null): string {
+  if (weight == null) return "wt —";
+  if (tt === "bodyweight") return `extra ${weight}`;
+  return `wt ${weight}`;
+}
+
+function buildHistoryCopyPayload(input: {
+  workouts: WorkoutRow[];
+  weekKeys: string[];
+  splitOrder: string[];
+  volumeMap: Map<string, number>;
+  setsByWorkout: Map<string, HistorySetRow[]>;
+}): string {
+  const lines: string[] = [];
+  lines.push("Workout History");
+  lines.push("");
+
+  for (const weekKey of input.weekKeys) {
+    lines.push(`## ${formatWeekHeading(weekKey)}`);
+    const workoutsInWeek = input.workouts
+      .filter((w) => w.week === weekKey)
+      .sort((a, b) => compareWorkoutsInWeek(a, b, input.splitOrder));
+
+    for (const w of workoutsInWeek) {
+      const vol = input.volumeMap.get(w.id) ?? 0;
+      const status = w.status === "draft" ? "Draft" : "Completed";
+      lines.push(
+        `- ${w.split} (${w.date}) — ${status} — Volume ${Math.round(vol).toLocaleString()}`,
+      );
+
+      const setRows = input.setsByWorkout.get(w.id) ?? [];
+      const byExercise = new Map<string, HistorySetRow[]>();
+      for (const row of setRows) {
+        const key = row.exercise_id;
+        const list = byExercise.get(key) ?? [];
+        list.push(row);
+        byExercise.set(key, list);
+      }
+
+      for (const [, exerciseSets] of byExercise) {
+        const sortedSets = [...exerciseSets].sort(
+          (a, b) => a.set_number - b.set_number,
+        );
+        const first = sortedSets[0];
+        const exerciseName = first.exercises?.name ?? "Unknown exercise";
+        const tt = first.exercises?.tracking_type ?? null;
+        lines.push(`  - ${exerciseName}`);
+        for (const s of sortedSets) {
+          const repOrTime =
+            tt === "timed"
+              ? `time ${s.duration_seconds ?? "—"}s`
+              : `reps ${s.reps ?? "—"}`;
+          const rir = s.rir == null ? "rir —" : `rir ${s.rir}`;
+          const volSet =
+            s.volume == null ? "vol —" : `vol ${Math.round(s.volume)}`;
+          const note = s.note?.trim() ? `; note: ${s.note.trim()}` : "";
+          lines.push(
+            `    - Set ${s.set_number}: ${repOrTime}, ${formatWeight(tt, s.weight)}, ${rir}, ${volSet}${note}`,
+          );
+        }
+      }
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n").trim();
 }
 
 export default async function HistoryPage() {
@@ -60,29 +145,59 @@ export default async function HistoryPage() {
 
   const ids = list.map((w) => w.id);
   const volumeMap = new Map<string, number>();
+  const setsByWorkout = new Map<string, HistorySetRow[]>();
 
   if (ids.length > 0) {
     const { data: sets } = await supabase
       .from("workout_sets")
-      .select("workout_id, volume")
+      .select(
+        `
+        workout_id,
+        exercise_id,
+        set_number,
+        reps,
+        weight,
+        rir,
+        duration_seconds,
+        volume,
+        note,
+        exercises(name, tracking_type)
+      `,
+      )
       .in("workout_id", ids);
 
     for (const s of sets ?? []) {
       const cur = volumeMap.get(s.workout_id) ?? 0;
       volumeMap.set(s.workout_id, cur + (Number(s.volume) || 0));
+
+      const workoutRows = setsByWorkout.get(s.workout_id) ?? [];
+      workoutRows.push(s as unknown as HistorySetRow);
+      setsByWorkout.set(s.workout_id, workoutRows);
     }
   }
 
   const uniqueWeeks = [...new Set(list.map((w) => w.week))].sort((a, b) =>
     b.localeCompare(a),
   );
+  const copyPayload = buildHistoryCopyPayload({
+    workouts: list,
+    weekKeys: uniqueWeeks,
+    splitOrder: splitNamesOrder,
+    volumeMap,
+    setsByWorkout,
+  });
 
   return (
     <div className="mx-auto max-w-lg px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
-      <h1 className="text-2xl font-bold">History</h1>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        Grouped by week. Tap a workout for details.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">History</h1>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            Grouped by week. Tap a workout for details.
+          </p>
+        </div>
+        <CopyHistoryButton payload={copyPayload} />
+      </div>
 
       <div className="mt-6 flex flex-col gap-8">
         {uniqueWeeks.map((weekKey) => {

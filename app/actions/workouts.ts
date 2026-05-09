@@ -207,6 +207,7 @@ export async function createWorkoutDraftAndRedirect(split: string) {
           ex.machine_start_weight,
           ex.machine_end_weight,
           ex.machine_increment,
+          tt,
         );
       }
 
@@ -368,6 +369,7 @@ export async function addWorkoutSet(workoutId: string, exerciseId: string) {
       exercise.machine_start_weight,
       exercise.machine_end_weight,
       exercise.machine_increment,
+      trackingType,
     );
   }
 

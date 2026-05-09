@@ -18,12 +18,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gym Tracker MVP",
+  title: "Gym Tracker",
   description: "Mobile-first workout logging",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Gym Tracker MVP",
+    title: "Gym Tracker",
     statusBarStyle: "default",
   },
   icons: {
