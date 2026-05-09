@@ -139,17 +139,22 @@ export async function fetchBodyWeight(): Promise<number | null> {
 export async function fetchPreviousWeightsBeforeDate(
   beforeDate: string,
   exerciseIds: string[],
+  split?: string,
 ): Promise<Record<string, number>> {
   const ids = [...new Set(exerciseIds.filter(Boolean))];
   if (!ids.length) return {};
 
   const supabase = await createClient();
 
-  const { data: completedWorkouts, error: completedErr } = await supabase
+  let workoutsQuery = supabase
     .from("workouts")
     .select("id, date, created_at")
     .eq("status", "completed")
-    .lte("date", beforeDate)
+    .lte("date", beforeDate);
+  if (split?.trim()) {
+    workoutsQuery = workoutsQuery.eq("split", split.trim());
+  }
+  const { data: completedWorkouts, error: completedErr } = await workoutsQuery
     .order("date", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(250);
@@ -199,7 +204,7 @@ export async function fetchPreviousWeightsForWorkout(
 
   const { data: workout, error: workoutErr } = await supabase
     .from("workouts")
-    .select("id, date")
+    .select("id, date, split")
     .eq("id", workoutId)
     .single();
   if (workoutErr || !workout) {
@@ -216,7 +221,7 @@ export async function fetchPreviousWeightsForWorkout(
     ...new Set((currentSets ?? []).map((s) => s.exercise_id).filter(Boolean)),
   ];
 
-  return fetchPreviousWeightsBeforeDate(workout.date, exerciseIds);
+  return fetchPreviousWeightsBeforeDate(workout.date, exerciseIds, workout.split);
 }
 
 export type WorkoutSplitRow = { id: string; name: string };

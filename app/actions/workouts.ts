@@ -27,6 +27,7 @@ type CompletedSetPerf = {
 async function fetchLatestCompletedSetsByExercise(
   beforeDate: string,
   exerciseIds: string[],
+  split: string,
 ): Promise<Record<string, CompletedSetPerf[]>> {
   const ids = [...new Set(exerciseIds.filter(Boolean))];
   if (ids.length === 0) return {};
@@ -37,6 +38,7 @@ async function fetchLatestCompletedSetsByExercise(
     .from("workouts")
     .select("id, date, created_at")
     .eq("status", "completed")
+    .eq("split", split)
     .lte("date", beforeDate)
     .order("date", { ascending: false })
     .order("created_at", { ascending: false })
@@ -170,10 +172,12 @@ export async function createWorkoutDraftAndRedirect(split: string) {
   const previousByKey = await fetchPreviousWeightsBeforeDate(
     dateStr,
     exerciseIds,
+    splitName,
   );
   const latestPerfByExercise = await fetchLatestCompletedSetsByExercise(
     dateStr,
     exerciseIds,
+    splitName,
   );
 
   const rows = exercises.flatMap((ex) => {
@@ -312,7 +316,7 @@ export async function addWorkoutSet(workoutId: string, exerciseId: string) {
 
   const { data: workout, error: wErr } = await supabase
     .from("workouts")
-    .select("date")
+    .select("date, split")
     .eq("id", workoutId)
     .single();
   if (wErr || !workout) throw new Error(wErr?.message ?? "Workout not found");
@@ -356,7 +360,7 @@ export async function addWorkoutSet(workoutId: string, exerciseId: string) {
 
   const previousByKey = await fetchPreviousWeightsBeforeDate(workout.date, [
     exerciseId,
-  ]);
+  ], workout.split);
   const lastW = previousByKey[`${exerciseId}:${next}`] ?? null;
   const reps =
     exercise.default_reps != null ? Number(exercise.default_reps) : null;
