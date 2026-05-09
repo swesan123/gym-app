@@ -16,6 +16,97 @@ import { createClient } from "@/lib/supabase/server";
 import { formatWorkoutWeek } from "@/lib/week";
 import { computeSetVolume } from "@/lib/volume";
 
+const SMART_PROGRESSION_RIR_TARGET = 2;
+
+type CompletedSetPerf = {
+  set_number: number;
+  reps: number | null;
+  rir: number | null;
+};
+
+async function fetchLatestCompletedSetsByExercise(
+  beforeDate: string,
+  exerciseIds: string[],
+): Promise<Record<string, CompletedSetPerf[]>> {
+  const ids = [...new Set(exerciseIds.filter(Boolean))];
+  if (ids.length === 0) return {};
+
+  const supabase = await createClient();
+
+  const { data: completedWorkouts, error: wErr } = await supabase
+    .from("workouts")
+    .select("id, date, created_at")
+    .eq("status", "completed")
+    .lte("date", beforeDate)
+    .order("date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(250);
+  if (wErr) throw new Error(wErr.message);
+
+  const workoutIds = (completedWorkouts ?? []).map((w) => w.id);
+  if (workoutIds.length === 0) return {};
+
+  const rankByWorkout = new Map<string, number>();
+  workoutIds.forEach((id, idx) => rankByWorkout.set(id, idx));
+
+  const { data: setRows, error: sErr } = await supabase
+    .from("workout_sets")
+    .select("workout_id, exercise_id, set_number, reps, rir")
+    .in("workout_id", workoutIds)
+    .in("exercise_id", ids);
+  if (sErr) throw new Error(sErr.message);
+
+  const bestWorkoutByExercise = new Map<string, { rank: number; workoutId: string }>();
+  for (const row of setRows ?? []) {
+    const rank =
+      rankByWorkout.get(row.workout_id) ?? Number.MAX_SAFE_INTEGER;
+    const existing = bestWorkoutByExercise.get(row.exercise_id);
+    if (!existing || rank < existing.rank) {
+      bestWorkoutByExercise.set(row.exercise_id, {
+        rank,
+        workoutId: row.workout_id,
+      });
+    }
+  }
+
+  const out = new Map<string, CompletedSetPerf[]>();
+  for (const row of setRows ?? []) {
+    const best = bestWorkoutByExercise.get(row.exercise_id);
+    if (!best || row.workout_id !== best.workoutId) continue;
+    const list = out.get(row.exercise_id) ?? [];
+    list.push({
+      set_number: row.set_number,
+      reps: row.reps,
+      rir: row.rir,
+    });
+    out.set(row.exercise_id, list);
+  }
+
+  return Object.fromEntries(
+    [...out.entries()].map(([exerciseId, rows]) => [
+      exerciseId,
+      rows.sort((a, b) => a.set_number - b.set_number),
+    ]),
+  );
+}
+
+function shouldApplySmartProgression(
+  defaultSets: number,
+  defaultReps: number | null,
+  latestSets: CompletedSetPerf[] | undefined,
+): boolean {
+  if (!latestSets || latestSets.length < defaultSets) return false;
+  if (defaultReps == null) return false;
+
+  for (let setNumber = 1; setNumber <= defaultSets; setNumber += 1) {
+    const set = latestSets.find((s) => s.set_number === setNumber);
+    if (!set) return false;
+    if (set.reps == null || set.reps < defaultReps) return false;
+    if (set.rir == null || set.rir < SMART_PROGRESSION_RIR_TARGET) return false;
+  }
+  return true;
+}
+
 export async function createWorkoutDraftAndRedirect(split: string) {
   const splitName = split.trim();
   if (!splitName) throw new Error("Choose a split");
@@ -80,24 +171,39 @@ export async function createWorkoutDraftAndRedirect(split: string) {
     dateStr,
     exerciseIds,
   );
+  const latestPerfByExercise = await fetchLatestCompletedSetsByExercise(
+    dateStr,
+    exerciseIds,
+  );
 
   const rows = exercises.flatMap((ex) => {
     const tt = (ex.tracking_type ?? "weighted") as TrackingType;
-    const pct =
+    const pctConfigured =
       ex.progressive_overload_pct == null
         ? null
         : Number(ex.progressive_overload_pct);
+    const defaultSets = Number(ex.default_sets ?? 0);
+    const defaultReps = ex.default_reps != null ? Number(ex.default_reps) : null;
+    const progressionPassed = shouldApplySmartProgression(
+      defaultSets,
+      defaultReps,
+      latestPerfByExercise[ex.id],
+    );
+    const pctToApply =
+      progressionPassed && pctConfigured != null && pctConfigured > 0
+        ? pctConfigured
+        : 0;
     return Array.from({ length: ex.default_sets }, (_, i) => {
       const set_number = i + 1;
       const key = `${ex.id}:${set_number}`;
       const lastW = previousByKey[key] ?? null;
-      const reps = ex.default_reps != null ? Number(ex.default_reps) : null;
+      const reps = defaultReps;
 
       let weight: number | null = null;
       if (usesLoggedWeightColumn(tt)) {
         weight = applyProgressiveOverload(
           lastW,
-          pct,
+          pctToApply,
           ex.machine_start_weight,
           ex.machine_end_weight,
           ex.machine_increment,

@@ -23,6 +23,23 @@ function nearestOnMachineGrid(
   return best;
 }
 
+function ceilOnMachineGrid(
+  target: number,
+  start: number,
+  end: number,
+  increment: number,
+): number {
+  if (target <= start) return Number(start.toFixed(6));
+  const maxSteps = 5000;
+  for (let i = 0; i < maxSteps; i += 1) {
+    const v = start + i * increment;
+    if (v > end + 1e-9) break;
+    const rounded = Number(v.toFixed(6));
+    if (rounded + 1e-9 >= target) return rounded;
+  }
+  return Number(end.toFixed(6));
+}
+
 /** Progressive overload: optional % on last weight; snap to machine grid when configured. */
 export function applyProgressiveOverload(
   lastWeight: number | null | undefined,
@@ -46,6 +63,15 @@ export function applyProgressiveOverload(
     Number(machineEnd) >= Number(machineStart);
 
   if (hasGrid) {
+    if (p > 0) {
+      // For positive overload, never round back down to the same plate.
+      return ceilOnMachineGrid(
+        raw,
+        Number(machineStart),
+        Number(machineEnd),
+        Number(machineIncrement),
+      );
+    }
     return nearestOnMachineGrid(
       raw,
       Number(machineStart),
