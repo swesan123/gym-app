@@ -26,7 +26,9 @@ export async function fetchSetsForWorkout(
         notes,
         machine_start_weight,
         machine_end_weight,
-        machine_increment
+        machine_increment,
+        stretch_kind,
+        sort_order
       )
     `,
     )
@@ -42,7 +44,13 @@ export async function fetchSetsForWorkout(
       machine_start_weight: number | null;
       machine_end_weight: number | null;
       machine_increment: number | null;
+      stretch_kind?: string | null;
+      sort_order?: number | null;
     } | null;
+
+    const sk = ex?.stretch_kind;
+    const stretch_kind =
+      sk === "dynamic" || sk === "static" || sk === "none" ? sk : "none";
 
     return {
       id: row.id,
@@ -60,13 +68,10 @@ export async function fetchSetsForWorkout(
       machine_start_weight: ex?.machine_start_weight ?? null,
       machine_end_weight: ex?.machine_end_weight ?? null,
       machine_increment: ex?.machine_increment ?? null,
+      stretch_kind,
+      sort_order: ex?.sort_order ?? 0,
     };
   });
-
-  rows.sort(
-    (a, b) =>
-      a.exercise_name.localeCompare(b.exercise_name) || a.set_number - b.set_number,
-  );
 
   return rows;
 }
@@ -130,36 +135,21 @@ export async function fetchBodyWeight(): Promise<number | null> {
   return data?.body_weight == null ? null : Number(data.body_weight);
 }
 
-export async function fetchPreviousWeightsForWorkout(
-  workoutId: string,
+/** Latest logged weight per `(exercise_id, set_number)` from completed workouts strictly before `beforeDate` (YYYY-MM-DD). */
+export async function fetchPreviousWeightsBeforeDate(
+  beforeDate: string,
+  exerciseIds: string[],
 ): Promise<Record<string, number>> {
+  const ids = [...new Set(exerciseIds.filter(Boolean))];
+  if (!ids.length) return {};
+
   const supabase = await createClient();
-
-  const { data: workout, error: workoutErr } = await supabase
-    .from("workouts")
-    .select("id, date")
-    .eq("id", workoutId)
-    .single();
-  if (workoutErr || !workout) {
-    throw new Error(workoutErr?.message ?? "Workout not found");
-  }
-
-  const { data: currentSets, error: currentErr } = await supabase
-    .from("workout_sets")
-    .select("exercise_id, set_number")
-    .eq("workout_id", workoutId);
-  if (currentErr) throw new Error(currentErr.message);
-
-  const exerciseIds = [
-    ...new Set((currentSets ?? []).map((s) => s.exercise_id).filter(Boolean)),
-  ];
-  if (!exerciseIds.length) return {};
 
   const { data: completedWorkouts, error: completedErr } = await supabase
     .from("workouts")
     .select("id, date, created_at")
     .eq("status", "completed")
-    .lt("date", workout.date)
+    .lt("date", beforeDate)
     .order("date", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(250);
@@ -175,7 +165,7 @@ export async function fetchPreviousWeightsForWorkout(
     .from("workout_sets")
     .select("workout_id, exercise_id, set_number, weight")
     .in("workout_id", workoutIds)
-    .in("exercise_id", exerciseIds)
+    .in("exercise_id", ids)
     .not("weight", "is", null);
   if (previousErr) throw new Error(previousErr.message);
 
@@ -200,6 +190,33 @@ export async function fetchPreviousWeightsForWorkout(
   return Object.fromEntries(
     [...best.entries()].map(([key, value]) => [key, value.weight]),
   );
+}
+
+export async function fetchPreviousWeightsForWorkout(
+  workoutId: string,
+): Promise<Record<string, number>> {
+  const supabase = await createClient();
+
+  const { data: workout, error: workoutErr } = await supabase
+    .from("workouts")
+    .select("id, date")
+    .eq("id", workoutId)
+    .single();
+  if (workoutErr || !workout) {
+    throw new Error(workoutErr?.message ?? "Workout not found");
+  }
+
+  const { data: currentSets, error: currentErr } = await supabase
+    .from("workout_sets")
+    .select("exercise_id, set_number")
+    .eq("workout_id", workoutId);
+  if (currentErr) throw new Error(currentErr.message);
+
+  const exerciseIds = [
+    ...new Set((currentSets ?? []).map((s) => s.exercise_id).filter(Boolean)),
+  ];
+
+  return fetchPreviousWeightsBeforeDate(workout.date, exerciseIds);
 }
 
 export type WorkoutSplitRow = { id: string; name: string };

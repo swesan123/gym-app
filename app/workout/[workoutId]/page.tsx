@@ -7,7 +7,6 @@ import {
   fetchBodyWeight,
   fetchExerciseWeightPresetsMap,
   fetchGlobalWeightPresets,
-  fetchPreviousWeightsForWorkout,
   fetchSetsForWorkout,
 } from "@/lib/queries/read";
 import { createClient } from "@/lib/supabase/server";
@@ -32,10 +31,9 @@ export default async function WorkoutSessionPage({ params }: Props) {
     notFound();
   }
 
-  const [rows, weightPresets, previousWeights, bodyWeight] = await Promise.all([
+  const [rows, weightPresets, bodyWeight] = await Promise.all([
     fetchSetsForWorkout(workoutId),
     fetchGlobalWeightPresets(),
-    fetchPreviousWeightsForWorkout(workoutId),
     fetchBodyWeight(),
   ]);
   const exercisePresetMap = await fetchExerciseWeightPresetsMap(
@@ -50,7 +48,6 @@ export default async function WorkoutSessionPage({ params }: Props) {
       rows={rows}
       weightPresets={weightPresets}
       exercisePresetMap={exercisePresetMap}
-      previousWeights={previousWeights}
       bodyWeight={bodyWeight}
     />
   );

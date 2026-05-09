@@ -4,7 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import type { TrackingType } from "@/lib/database.types";
-import { isWorkoutSplitsTableUnavailable } from "@/lib/queries/read";
+import {
+  fetchPreviousWeightsBeforeDate,
+  isWorkoutSplitsTableUnavailable,
+} from "@/lib/queries/read";
+import {
+  applyProgressiveOverload,
+  usesLoggedWeightColumn,
+} from "@/lib/progressiveOverload";
 import { createClient } from "@/lib/supabase/server";
 import { formatWorkoutWeek } from "@/lib/week";
 import { computeSetVolume } from "@/lib/volume";
@@ -48,21 +55,71 @@ export async function createWorkoutDraftAndRedirect(split: string) {
 
   const { data: exercises, error: eErr } = await supabase
     .from("exercises")
-    .select("id, default_sets")
-    .eq("split", splitName);
+    .select(
+      "id, default_sets, default_reps, progressive_overload_pct, tracking_type, machine_start_weight, machine_end_weight, machine_increment, sort_order",
+    )
+    .eq("split", splitName)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
 
   if (eErr || !exercises?.length) {
     await supabase.from("workouts").delete().eq("id", workout.id);
     throw new Error(eErr?.message ?? "No exercises for this split");
   }
 
-  const rows = exercises.flatMap((ex) =>
-    Array.from({ length: ex.default_sets }, (_, i) => ({
-      workout_id: workout.id,
-      exercise_id: ex.id,
-      set_number: i + 1,
-    })),
+  const { data: profile } = await supabase
+    .from("user_training_profile")
+    .select("body_weight")
+    .eq("singleton", true)
+    .maybeSingle();
+  const bodyWeight =
+    profile?.body_weight == null ? null : Number(profile.body_weight);
+
+  const exerciseIds = exercises.map((e) => e.id);
+  const previousByKey = await fetchPreviousWeightsBeforeDate(
+    dateStr,
+    exerciseIds,
   );
+
+  const rows = exercises.flatMap((ex) => {
+    const tt = (ex.tracking_type ?? "weighted") as TrackingType;
+    const pct =
+      ex.progressive_overload_pct == null
+        ? null
+        : Number(ex.progressive_overload_pct);
+    return Array.from({ length: ex.default_sets }, (_, i) => {
+      const set_number = i + 1;
+      const key = `${ex.id}:${set_number}`;
+      const lastW = previousByKey[key] ?? null;
+      const reps = ex.default_reps != null ? Number(ex.default_reps) : null;
+
+      let weight: number | null = null;
+      if (usesLoggedWeightColumn(tt)) {
+        weight = applyProgressiveOverload(
+          lastW,
+          pct,
+          ex.machine_start_weight,
+          ex.machine_end_weight,
+          ex.machine_increment,
+        );
+      }
+
+      const volume = computeSetVolume(tt, {
+        reps,
+        weight,
+        bodyWeight,
+      });
+
+      return {
+        workout_id: workout.id,
+        exercise_id: ex.id,
+        set_number,
+        reps,
+        weight,
+        volume,
+      };
+    });
+  });
 
   const { error: sErr } = await supabase.from("workout_sets").insert(rows);
   if (sErr) {
@@ -146,6 +203,13 @@ export async function updateWorkoutSet(input: {
 export async function addWorkoutSet(workoutId: string, exerciseId: string) {
   const supabase = await createClient();
 
+  const { data: workout, error: wErr } = await supabase
+    .from("workouts")
+    .select("date")
+    .eq("id", workoutId)
+    .single();
+  if (wErr || !workout) throw new Error(wErr?.message ?? "Workout not found");
+
   const { data: existing, error: qErr } = await supabase
     .from("workout_sets")
     .select("set_number")
@@ -159,19 +223,61 @@ export async function addWorkoutSet(workoutId: string, exerciseId: string) {
   const next =
     existing && existing.length > 0 ? existing[0].set_number + 1 : 1;
 
-  const { data: exercise } = await supabase
+  const { data: exercise, error: exErr } = await supabase
     .from("exercises")
-    .select("tracking_type")
+    .select(
+      "tracking_type, default_reps, progressive_overload_pct, machine_start_weight, machine_end_weight, machine_increment",
+    )
     .eq("id", exerciseId)
     .single();
 
-  const trackingType = (exercise?.tracking_type ?? "weighted") as TrackingType;
+  if (exErr || !exercise) throw new Error(exErr?.message ?? "Exercise not found");
+
+  const trackingType = (exercise.tracking_type ?? "weighted") as TrackingType;
+  const pct =
+    exercise.progressive_overload_pct == null
+      ? null
+      : Number(exercise.progressive_overload_pct);
+
+  const { data: profile } = await supabase
+    .from("user_training_profile")
+    .select("body_weight")
+    .eq("singleton", true)
+    .maybeSingle();
+  const bodyWeight =
+    profile?.body_weight == null ? null : Number(profile.body_weight);
+
+  const previousByKey = await fetchPreviousWeightsBeforeDate(workout.date, [
+    exerciseId,
+  ]);
+  const lastW = previousByKey[`${exerciseId}:${next}`] ?? null;
+  const reps =
+    exercise.default_reps != null ? Number(exercise.default_reps) : null;
+
+  let weight: number | null = null;
+  if (usesLoggedWeightColumn(trackingType)) {
+    weight = applyProgressiveOverload(
+      lastW,
+      pct,
+      exercise.machine_start_weight,
+      exercise.machine_end_weight,
+      exercise.machine_increment,
+    );
+  }
+
+  const volume = computeSetVolume(trackingType, {
+    reps,
+    weight,
+    bodyWeight,
+  });
 
   const { error } = await supabase.from("workout_sets").insert({
     workout_id: workoutId,
     exercise_id: exerciseId,
     set_number: next,
-    volume: computeSetVolume(trackingType, {}),
+    reps,
+    weight,
+    volume,
   });
 
   if (error) throw new Error(error.message);

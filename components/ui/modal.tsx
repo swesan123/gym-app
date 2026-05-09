@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -28,6 +28,8 @@ export function Modal({
   onConfirm,
   onCancel,
 }: Props) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -45,22 +47,31 @@ export function Modal({
     };
   }, [open, onCancel]);
 
+  const backdropMayDismiss = () => {
+    const el = dialogRef.current;
+    if (el?.matches(":focus-within")) return false;
+    return true;
+  };
+
   if (!open) return null;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto overscroll-contain bg-black/40 p-4 sm:items-center"
       role="presentation"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onCancel();
+      onPointerUp={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (!backdropMayDismiss()) return;
+        onCancel();
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
         className="w-full max-w-md max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl bg-white p-5 shadow-xl dark:bg-zinc-900"
-        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
       >
         <h2 id="modal-title" className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
           {title}

@@ -24,7 +24,7 @@ function weightHeader(tt: TrackingType) {
   return "Wt";
 }
 
-const REPS_PRESETS = [4, 5, 6, 8, 10, 12, 15, 20];
+const REPS_PRESETS = Array.from({ length: 20 }, (_, i) => i + 1);
 const RIR_PRESETS = [0, 1, 2, 3, 4];
 const DURATION_PRESETS = [15, 20, 30, 45, 60, 90, 120];
 
@@ -60,8 +60,6 @@ function buildMachineWeightPresets({
 function SetTableRow({
   row,
   weightPresets,
-  previousWeight,
-  showPreviousWeight,
   showWeightCol,
   bodyWeight,
   readOnly,
@@ -69,8 +67,6 @@ function SetTableRow({
 }: {
   row: FlatSetRow;
   weightPresets: number[];
-  previousWeight: number | null;
-  showPreviousWeight: boolean;
   showWeightCol: boolean;
   bodyWeight: number | null;
   readOnly?: boolean;
@@ -193,17 +189,6 @@ function SetTableRow({
           </select>
         </td>
       )}
-      {showPreviousWeight ? (
-        <td className="min-w-[4.75rem] py-1 pl-2 pr-1">
-          <input
-            value={previousWeight == null ? "—" : previousWeight.toLocaleString()}
-            readOnly
-            tabIndex={-1}
-            aria-label="Last weight"
-            className={readOnlyCellInput}
-          />
-        </td>
-      ) : null}
       <td className="py-1 pr-1">
         <select
           disabled={readOnly}
@@ -231,11 +216,15 @@ function SetTableRow({
       </td>
       <td className="max-w-[7rem] py-1 pl-2 pr-1 sm:max-w-[10rem]">
         <input
+          type="text"
+          enterKeyHint="done"
           disabled={readOnly}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className={cellInput}
+          className={`${cellInput} touch-manipulation`}
           aria-label="Note"
+          autoComplete="off"
+          autoCorrect="off"
         />
       </td>
       {!readOnly ? (
@@ -263,7 +252,6 @@ function ExerciseSetTable({
   sets,
   rows,
   weightPresets,
-  previousWeights,
   bodyWeight,
   readOnly,
   pending,
@@ -277,7 +265,6 @@ function ExerciseSetTable({
   sets: { id: string; set_number: number }[];
   rows: FlatSetRow[];
   weightPresets: number[];
-  previousWeights: Record<string, number>;
   bodyWeight: number | null;
   readOnly?: boolean;
   pending: boolean;
@@ -287,7 +274,6 @@ function ExerciseSetTable({
   const tt = trackingType;
   const showWeightCol =
     tt === "weighted" || tt === "assisted" || tt === "bodyweight";
-  const showPreviousWeight = showWeightCol;
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
@@ -301,8 +287,8 @@ function ExerciseSetTable({
           </p>
         ) : null}
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[320px] border-collapse text-left text-sm">
+      <div className="w-full min-w-0 overflow-x-hidden">
+        <table className="w-full min-w-0 table-fixed border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-zinc-400">
               <th className="sticky left-0 z-10 w-8 bg-zinc-50 py-2 pl-1 pr-1 text-center dark:bg-zinc-800/50">
@@ -313,9 +299,6 @@ function ExerciseSetTable({
               </th>
               {showWeightCol ? (
                 <th className="min-w-[3.5rem] py-2 pr-1">{weightHeader(tt)}</th>
-              ) : null}
-              {showPreviousWeight ? (
-                <th className="min-w-[4.75rem] py-2 pl-2 pr-1 text-right">Last</th>
               ) : null}
               <th className="min-w-[4.5rem] py-2 pr-1">RIR</th>
               <th className="min-w-[4.75rem] py-2 pl-2 pr-1 text-right">Vol</th>
@@ -332,10 +315,6 @@ function ExerciseSetTable({
                   key={`${s.id}-${flat.reps ?? ""}-${flat.weight ?? ""}-${flat.rir ?? ""}-${flat.duration_seconds ?? ""}-${flat.note ?? ""}`}
                   row={flat}
                   weightPresets={weightPresets}
-                  previousWeight={
-                    previousWeights[`${exerciseId}:${flat.set_number}`] ?? null
-                  }
-                  showPreviousWeight={showPreviousWeight}
                   showWeightCol={showWeightCol}
                   bodyWeight={bodyWeight}
                   readOnly={readOnly}
@@ -370,7 +349,6 @@ export function ActiveWorkout({
   rows,
   weightPresets,
   exercisePresetMap,
-  previousWeights,
   bodyWeight,
 }: {
   workoutId: string;
@@ -379,7 +357,6 @@ export function ActiveWorkout({
   rows: FlatSetRow[];
   weightPresets: number[];
   exercisePresetMap: Record<string, number[]>;
-  previousWeights: Record<string, number>;
   bodyWeight: number | null;
 }) {
   const router = useRouter();
@@ -497,7 +474,7 @@ export function ActiveWorkout({
       {readOnly ? (
         <WorkoutSummary groups={groups} />
       ) : (
-        <div className="mx-auto flex max-w-3xl flex-col gap-3 px-2 pb-28 pt-2 sm:px-3">
+        <div className="mx-auto flex max-w-3xl touch-manipulation flex-col gap-3 px-2 pb-28 pt-2 sm:px-3">
           {groups.map((g) => (
             <ExerciseSetTable
               key={g.exercise_id}
@@ -512,7 +489,6 @@ export function ActiveWorkout({
               weightPresets={
                 exerciseWeightPresets.get(g.exercise_id) ?? weightPresets
               }
-              previousWeights={previousWeights}
               bodyWeight={bodyWeight}
               readOnly={readOnly}
               pending={pending}

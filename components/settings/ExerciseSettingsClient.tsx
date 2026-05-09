@@ -5,12 +5,17 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-import { createExercise, deleteExercise, updateExercise } from "@/app/actions/exercises";
+import {
+  createExercise,
+  deleteExercise,
+  reorderExercise,
+  updateExercise,
+} from "@/app/actions/exercises";
 import { SplitsMigrationBanner } from "@/components/SplitsMigrationBanner";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { MUSCLES } from "@/lib/constants";
-import type { Database, TrackingType } from "@/lib/database.types";
+import type { Database, StretchKind, TrackingType } from "@/lib/database.types";
 import type { WorkoutSplitRow } from "@/lib/queries/read";
 
 type ExerciseRow = Database["public"]["Tables"]["exercises"]["Row"];
@@ -35,6 +40,32 @@ function parseNullableNumber(raw: FormDataEntryValue | null): number | null {
   return Number.isFinite(num) ? num : null;
 }
 
+function parseOptionalReps(raw: FormDataEntryValue | null): number | null {
+  const value = String(raw ?? "").trim();
+  if (!value) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  const r = Math.round(n);
+  if (r < 1 || r > 50) return null;
+  return r;
+}
+
+/** Empty or 0 → no percentage bump (stored as null). */
+function parseOverloadPct(raw: FormDataEntryValue | null): number | null {
+  const value = String(raw ?? "").trim();
+  if (!value) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0 || n > 100) return null;
+  if (n === 0) return null;
+  return n;
+}
+
+function parseStretchKind(raw: FormDataEntryValue | null): StretchKind {
+  const v = String(raw ?? "none");
+  if (v === "dynamic" || v === "static") return v;
+  return "none";
+}
+
 export function ExerciseSettingsClient({
   exercises,
   splits,
@@ -57,9 +88,10 @@ export function ExerciseSettingsClient({
   const sorted = useMemo(
     () =>
       [...exercises].sort((a, b) => {
-        const dateA = new Date(a.created_at).getTime();
-        const dateB = new Date(b.created_at).getTime();
-        if (dateA !== dateB) return dateB - dateA;
+        const splitCmp = a.split.localeCompare(b.split);
+        if (splitCmp !== 0) return splitCmp;
+        const ord = (a.sort_order ?? 0) - (b.sort_order ?? 0);
+        if (ord !== 0) return ord;
         return a.name.localeCompare(b.name);
       }),
     [exercises],
@@ -80,6 +112,11 @@ export function ExerciseSettingsClient({
     const machine_start_weight = parseNullableNumber(fd.get("machine_start_weight"));
     const machine_end_weight = parseNullableNumber(fd.get("machine_end_weight"));
     const machine_increment = parseNullableNumber(fd.get("machine_increment"));
+    const default_reps = parseOptionalReps(fd.get("default_reps"));
+    const progressive_overload_pct = parseOverloadPct(
+      fd.get("progressive_overload_pct"),
+    );
+    const stretch_kind = parseStretchKind(fd.get("stretch_kind"));
 
     startTransition(async () => {
       try {
@@ -95,6 +132,9 @@ export function ExerciseSettingsClient({
           machine_start_weight,
           machine_end_weight,
           machine_increment,
+          default_reps,
+          progressive_overload_pct,
+          stretch_kind,
         });
         setEditing(null);
         refresh();
@@ -116,6 +156,11 @@ export function ExerciseSettingsClient({
     const machine_start_weight = parseNullableNumber(fd.get("machine_start_weight"));
     const machine_end_weight = parseNullableNumber(fd.get("machine_end_weight"));
     const machine_increment = parseNullableNumber(fd.get("machine_increment"));
+    const default_reps = parseOptionalReps(fd.get("default_reps"));
+    const progressive_overload_pct = parseOverloadPct(
+      fd.get("progressive_overload_pct"),
+    );
+    const stretch_kind = parseStretchKind(fd.get("stretch_kind"));
 
     startTransition(async () => {
       try {
@@ -130,6 +175,9 @@ export function ExerciseSettingsClient({
           machine_start_weight,
           machine_end_weight,
           machine_increment,
+          default_reps,
+          progressive_overload_pct,
+          stretch_kind,
         });
         setAdding(false);
         refresh();
@@ -188,6 +236,9 @@ export function ExerciseSettingsClient({
                   <p className="text-sm text-zinc-600 dark:text-zinc-400">
                     {ex.split} · {ex.muscle} · {ex.tracking_type} ·{" "}
                     {ex.default_sets} sets
+                    {ex.stretch_kind && ex.stretch_kind !== "none"
+                      ? ` · ${ex.stretch_kind} stretch`
+                      : ""}
                   </p>
                   {ex.notes ? (
                     <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -196,6 +247,52 @@ export function ExerciseSettingsClient({
                   ) : null}
                 </div>
                 <div className="flex shrink-0 flex-col gap-2">
+                  <div className="flex justify-end gap-1">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={pending}
+                      className="min-h-9 min-w-9 px-0 text-base leading-none"
+                      aria-label={`Move ${ex.name} up in ${ex.split}`}
+                      onClick={() => {
+                        startTransition(async () => {
+                          try {
+                            setError(null);
+                            await reorderExercise(ex.id, "up");
+                            refresh();
+                          } catch (err) {
+                            setError(
+                              err instanceof Error ? err.message : "Reorder failed",
+                            );
+                          }
+                        });
+                      }}
+                    >
+                      ↑
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={pending}
+                      className="min-h-9 min-w-9 px-0 text-base leading-none"
+                      aria-label={`Move ${ex.name} down in ${ex.split}`}
+                      onClick={() => {
+                        startTransition(async () => {
+                          try {
+                            setError(null);
+                            await reorderExercise(ex.id, "down");
+                            refresh();
+                          } catch (err) {
+                            setError(
+                              err instanceof Error ? err.message : "Reorder failed",
+                            );
+                          }
+                        });
+                      }}
+                    >
+                      ↓
+                    </Button>
+                  </div>
                   <Button
                     type="button"
                     variant="secondary"
@@ -306,6 +403,48 @@ export function ExerciseSettingsClient({
                 defaultValue={editing.default_sets}
                 className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
               />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              Default reps (optional)
+              <input
+                name="default_reps"
+                type="number"
+                min={1}
+                max={50}
+                placeholder="Prefill new sets"
+                defaultValue={editing.default_reps ?? ""}
+                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              Progressive overload % (optional)
+              <input
+                name="progressive_overload_pct"
+                type="number"
+                min={0}
+                max={100}
+                step={0.5}
+                placeholder="0 = off"
+                defaultValue={
+                  editing.progressive_overload_pct != null
+                    ? String(editing.progressive_overload_pct)
+                    : ""
+                }
+                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              Stretch section
+              <select
+                name="stretch_kind"
+                required
+                defaultValue={editing.stretch_kind ?? "none"}
+                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              >
+                <option value="none">Main (not a stretch)</option>
+                <option value="dynamic">Dynamic stretch</option>
+                <option value="static">Static stretch</option>
+              </select>
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
               Tracking type
@@ -454,6 +593,42 @@ export function ExerciseSettingsClient({
               defaultValue={3}
               className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
             />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            Default reps (optional)
+            <input
+              name="default_reps"
+              type="number"
+              min={1}
+              max={50}
+              placeholder="Prefill new sets"
+              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            Progressive overload % (optional)
+            <input
+              name="progressive_overload_pct"
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              placeholder="0 = off"
+              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            Stretch section
+            <select
+              name="stretch_kind"
+              required
+              defaultValue="none"
+              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+            >
+              <option value="none">Main (not a stretch)</option>
+              <option value="dynamic">Dynamic stretch</option>
+              <option value="static">Static stretch</option>
+            </select>
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
             Tracking type

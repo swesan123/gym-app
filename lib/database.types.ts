@@ -1,5 +1,7 @@
 export type TrackingType = "weighted" | "assisted" | "bodyweight" | "timed";
 
+export type StretchKind = "none" | "dynamic" | "static";
+
 export type WorkoutStatus = "draft" | "completed";
 
 export type Database = {
@@ -17,6 +19,10 @@ export type Database = {
           machine_start_weight: number | null;
           machine_end_weight: number | null;
           machine_increment: number | null;
+          default_reps: number | null;
+          progressive_overload_pct: number | null;
+          sort_order: number;
+          stretch_kind: StretchKind;
           created_at: string;
         };
         Insert: {
@@ -30,6 +36,10 @@ export type Database = {
           machine_start_weight?: number | null;
           machine_end_weight?: number | null;
           machine_increment?: number | null;
+          default_reps?: number | null;
+          progressive_overload_pct?: number | null;
+          sort_order?: number;
+          stretch_kind?: StretchKind;
           created_at?: string;
         };
         Update: {
@@ -43,6 +53,10 @@ export type Database = {
           machine_start_weight?: number | null;
           machine_end_weight?: number | null;
           machine_increment?: number | null;
+          default_reps?: number | null;
+          progressive_overload_pct?: number | null;
+          sort_order?: number;
+          stretch_kind?: StretchKind;
           created_at?: string;
         };
       };
@@ -189,6 +203,26 @@ export type Database = {
           week: string;
           exercise: string;
           muscle: string;
+          total_sets: number;
+          total_reps: number | null;
+          total_volume: number | null;
+        };
+      };
+      weekly_volume_by_split: {
+        Row: {
+          week: string;
+          split: string;
+          exercise: string;
+          muscle: string;
+          total_sets: number;
+          total_reps: number | null;
+          total_volume: number | null;
+        };
+      };
+      monthly_volume_by_split: {
+        Row: {
+          month_start: string;
+          split: string;
           total_sets: number;
           total_reps: number | null;
           total_volume: number | null;
