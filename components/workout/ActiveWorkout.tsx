@@ -86,14 +86,6 @@ function SetTableRow({
 
   const skipSave = useRef(true);
 
-  useEffect(() => {
-    setReps(row.reps?.toString() ?? "");
-    setWeight(row.weight?.toString() ?? "");
-    setRir(row.rir?.toString() ?? "");
-    setDuration(row.duration_seconds?.toString() ?? "");
-    skipSave.current = true;
-  }, [row.id, row.reps, row.weight, row.rir, row.duration_seconds, row.note]);
-
   const volumeLocal = computeSetVolume(row.tracking_type, {
     reps: parseOptionalNumber(reps),
     weight: parseOptionalNumber(weight),
@@ -270,7 +262,6 @@ function SetTableRow({
 
 function ExerciseSetTable({
   exerciseName,
-  exerciseId,
   exerciseNotes,
   trackingType,
   sets,
@@ -283,7 +274,6 @@ function ExerciseSetTable({
   onRequestRemove,
 }: {
   exerciseName: string;
-  exerciseId: string;
   exerciseNotes?: string | null;
   trackingType: TrackingType;
   sets: { id: string; set_number: number }[];
@@ -570,7 +560,6 @@ export function ActiveWorkout({
                       <ExerciseSetTable
                         key={g.exercise_id}
                         exerciseName={g.exercise_name}
-                        exerciseId={g.exercise_id}
                         exerciseNotes={
                           rows.find((r) => r.exercise_id === g.exercise_id)
                             ?.exercise_notes
