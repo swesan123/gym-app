@@ -13,6 +13,10 @@ type Props = {
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: "primary" | "danger";
+  /** When false, backdrop taps do not dismiss (e.g. note editor on mobile). Default true. */
+  closeOnBackdrop?: boolean;
+  /** When false, Escape does not dismiss. Default true. */
+  closeOnEscape?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -25,6 +29,8 @@ export function Modal({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   variant = "primary",
+  closeOnBackdrop = true,
+  closeOnEscape = true,
   onConfirm,
   onCancel,
 }: Props) {
@@ -33,7 +39,8 @@ export function Modal({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
+      if (!closeOnEscape || e.key !== "Escape") return;
+      onCancel();
     };
     const prevOverflow = document.body.style.overflow;
     const prevOverscrollBehavior = document.body.style.overscrollBehavior;
@@ -45,7 +52,7 @@ export function Modal({
       document.body.style.overflow = prevOverflow;
       document.body.style.overscrollBehavior = prevOverscrollBehavior;
     };
-  }, [open, onCancel]);
+  }, [open, closeOnEscape, onCancel]);
 
   const backdropMayDismiss = () => {
     const el = dialogRef.current;
@@ -60,6 +67,7 @@ export function Modal({
       className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto overscroll-contain bg-black/40 p-4 sm:items-center"
       role="presentation"
       onPointerUp={(e) => {
+        if (!closeOnBackdrop) return;
         if (e.target !== e.currentTarget) return;
         if (!backdropMayDismiss()) return;
         onCancel();

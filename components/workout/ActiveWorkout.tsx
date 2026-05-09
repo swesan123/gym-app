@@ -11,6 +11,7 @@ import {
 } from "@/app/actions/workouts";
 import type { FlatSetRow } from "@/components/workout/groupSets";
 import { groupFlatSets } from "@/components/workout/groupSets";
+import { partitionGroupsByStretchKind } from "@/components/workout/partitionGroupsByStretchKind";
 import { WorkoutSummary } from "@/components/workout/WorkoutSummary";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -57,6 +58,8 @@ function buildMachineWeightPresets({
   return values;
 }
 
+const NOTE_PREVIEW_MAX = 36;
+
 function SetTableRow({
   row,
   weightPresets,
@@ -64,6 +67,7 @@ function SetTableRow({
   bodyWeight,
   readOnly,
   onRequestRemove,
+  onOpenNote,
 }: {
   row: FlatSetRow;
   weightPresets: number[];
@@ -71,6 +75,7 @@ function SetTableRow({
   bodyWeight: number | null;
   readOnly?: boolean;
   onRequestRemove: (setId: string) => void;
+  onOpenNote: (setId: string, initial: string) => void;
 }) {
   const [reps, setReps] = useState(() => row.reps?.toString() ?? "");
   const [weight, setWeight] = useState(() => row.weight?.toString() ?? "");
@@ -78,9 +83,16 @@ function SetTableRow({
   const [duration, setDuration] = useState(
     () => row.duration_seconds?.toString() ?? "",
   );
-  const [note, setNote] = useState(() => row.note ?? "");
 
   const skipSave = useRef(true);
+
+  useEffect(() => {
+    setReps(row.reps?.toString() ?? "");
+    setWeight(row.weight?.toString() ?? "");
+    setRir(row.rir?.toString() ?? "");
+    setDuration(row.duration_seconds?.toString() ?? "");
+    skipSave.current = true;
+  }, [row.id, row.reps, row.weight, row.rir, row.duration_seconds, row.note]);
 
   const volumeLocal = computeSetVolume(row.tracking_type, {
     reps: parseOptionalNumber(reps),
@@ -102,11 +114,18 @@ function SetTableRow({
         weight: parseOptionalNumber(weight),
         rir: parseOptionalNumber(rir),
         duration_seconds: parseOptionalNumber(duration),
-        note: note.trim() ? note.trim() : null,
       });
     }, 500);
     return () => clearTimeout(t);
-  }, [readOnly, row.id, reps, weight, rir, duration, note]);
+  }, [readOnly, row.id, reps, weight, rir, duration]);
+
+  const savedNote = row.note ?? "";
+  const notePreview =
+    savedNote.trim().length > 0
+      ? savedNote.length > NOTE_PREVIEW_MAX
+        ? `${savedNote.slice(0, NOTE_PREVIEW_MAX)}…`
+        : savedNote
+      : null;
 
   const tt = row.tracking_type;
   const repsOptions = [...new Set([...REPS_PRESETS, parseOptionalNumber(reps) ?? NaN])]
@@ -215,17 +234,22 @@ function SetTableRow({
         />
       </td>
       <td className="max-w-[7rem] py-1 pl-2 pr-1 sm:max-w-[10rem]">
-        <input
-          type="text"
-          enterKeyHint="done"
-          disabled={readOnly}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          className={`${cellInput} touch-manipulation`}
-          aria-label="Note"
-          autoComplete="off"
-          autoCorrect="off"
-        />
+        {readOnly ? (
+          <span className="block truncate px-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+            {notePreview ?? "—"}
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onOpenNote(row.id, row.note ?? "")}
+            className={`${cellInput} touch-manipulation text-left`}
+            aria-label="Edit note"
+          >
+            {notePreview ?? (
+              <span className="text-zinc-400">Add note…</span>
+            )}
+          </button>
+        )}
       </td>
       {!readOnly ? (
         <td className="py-1 text-center">
@@ -271,11 +295,35 @@ function ExerciseSetTable({
   onAddSet: () => void;
   onRequestRemove: (setId: string) => void;
 }) {
+  const router = useRouter();
   const tt = trackingType;
   const showWeightCol =
     tt === "weighted" || tt === "assisted" || tt === "bodyweight";
 
+  const [noteTarget, setNoteTarget] = useState<{
+    setId: string;
+    draft: string;
+  } | null>(null);
+
+  const onNoteConfirm = () => {
+    if (!noteTarget) return;
+    const t = noteTarget;
+    const note = t.draft.trim() ? t.draft.trim() : null;
+    void (async () => {
+      try {
+        await updateWorkoutSet({ id: t.setId, note });
+        setNoteTarget(null);
+        router.refresh();
+      } catch {
+        setNoteTarget(null);
+      }
+    })();
+  };
+
+  const onNoteCancel = () => setNoteTarget(null);
+
   return (
+    <>
     <section className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <div className="border-b border-zinc-100 px-2 py-2 dark:border-zinc-800">
         <h2 className="text-base font-bold leading-tight text-zinc-900 dark:text-zinc-50">
@@ -319,6 +367,9 @@ function ExerciseSetTable({
                   bodyWeight={bodyWeight}
                   readOnly={readOnly}
                   onRequestRemove={onRequestRemove}
+                  onOpenNote={(setId, initial) =>
+                    setNoteTarget({ setId, draft: initial })
+                  }
                 />
               );
             })}
@@ -339,6 +390,35 @@ function ExerciseSetTable({
         </div>
       ) : null}
     </section>
+
+    {!readOnly ? (
+      <Modal
+        open={!!noteTarget}
+        title="Set note"
+        description="Edit your note here. Use Done or Cancel to close."
+        confirmLabel="Done"
+        cancelLabel="Cancel"
+        closeOnBackdrop={false}
+        closeOnEscape={false}
+        onCancel={onNoteCancel}
+        onConfirm={onNoteConfirm}
+      >
+        <textarea
+          value={noteTarget?.draft ?? ""}
+          onChange={(e) =>
+            setNoteTarget((n) =>
+              n ? { ...n, draft: e.target.value } : n,
+            )
+          }
+          rows={6}
+          autoFocus
+          autoComplete="off"
+          className="min-h-[8rem] w-full resize-y rounded-lg border border-zinc-300 bg-white p-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+          aria-label="Note text"
+        />
+      </Modal>
+    ) : null}
+    </>
   );
 }
 
@@ -474,28 +554,45 @@ export function ActiveWorkout({
       {readOnly ? (
         <WorkoutSummary groups={groups} />
       ) : (
-        <div className="mx-auto flex max-w-3xl touch-manipulation flex-col gap-3 px-2 pb-28 pt-2 sm:px-3">
-          {groups.map((g) => (
-            <ExerciseSetTable
-              key={g.exercise_id}
-              exerciseName={g.exercise_name}
-              exerciseId={g.exercise_id}
-              exerciseNotes={
-                rows.find((r) => r.exercise_id === g.exercise_id)?.exercise_notes
-              }
-              trackingType={g.tracking_type}
-              sets={g.sets}
-              rows={rows}
-              weightPresets={
-                exerciseWeightPresets.get(g.exercise_id) ?? weightPresets
-              }
-              bodyWeight={bodyWeight}
-              readOnly={readOnly}
-              pending={pending}
-              onAddSet={() => handleAddSet(g.exercise_id)}
-              onRequestRemove={requestRemoveSet}
-            />
-          ))}
+        <div className="mx-auto flex max-w-3xl touch-manipulation flex-col gap-6 px-2 pb-28 pt-2 sm:px-3">
+          {partitionGroupsByStretchKind(groups).map(
+            (sec) =>
+              sec.groups.length > 0 && (
+                <section
+                  key={sec.key}
+                  className="rounded-2xl border border-zinc-300/80 bg-zinc-50/80 p-3 dark:border-zinc-700 dark:bg-zinc-900/50 sm:p-4"
+                >
+                  <h2 className="text-base font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                    {sec.title}
+                  </h2>
+                  <div className="mt-3 flex flex-col gap-3">
+                    {sec.groups.map((g) => (
+                      <ExerciseSetTable
+                        key={g.exercise_id}
+                        exerciseName={g.exercise_name}
+                        exerciseId={g.exercise_id}
+                        exerciseNotes={
+                          rows.find((r) => r.exercise_id === g.exercise_id)
+                            ?.exercise_notes
+                        }
+                        trackingType={g.tracking_type}
+                        sets={g.sets}
+                        rows={rows}
+                        weightPresets={
+                          exerciseWeightPresets.get(g.exercise_id) ??
+                          weightPresets
+                        }
+                        bodyWeight={bodyWeight}
+                        readOnly={readOnly}
+                        pending={pending}
+                        onAddSet={() => handleAddSet(g.exercise_id)}
+                        onRequestRemove={requestRemoveSet}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ),
+          )}
         </div>
       )}
 

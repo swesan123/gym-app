@@ -65,6 +65,7 @@ export function groupFlatSets(rows: FlatSetRow[]): SummaryExercise[] {
         exercise_id,
         exercise_name,
         tracking_type,
+        stretch_kind: r.stretch_kind,
         sets: [set],
       });
     } else {

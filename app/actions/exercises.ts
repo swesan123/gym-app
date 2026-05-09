@@ -66,6 +66,7 @@ export async function createExercise(input: {
     .from("exercises")
     .select("sort_order")
     .eq("split", split)
+    .eq("stretch_kind", input.stretch_kind)
     .order("sort_order", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -103,7 +104,7 @@ export async function reorderExercise(
 
   const { data: ex, error: exErr } = await supabase
     .from("exercises")
-    .select("id, split")
+    .select("id, split, stretch_kind")
     .eq("id", exerciseId)
     .single();
 
@@ -113,6 +114,7 @@ export async function reorderExercise(
     .from("exercises")
     .select("id, sort_order")
     .eq("split", ex.split)
+    .eq("stretch_kind", ex.stretch_kind ?? "none")
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true })
     .order("id", { ascending: true });

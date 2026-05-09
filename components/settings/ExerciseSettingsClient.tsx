@@ -66,6 +66,27 @@ function parseStretchKind(raw: FormDataEntryValue | null): StretchKind {
   return "none";
 }
 
+type StretchCategoryKey = "dynamic" | "main" | "static";
+
+function stretchCategory(stretch: StretchKind | null | undefined): StretchCategoryKey {
+  if (stretch === "dynamic") return "dynamic";
+  if (stretch === "static") return "static";
+  return "main";
+}
+
+function peersInCategory(all: ExerciseRow[], ex: ExerciseRow): ExerciseRow[] {
+  const cat = stretchCategory(ex.stretch_kind);
+  return all
+    .filter(
+      (e) => e.split === ex.split && stretchCategory(e.stretch_kind) === cat,
+    )
+    .sort(
+      (a, b) =>
+        (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
+        a.name.localeCompare(b.name),
+    );
+}
+
 export function ExerciseSettingsClient({
   exercises,
   splits,
@@ -96,6 +117,28 @@ export function ExerciseSettingsClient({
       }),
     [exercises],
   );
+
+  const splitOrder = useMemo(() => {
+    const catalogNames = sortedSplits.map((s) => s.name);
+    const present = new Set(exercises.map((ex) => ex.split));
+    const ordered: string[] = [];
+    for (const n of catalogNames) {
+      if (present.has(n)) ordered.push(n);
+    }
+    const extra = [...present]
+      .filter((n) => !ordered.includes(n))
+      .sort((a, b) => a.localeCompare(b));
+    return [...ordered, ...extra];
+  }, [sortedSplits, exercises]);
+
+  const categorySections: {
+    key: StretchCategoryKey;
+    title: string;
+  }[] = [
+    { key: "dynamic", title: "Dynamic stretches" },
+    { key: "main", title: "Exercises" },
+    { key: "static", title: "Static stretches" },
+  ];
 
   const refresh = () => router.refresh();
 
@@ -224,98 +267,143 @@ export function ExerciseSettingsClient({
           </p>
         ) : null}
 
-        <ul className="mt-6 flex flex-col gap-3">
-          {sorted.map((ex) => (
-            <li
-              key={ex.id}
-              className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold">{ex.name}</p>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    {ex.split} · {ex.muscle} · {ex.tracking_type} ·{" "}
-                    {ex.default_sets} sets
-                    {ex.stretch_kind && ex.stretch_kind !== "none"
-                      ? ` · ${ex.stretch_kind} stretch`
-                      : ""}
-                  </p>
-                  {ex.notes ? (
-                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                      {ex.notes}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex shrink-0 flex-col gap-2">
-                  <div className="flex justify-end gap-1">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={pending}
-                      className="min-h-9 min-w-9 px-0 text-base leading-none"
-                      aria-label={`Move ${ex.name} up in ${ex.split}`}
-                      onClick={() => {
-                        startTransition(async () => {
-                          try {
-                            setError(null);
-                            await reorderExercise(ex.id, "up");
-                            refresh();
-                          } catch (err) {
-                            setError(
-                              err instanceof Error ? err.message : "Reorder failed",
+        <div className="mt-6 flex flex-col gap-8">
+          {splitOrder.map((splitName) => {
+            const forSplit = sorted.filter((ex) => ex.split === splitName);
+            if (forSplit.length === 0) return null;
+            return (
+              <section
+                key={splitName}
+                className="rounded-2xl border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-700 dark:bg-zinc-950/40"
+              >
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
+                  {splitName}
+                </h2>
+                <div className="mt-4 flex flex-col gap-6">
+                  {categorySections.map((sec) => {
+                    const inCat = forSplit.filter(
+                      (ex) => stretchCategory(ex.stretch_kind) === sec.key,
+                    );
+                    if (inCat.length === 0) return null;
+                    return (
+                      <div key={sec.key}>
+                        <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                          {sec.title}
+                        </h3>
+                        <ul className="mt-3 flex flex-col gap-3">
+                          {inCat.map((ex) => {
+                            const peers = peersInCategory(exercises, ex);
+                            const idx = peers.findIndex((e) => e.id === ex.id);
+                            const disableUp = idx <= 0;
+                            const disableDown = idx < 0 || idx >= peers.length - 1;
+                            return (
+                              <li
+                                key={ex.id}
+                                className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <p className="font-semibold">{ex.name}</p>
+                                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                                      {ex.muscle} · {ex.tracking_type} ·{" "}
+                                      {ex.default_sets} sets
+                                      {ex.stretch_kind &&
+                                      ex.stretch_kind !== "none"
+                                        ? ` · ${ex.stretch_kind} stretch`
+                                        : ""}
+                                    </p>
+                                    {ex.notes ? (
+                                      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                        {ex.notes}
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                  <div className="flex shrink-0 flex-col gap-2">
+                                    <div className="flex justify-end gap-1">
+                                      <Button
+                                        type="button"
+                                        variant="secondary"
+                                        disabled={pending || disableUp}
+                                        className="min-h-9 min-w-9 px-0 text-base leading-none"
+                                        aria-label={`Move ${ex.name} up in ${sec.title}`}
+                                        onClick={() => {
+                                          startTransition(async () => {
+                                            try {
+                                              setError(null);
+                                              await reorderExercise(ex.id, "up");
+                                              refresh();
+                                            } catch (err) {
+                                              setError(
+                                                err instanceof Error
+                                                  ? err.message
+                                                  : "Reorder failed",
+                                              );
+                                            }
+                                          });
+                                        }}
+                                      >
+                                        ↑
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="secondary"
+                                        disabled={pending || disableDown}
+                                        className="min-h-9 min-w-9 px-0 text-base leading-none"
+                                        aria-label={`Move ${ex.name} down in ${sec.title}`}
+                                        onClick={() => {
+                                          startTransition(async () => {
+                                            try {
+                                              setError(null);
+                                              await reorderExercise(
+                                                ex.id,
+                                                "down",
+                                              );
+                                              refresh();
+                                            } catch (err) {
+                                              setError(
+                                                err instanceof Error
+                                                  ? err.message
+                                                  : "Reorder failed",
+                                              );
+                                            }
+                                          });
+                                        }}
+                                      >
+                                        ↓
+                                      </Button>
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="secondary"
+                                      disabled={pending}
+                                      className="min-h-10 px-3 py-2 text-sm"
+                                      onClick={() => setEditing(ex)}
+                                    >
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      disabled={pending}
+                                      className="min-h-10 px-3 py-2 text-sm text-red-700 dark:text-red-400"
+                                      onClick={() => setDeleteId(ex.id)}
+                                    >
+                                      Delete
+                                    </Button>
+                                  </div>
+                                </div>
+                              </li>
                             );
-                          }
-                        });
-                      }}
-                    >
-                      ↑
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={pending}
-                      className="min-h-9 min-w-9 px-0 text-base leading-none"
-                      aria-label={`Move ${ex.name} down in ${ex.split}`}
-                      onClick={() => {
-                        startTransition(async () => {
-                          try {
-                            setError(null);
-                            await reorderExercise(ex.id, "down");
-                            refresh();
-                          } catch (err) {
-                            setError(
-                              err instanceof Error ? err.message : "Reorder failed",
-                            );
-                          }
-                        });
-                      }}
-                    >
-                      ↓
-                    </Button>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={pending}
-                    className="min-h-10 px-3 py-2 text-sm"
-                    onClick={() => setEditing(ex)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    disabled={pending}
-                    className="min-h-10 px-3 py-2 text-sm text-red-700 dark:text-red-400"
-                    onClick={() => setDeleteId(ex.id)}
-                  >
-                    Delete
-                  </Button>
+                          })}
+                        </ul>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
-            </li>
-          ))}
-        </ul>
+              </section>
+            );
+          })}
+        </div>
       </div>
 
       <Modal
@@ -441,7 +529,7 @@ export function ExerciseSettingsClient({
                 defaultValue={editing.stretch_kind ?? "none"}
                 className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
               >
-                <option value="none">Main (not a stretch)</option>
+                <option value="none">Main</option>
                 <option value="dynamic">Dynamic stretch</option>
                 <option value="static">Static stretch</option>
               </select>
@@ -625,7 +713,7 @@ export function ExerciseSettingsClient({
               defaultValue="none"
               className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
             >
-              <option value="none">Main (not a stretch)</option>
+              <option value="none">Main</option>
               <option value="dynamic">Dynamic stretch</option>
               <option value="static">Static stretch</option>
             </select>
