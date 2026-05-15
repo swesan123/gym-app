@@ -169,15 +169,11 @@ export async function createWorkoutDraftAndRedirect(split: string) {
 
   const { data: profile } = await supabase
     .from("user_training_profile")
-    .select("body_weight, progression_base_pct")
+    .select("body_weight")
     .eq("singleton", true)
     .maybeSingle();
   const bodyWeight =
     profile?.body_weight == null ? null : Number(profile.body_weight);
-  const profileBasePct =
-    profile?.progression_base_pct == null
-      ? null
-      : Number(profile.progression_base_pct);
 
   const exerciseIds = exercises.map((e) => e.id);
   const previousByKey = await fetchPreviousWeightsBeforeDate(
@@ -210,7 +206,6 @@ export async function createWorkoutDraftAndRedirect(split: string) {
         setPerf,
       );
       const pctToApply = progressionOverloadPctToApply({
-        profileBasePct,
         exercisePct: pctConfigured,
         progressionPassed,
         rir: setPerf?.rir,
@@ -365,15 +360,11 @@ export async function addWorkoutSet(workoutId: string, exerciseId: string) {
 
   const { data: profile } = await supabase
     .from("user_training_profile")
-    .select("body_weight, progression_base_pct")
+    .select("body_weight")
     .eq("singleton", true)
     .maybeSingle();
   const bodyWeight =
     profile?.body_weight == null ? null : Number(profile.body_weight);
-  const profileBasePct =
-    profile?.progression_base_pct == null
-      ? null
-      : Number(profile.progression_base_pct);
 
   const previousByKey = await fetchPreviousWeightsBeforeDate(workout.date, [
     exerciseId,
@@ -394,7 +385,6 @@ export async function addWorkoutSet(workoutId: string, exerciseId: string) {
     setPerf,
   );
   const pctToApply = progressionOverloadPctToApply({
-    profileBasePct,
     exercisePct: pctConfigured,
     progressionPassed,
     rir: setPerf?.rir,

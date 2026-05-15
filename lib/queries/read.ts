@@ -129,12 +129,11 @@ export async function fetchExerciseWeightPresetsMap(
 
 export async function fetchTrainingProfile(): Promise<{
   body_weight: number | null;
-  progression_base_pct: number | null;
 }> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("user_training_profile")
-    .select("body_weight, progression_base_pct")
+    .select("body_weight")
     .eq("singleton", true)
     .maybeSingle();
 
@@ -142,10 +141,6 @@ export async function fetchTrainingProfile(): Promise<{
   return {
     body_weight:
       data?.body_weight == null ? null : Number(data.body_weight),
-    progression_base_pct:
-      data?.progression_base_pct == null
-        ? null
-        : Number(data.progression_base_pct),
   };
 }
 

@@ -67,21 +67,18 @@ export type Database = {
         Row: {
           singleton: boolean;
           body_weight: number | null;
-          progression_base_pct: number | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           singleton?: boolean;
           body_weight?: number | null;
-          progression_base_pct?: number | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           singleton?: boolean;
           body_weight?: number | null;
-          progression_base_pct?: number | null;
           created_at?: string;
           updated_at?: string;
         };

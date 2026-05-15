@@ -73,9 +73,6 @@ function SetTableRow({
   showWeightCol,
   bodyWeight,
   readOnly,
-  restSeconds,
-  exerciseName,
-  onScheduleRest,
   onRequestRemove,
   onOpenNote,
 }: {
@@ -84,9 +81,6 @@ function SetTableRow({
   showWeightCol: boolean;
   bodyWeight: number | null;
   readOnly?: boolean;
-  restSeconds: number | null;
-  exerciseName: string;
-  onScheduleRest: (seconds: number, label: string) => void;
   onRequestRemove: (setId: string) => void;
   onOpenNote: (setId: string, initial: string) => void;
 }) {
@@ -119,15 +113,10 @@ function SetTableRow({
         weight: parseOptionalNumber(weight),
         rir: parseOptionalNumber(rir),
         duration_seconds: parseOptionalNumber(duration),
-      }).then(() => {
-        if (readOnly) return;
-        if (restSeconds != null && restSeconds > 0) {
-          onScheduleRest(restSeconds, exerciseName);
-        }
       });
     }, 500);
     return () => clearTimeout(t);
-  }, [readOnly, row.id, reps, weight, rir, duration, restSeconds, exerciseName, onScheduleRest]);
+  }, [readOnly, row.id, reps, weight, rir, duration]);
 
   const savedNote = row.note ?? "";
   const notePreview =
@@ -385,9 +374,6 @@ function ExerciseSetTable({
                   showWeightCol={showWeightCol}
                   bodyWeight={bodyWeight}
                   readOnly={readOnly}
-                  restSeconds={restSeconds}
-                  exerciseName={exerciseName}
-                  onScheduleRest={onScheduleRest}
                   onRequestRemove={onRequestRemove}
                   onOpenNote={(setId, initial) =>
                     setNoteTarget({ setId, draft: initial })
@@ -399,11 +385,22 @@ function ExerciseSetTable({
         </table>
       </div>
       {!readOnly ? (
-        <div className="border-t border-zinc-100 px-2 py-2 dark:border-zinc-800">
+        <div className="flex flex-col gap-2 border-t border-zinc-100 px-2 py-2 dark:border-zinc-800 sm:flex-row">
+          {restSeconds != null && restSeconds > 0 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="min-h-10 w-full shrink-0 border border-zinc-300 py-2 text-sm dark:border-zinc-600 sm:w-auto sm:min-w-[8rem]"
+              disabled={pending}
+              onClick={() => onScheduleRest(restSeconds, exerciseName)}
+            >
+              Start rest
+            </Button>
+          ) : null}
           <Button
             variant="secondary"
             type="button"
-            className="w-full min-h-10 py-2 text-sm"
+            className="min-h-10 w-full flex-1 py-2 text-sm"
             disabled={pending}
             onClick={onAddSet}
           >

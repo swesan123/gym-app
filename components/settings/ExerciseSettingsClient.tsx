@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import {
-  bulkApplyExercisePrefill,
   createExercise,
   deleteExercise,
   reorderExercise,
@@ -245,34 +244,6 @@ export function ExerciseSettingsClient({
     });
   };
 
-  const onBulkPrefill = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const split = String(fd.get("bulk_split") ?? "").trim();
-    const dr = String(fd.get("bulk_default_reps") ?? "").trim();
-    const pr = String(fd.get("bulk_progressive_overload_pct") ?? "").trim();
-    const default_reps =
-      dr === "" ? undefined : parseOptionalReps(fd.get("bulk_default_reps"));
-    const progressive_overload_pct =
-      pr === ""
-        ? undefined
-        : parseOverloadPct(fd.get("bulk_progressive_overload_pct"));
-
-    startTransition(async () => {
-      try {
-        setError(null);
-        await bulkApplyExercisePrefill({
-          split,
-          default_reps,
-          progressive_overload_pct,
-        });
-        refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Bulk update failed");
-      }
-    });
-  };
-
   return (
     <>
       <div className="mx-auto max-w-lg px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
@@ -447,73 +418,6 @@ export function ExerciseSettingsClient({
             );
           })}
         </div>
-
-        <section className="mt-10 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
-            Bulk configure prefill
-          </h2>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Set default reps and/or progressive overload % for every exercise in a split at once. Leave a field empty to leave it unchanged.
-          </p>
-          <form className="mt-4 space-y-3" onSubmit={onBulkPrefill}>
-            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              Split
-              {splitsTableReady ? (
-                <select
-                  name="bulk_split"
-                  required
-                  className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
-                  defaultValue={sortedSplits[0]?.name ?? ""}
-                >
-                  {sortedSplits.map((s) => (
-                    <option key={s.id} value={s.name}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  name="bulk_split"
-                  required
-                  list="bulk-split-suggestions"
-                  className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
-                  placeholder="Split name"
-                />
-              )}
-            </label>
-            {!splitsTableReady ? (
-              <datalist id="bulk-split-suggestions">
-                {sortedSplits.map((s) => (
-                  <option key={s.id} value={s.name} />
-                ))}
-              </datalist>
-            ) : null}
-            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              Default reps (optional)
-              <input
-                name="bulk_default_reps"
-                type="number"
-                min={1}
-                max={50}
-                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              Progressive overload % (optional)
-              <input
-                name="bulk_progressive_overload_pct"
-                type="number"
-                min={0}
-                max={100}
-                step={0.5}
-                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
-              />
-            </label>
-            <Button type="submit" disabled={pending}>
-              Apply to exercises in split
-            </Button>
-          </form>
-        </section>
       </div>
 
       <Modal

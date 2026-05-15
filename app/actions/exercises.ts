@@ -100,40 +100,6 @@ export async function createExercise(input: {
   revalidatePath("/progress");
 }
 
-export async function bulkApplyExercisePrefill(input: {
-  split: string;
-  default_reps?: number | null;
-  progressive_overload_pct?: number | null;
-}) {
-  const split = input.split.trim();
-  if (!split) throw new Error("Choose a split");
-
-  const hasReps = input.default_reps !== undefined;
-  const hasPct = input.progressive_overload_pct !== undefined;
-  if (!hasReps && !hasPct) {
-    throw new Error("Enter at least one field to update.");
-  }
-
-  const patch: {
-    default_reps?: number | null;
-    progressive_overload_pct?: number | null;
-  } = {};
-  if (hasReps) patch.default_reps = input.default_reps ?? null;
-  if (hasPct) patch.progressive_overload_pct = input.progressive_overload_pct;
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("exercises")
-    .update(patch)
-    .eq("split", split);
-
-  if (error) throw new Error(error.message);
-
-  revalidatePath("/settings/exercises");
-  revalidatePath("/workout/start");
-  revalidatePath("/progress");
-}
-
 export async function reorderExercise(
   exerciseId: string,
   direction: "up" | "down",
