@@ -12,6 +12,7 @@ export type FlatSetRow = SummarySet & {
   machine_start_weight?: number | null;
   machine_end_weight?: number | null;
   machine_increment?: number | null;
+  rest_seconds?: number | null;
 };
 
 function stretchSectionRank(kind: StretchKind): number {
@@ -46,6 +47,7 @@ export function groupFlatSets(rows: FlatSetRow[]): SummaryExercise[] {
       duration_seconds,
       volume,
       note,
+      rest_seconds,
     } = r;
 
     const existing = map.get(exercise_id);
@@ -66,6 +68,7 @@ export function groupFlatSets(rows: FlatSetRow[]): SummaryExercise[] {
         exercise_name,
         tracking_type,
         stretch_kind: r.stretch_kind,
+        rest_seconds: rest_seconds ?? null,
         sets: [set],
       });
     } else {

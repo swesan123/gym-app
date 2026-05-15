@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { CopyHistoryButton } from "@/components/history/CopyHistoryButton";
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
-import { formatDurationSeconds } from "@/lib/duration";
+import { clampWorkoutElapsedSeconds, formatDurationSeconds } from "@/lib/duration";
 import { hasSupabaseEnv } from "@/lib/env";
 import { fetchSplitsCatalog } from "@/lib/queries/read";
 import { createClient } from "@/lib/supabase/server";
@@ -212,7 +212,7 @@ export default async function HistoryPage() {
               <ul className="mt-3 flex flex-col gap-3">
                 {inWeek.map((w) => {
                   const vol = volumeMap.get(w.id) ?? 0;
-                  const durationSeconds =
+                  const durationSeconds = clampWorkoutElapsedSeconds(
                     w.completed_at && w.created_at
                       ? Math.max(
                           0,
@@ -222,7 +222,8 @@ export default async function HistoryPage() {
                               1000,
                           ),
                         )
-                      : null;
+                      : null,
+                  );
                   return (
                     <li key={w.id}>
                       <Link

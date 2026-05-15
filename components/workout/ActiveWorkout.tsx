@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -20,9 +20,16 @@ import { parseOptionalNumber } from "@/lib/parse";
 import { computeSetVolume } from "@/lib/volume";
 
 function weightHeader(tt: TrackingType) {
-  if (tt === "assisted") return "Weight";
+  if (tt === "assisted") return "Assist";
   if (tt === "bodyweight") return "Extra wt";
   return "Wt";
+}
+
+function weightColumnTitle(tt: TrackingType): string | undefined {
+  if (tt === "assisted") {
+    return "Assistance / counterweight taken off your body, not effective load. Volume uses body weight from your profile.";
+  }
+  return undefined;
 }
 
 const REPS_PRESETS = Array.from({ length: 20 }, (_, i) => i + 1);
@@ -66,6 +73,9 @@ function SetTableRow({
   showWeightCol,
   bodyWeight,
   readOnly,
+  restSeconds,
+  exerciseName,
+  onScheduleRest,
   onRequestRemove,
   onOpenNote,
 }: {
@@ -74,6 +84,9 @@ function SetTableRow({
   showWeightCol: boolean;
   bodyWeight: number | null;
   readOnly?: boolean;
+  restSeconds: number | null;
+  exerciseName: string;
+  onScheduleRest: (seconds: number, label: string) => void;
   onRequestRemove: (setId: string) => void;
   onOpenNote: (setId: string, initial: string) => void;
 }) {
@@ -106,10 +119,15 @@ function SetTableRow({
         weight: parseOptionalNumber(weight),
         rir: parseOptionalNumber(rir),
         duration_seconds: parseOptionalNumber(duration),
+      }).then(() => {
+        if (readOnly) return;
+        if (restSeconds != null && restSeconds > 0) {
+          onScheduleRest(restSeconds, exerciseName);
+        }
       });
     }, 500);
     return () => clearTimeout(t);
-  }, [readOnly, row.id, reps, weight, rir, duration]);
+  }, [readOnly, row.id, reps, weight, rir, duration, restSeconds, exerciseName, onScheduleRest]);
 
   const savedNote = row.note ?? "";
   const notePreview =
@@ -225,19 +243,21 @@ function SetTableRow({
           className={readOnlyCellInput}
         />
       </td>
-      <td className="max-w-[7rem] py-1 pl-2 pr-1 sm:max-w-[10rem]">
+      <td className="max-w-[7rem] min-w-0 py-1 pl-2 pr-1 sm:max-w-[10rem]">
         {readOnly ? (
-          <span className="block truncate px-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+          <span className="block max-h-10 overflow-hidden break-words px-1.5 text-left text-sm leading-snug text-zinc-600 line-clamp-2 dark:text-zinc-400">
             {notePreview ?? "—"}
           </span>
         ) : (
           <button
             type="button"
             onClick={() => onOpenNote(row.id, row.note ?? "")}
-            className={`${cellInput} touch-manipulation text-left`}
+            className={`${cellInput} max-h-10 min-h-0 min-w-0 touch-manipulation overflow-hidden text-left leading-snug line-clamp-2`}
             aria-label="Edit note"
           >
-            {notePreview ?? (
+            {notePreview ? (
+              <span className="block min-w-0 break-words">{notePreview}</span>
+            ) : (
               <span className="text-zinc-400">Add note…</span>
             )}
           </button>
@@ -270,6 +290,8 @@ function ExerciseSetTable({
   bodyWeight,
   readOnly,
   pending,
+  restSeconds,
+  onScheduleRest,
   onAddSet,
   onRequestRemove,
 }: {
@@ -282,6 +304,8 @@ function ExerciseSetTable({
   bodyWeight: number | null;
   readOnly?: boolean;
   pending: boolean;
+  restSeconds: number | null;
+  onScheduleRest: (seconds: number, label: string) => void;
   onAddSet: () => void;
   onRequestRemove: (setId: string) => void;
 }) {
@@ -336,7 +360,12 @@ function ExerciseSetTable({
                 {tt === "timed" ? "Sec" : "Reps"}
               </th>
               {showWeightCol ? (
-                <th className="min-w-[3.5rem] py-2 pr-1">{weightHeader(tt)}</th>
+                <th
+                  className="min-w-[3.5rem] py-2 pr-1"
+                  title={weightColumnTitle(tt)}
+                >
+                  {weightHeader(tt)}
+                </th>
               ) : null}
               <th className="min-w-[4.5rem] py-2 pr-1">RIR</th>
               <th className="min-w-[4.75rem] py-2 pl-2 pr-1 text-right">Vol</th>
@@ -356,6 +385,9 @@ function ExerciseSetTable({
                   showWeightCol={showWeightCol}
                   bodyWeight={bodyWeight}
                   readOnly={readOnly}
+                  restSeconds={restSeconds}
+                  exerciseName={exerciseName}
+                  onScheduleRest={onScheduleRest}
                   onRequestRemove={onRequestRemove}
                   onOpenNote={(setId, initial) =>
                     setNoteTarget({ setId, draft: initial })
@@ -435,8 +467,28 @@ export function ActiveWorkout({
 
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
   const [finishOpen, setFinishOpen] = useState(false);
+  const [rest, setRest] = useState<{ seconds: number; label: string } | null>(
+    null,
+  );
 
   const groups = useMemo(() => groupFlatSets(rows), [rows]);
+
+  const scheduleRest = useCallback((seconds: number, label: string) => {
+    if (status === "completed" || seconds <= 0) return;
+    setRest({ seconds, label });
+  }, [status]);
+
+  useEffect(() => {
+    if (rest == null || rest.seconds <= 0) return;
+    const id = window.setInterval(() => {
+      setRest((r) => {
+        if (r == null || r.seconds <= 1) return null;
+        return { ...r, seconds: r.seconds - 1 };
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [rest]);
+
   const exerciseWeightPresets = useMemo(() => {
     const map = new Map<string, number[]>();
     for (const row of rows) {
@@ -533,6 +585,21 @@ export function ActiveWorkout({
             {readOnly ? "Workout (completed)" : "Active workout"}
           </h1>
         </div>
+        {!readOnly && rest != null && rest.seconds > 0 ? (
+          <div className="mx-auto mt-2 flex max-w-3xl items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900 dark:bg-emerald-950/50">
+            <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+              Rest {rest.seconds}s · {rest.label}
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              className="min-h-9 shrink-0 text-sm"
+              onClick={() => setRest(null)}
+            >
+              Skip
+            </Button>
+          </div>
+        ) : null}
       </header>
 
       {error ? (
@@ -574,6 +641,8 @@ export function ActiveWorkout({
                         bodyWeight={bodyWeight}
                         readOnly={readOnly}
                         pending={pending}
+                        restSeconds={g.rest_seconds}
+                        onScheduleRest={scheduleRest}
                         onAddSet={() => handleAddSet(g.exercise_id)}
                         onRequestRemove={requestRemoveSet}
                       />

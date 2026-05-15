@@ -5,7 +5,7 @@ import { DeleteWorkoutButton } from "@/components/history/DeleteWorkoutButton";
 import { WorkoutSummary } from "@/components/workout/WorkoutSummary";
 import { groupFlatSets } from "@/components/workout/groupSets";
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
-import { formatDurationSeconds } from "@/lib/duration";
+import { clampWorkoutElapsedSeconds, formatDurationSeconds } from "@/lib/duration";
 import { hasSupabaseEnv } from "@/lib/env";
 import { fetchSetsForWorkout } from "@/lib/queries/read";
 import { createClient } from "@/lib/supabase/server";
@@ -32,7 +32,7 @@ export default async function HistoryDetailPage({ params }: Props) {
 
   const rows = await fetchSetsForWorkout(workoutId);
   const groups = groupFlatSets(rows);
-  const durationSeconds =
+  const durationSeconds = clampWorkoutElapsedSeconds(
     workout.completed_at && workout.created_at
       ? Math.max(
           0,
@@ -42,7 +42,8 @@ export default async function HistoryDetailPage({ params }: Props) {
               1000,
           ),
         )
-      : null;
+      : null,
+  );
 
   return (
     <div className="pb-28 pt-[max(0.75rem,env(safe-area-inset-top))]">

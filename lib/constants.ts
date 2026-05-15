@@ -1,4 +1,10 @@
 /**
+ * Reserved `workout_splits` row: park exercises off active programs without deleting.
+ * Not offered on `/workout/start` (not startable as a session).
+ */
+export const UNASSIGNED_SPLIT_NAME = "Unassigned" as const;
+
+/**
  * Default split labels (matches `workout_splits` seed in migrations).
  * Prefer loading splits from the DB; this stays for fallbacks and legacy imports.
  */

@@ -7,6 +7,14 @@ export type SetVolumeInput = {
   bodyWeight?: number | null;
 };
 
+/**
+ * Volume for logging and progress charts.
+ *
+ * **Assisted** (`trackingType === "assisted"`): `weight` is the **assistance
+ * counterweight** (load taken off you), not “effective load pulled”. Effective
+ * load ≈ `bodyWeight - weight`, so volume = `reps * max(0, bodyWeight - weight)`.
+ * If `bodyWeight` is missing in the profile, volume is null (avoid misleading numbers).
+ */
 export function computeSetVolume(
   trackingType: TrackingType,
   input: SetVolumeInput,

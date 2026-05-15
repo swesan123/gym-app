@@ -18,6 +18,8 @@ export type SummaryExercise = {
   exercise_name: string;
   tracking_type: TrackingType;
   stretch_kind: StretchKind;
+  /** Rest between sets (seconds); from exercise settings. */
+  rest_seconds: number | null;
   sets: SummarySet[];
 };
 

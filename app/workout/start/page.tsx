@@ -4,6 +4,7 @@ import { createWorkoutDraftAndRedirect } from "@/app/actions/workouts";
 import { Button } from "@/components/ui/button";
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
 import { SplitsMigrationBanner } from "@/components/SplitsMigrationBanner";
+import { UNASSIGNED_SPLIT_NAME } from "@/lib/constants";
 import { fetchSplitsCatalog } from "@/lib/queries/read";
 import { hasSupabaseEnv } from "@/lib/env";
 
@@ -13,6 +14,7 @@ export default async function StartWorkoutPage() {
   }
 
   const { splits, splitsTableReady } = await fetchSplitsCatalog();
+  const splitsForStart = splits.filter((s) => s.name !== UNASSIGNED_SPLIT_NAME);
 
   return (
     <div className="mx-auto max-w-lg px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
@@ -31,7 +33,7 @@ export default async function StartWorkoutPage() {
 
       {!splitsTableReady ? <SplitsMigrationBanner className="mt-4" /> : null}
 
-      {splits.length === 0 ? (
+      {splitsForStart.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/40">
           <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
             No splits defined yet.
@@ -47,7 +49,7 @@ export default async function StartWorkoutPage() {
         </div>
       ) : (
         <div className="mt-6 flex flex-col gap-3">
-          {splits.map((s) => (
+          {splitsForStart.map((s) => (
             <form
               key={s.id}
               action={createWorkoutDraftAndRedirect.bind(null, s.name)}

@@ -3,16 +3,21 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
+import { UNASSIGNED_SPLIT_NAME } from "@/lib/constants";
 
 export async function createSplit(name: string) {
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Split name is required");
+  if (trimmed.toLowerCase() === UNASSIGNED_SPLIT_NAME.toLowerCase()) {
+    throw new Error(`"${UNASSIGNED_SPLIT_NAME}" is reserved by the app.`);
+  }
 
   const supabase = await createClient();
 
   const { data: maxRow } = await supabase
     .from("workout_splits")
     .select("sort_order")
+    .neq("name", UNASSIGNED_SPLIT_NAME)
     .order("sort_order", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -49,6 +54,9 @@ export async function deleteSplit(id: string) {
   if (!row) throw new Error("Split not found");
 
   const splitName = row.name;
+  if (splitName === UNASSIGNED_SPLIT_NAME) {
+    throw new Error(`The "${UNASSIGNED_SPLIT_NAME}" split cannot be deleted.`);
+  }
 
   const { count: exCount } = await supabase
     .from("exercises")
@@ -77,4 +85,48 @@ export async function deleteSplit(id: string) {
 
   revalidatePath("/settings/splits");
   revalidatePath("/workout/start");
+  revalidatePath("/settings/exercises");
+}
+
+export async function reorderSplit(splitId: string, direction: "up" | "down") {
+  const supabase = await createClient();
+
+  const { data: rows, error: listErr } = await supabase
+    .from("workout_splits")
+    .select("id, name, sort_order")
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (listErr || !rows?.length) {
+    throw new Error(listErr?.message ?? "Could not load splits");
+  }
+
+  const movable = rows.filter((r) => r.name !== UNASSIGNED_SPLIT_NAME);
+  const idx = movable.findIndex((r) => r.id === splitId);
+  if (idx < 0) return;
+
+  const j = direction === "up" ? idx - 1 : idx + 1;
+  if (j < 0 || j >= movable.length) return;
+
+  const a = movable[idx];
+  const b = movable[j];
+  const orderA = Number(a.sort_order);
+  const orderB = Number(b.sort_order);
+
+  const { error: u1 } = await supabase
+    .from("workout_splits")
+    .update({ sort_order: orderB })
+    .eq("id", a.id);
+  if (u1) throw new Error(u1.message);
+
+  const { error: u2 } = await supabase
+    .from("workout_splits")
+    .update({ sort_order: orderA })
+    .eq("id", b.id);
+  if (u2) throw new Error(u2.message);
+
+  revalidatePath("/settings/splits");
+  revalidatePath("/workout/start");
+  revalidatePath("/settings/exercises");
+  revalidatePath("/history");
 }

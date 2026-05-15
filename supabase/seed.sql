@@ -1,6 +1,6 @@
 -- Default splits (safe if migration already inserted them)
 insert into public.workout_splits (name, sort_order) values
-('Upper A', 1), ('Upper B', 2), ('Lower A', 3), ('Lower B', 4), ('Lower C', 5)
+('Upper A', 1), ('Upper B', 2), ('Lower A', 3), ('Lower B', 4), ('Lower C', 5), ('Unassigned', 999999)
 on conflict (name) do nothing;
 
 -- Seed default exercises (split encodes upper/lower layout; no separate workout_type)

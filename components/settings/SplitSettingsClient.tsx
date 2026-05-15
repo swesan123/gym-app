@@ -5,8 +5,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-import { createSplit, deleteSplit } from "@/app/actions/splits";
+import { createSplit, deleteSplit, reorderSplit } from "@/app/actions/splits";
 import type { WorkoutSplitRow } from "@/lib/queries/read";
+import { UNASSIGNED_SPLIT_NAME } from "@/lib/constants";
 import { SplitsMigrationBanner } from "@/components/SplitsMigrationBanner";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -71,7 +72,8 @@ export function SplitSettingsClient({
         </div>
         <h1 className="mt-4 text-2xl font-bold">Splits</h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          Names listed here appear when you start a workout. Assign exercises to a split under{" "}
+          Names listed here appear when you start a workout. Drag order with ↑ / ↓ (the{" "}
+          <span className="font-medium">{UNASSIGNED_SPLIT_NAME}</span> row is for parking exercises only — it does not appear on Start workout). Assign exercises to a split under{" "}
           <Link href="/settings/exercises" className="font-medium text-emerald-700 underline dark:text-emerald-400">
             Exercises
           </Link>
@@ -109,20 +111,80 @@ export function SplitSettingsClient({
         </form>
 
         <ul className="mt-8 divide-y divide-zinc-200 rounded-2xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
-          {initialSplits.map((s) => (
+          {initialSplits.map((s) => {
+            const isUnassigned = s.name === UNASSIGNED_SPLIT_NAME;
+            const movable = initialSplits.filter((x) => x.name !== UNASSIGNED_SPLIT_NAME);
+            const movableIdx = movable.findIndex((x) => x.id === s.id);
+            const canMoveUp = !isUnassigned && movableIdx > 0;
+            const canMoveDown =
+              !isUnassigned &&
+              movableIdx >= 0 &&
+              movableIdx < movable.length - 1;
+            return (
             <li key={s.id} className="flex items-center justify-between gap-2 px-4 py-3">
               <span className="font-medium">{s.name}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={pending || !splitsTableReady}
-                className="min-h-9 shrink-0 text-red-700 dark:text-red-400"
-                onClick={() => setDeleteId(s.id)}
-              >
-                Delete
-              </Button>
+              <div className="flex shrink-0 items-center gap-1">
+                {!isUnassigned ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={pending || !splitsTableReady || !canMoveUp}
+                      className="min-h-9 min-w-9 px-0 text-zinc-600 dark:text-zinc-400"
+                      aria-label="Move split up"
+                      onClick={() => {
+                        startTransition(async () => {
+                          try {
+                            setError(null);
+                            await reorderSplit(s.id, "up");
+                            refresh();
+                          } catch (err) {
+                            setError(
+                              err instanceof Error ? err.message : "Could not reorder",
+                            );
+                          }
+                        });
+                      }}
+                    >
+                      ↑
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={pending || !splitsTableReady || !canMoveDown}
+                      className="min-h-9 min-w-9 px-0 text-zinc-600 dark:text-zinc-400"
+                      aria-label="Move split down"
+                      onClick={() => {
+                        startTransition(async () => {
+                          try {
+                            setError(null);
+                            await reorderSplit(s.id, "down");
+                            refresh();
+                          } catch (err) {
+                            setError(
+                              err instanceof Error ? err.message : "Could not reorder",
+                            );
+                          }
+                        });
+                      }}
+                    >
+                      ↓
+                    </Button>
+                  </>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={pending || !splitsTableReady || isUnassigned}
+                  className="min-h-9 shrink-0 text-red-700 dark:text-red-400"
+                  onClick={() => setDeleteId(s.id)}
+                >
+                  Delete
+                </Button>
+              </div>
             </li>
-          ))}
+          );
+          })}
         </ul>
 
         {initialSplits.length === 0 ? (

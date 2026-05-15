@@ -18,6 +18,7 @@ export async function updateExercise(input: {
   machine_increment: number | null;
   default_reps: number | null;
   progressive_overload_pct: number | null;
+  rest_seconds: number | null;
   stretch_kind: StretchKind;
 }) {
   const supabase = await createClient();
@@ -35,6 +36,7 @@ export async function updateExercise(input: {
       machine_increment: input.machine_increment,
       default_reps: input.default_reps,
       progressive_overload_pct: input.progressive_overload_pct,
+      rest_seconds: input.rest_seconds,
       stretch_kind: input.stretch_kind,
     })
     .eq("id", input.id);
@@ -57,6 +59,7 @@ export async function createExercise(input: {
   machine_increment: number | null;
   default_reps: number | null;
   progressive_overload_pct: number | null;
+  rest_seconds: number | null;
   stretch_kind: StretchKind;
 }) {
   const supabase = await createClient();
@@ -86,11 +89,46 @@ export async function createExercise(input: {
     machine_increment: input.machine_increment,
     default_reps: input.default_reps,
     progressive_overload_pct: input.progressive_overload_pct,
+    rest_seconds: input.rest_seconds,
     stretch_kind: input.stretch_kind,
     sort_order: nextSort,
   });
 
   if (error) throw new Error(error.message);
+  revalidatePath("/settings/exercises");
+  revalidatePath("/workout/start");
+  revalidatePath("/progress");
+}
+
+export async function bulkApplyExercisePrefill(input: {
+  split: string;
+  default_reps?: number | null;
+  progressive_overload_pct?: number | null;
+}) {
+  const split = input.split.trim();
+  if (!split) throw new Error("Choose a split");
+
+  const hasReps = input.default_reps !== undefined;
+  const hasPct = input.progressive_overload_pct !== undefined;
+  if (!hasReps && !hasPct) {
+    throw new Error("Enter at least one field to update.");
+  }
+
+  const patch: {
+    default_reps?: number | null;
+    progressive_overload_pct?: number | null;
+  } = {};
+  if (hasReps) patch.default_reps = input.default_reps ?? null;
+  if (hasPct) patch.progressive_overload_pct = input.progressive_overload_pct;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("exercises")
+    .update(patch)
+    .eq("split", split);
+
+  if (error) throw new Error(error.message);
+
   revalidatePath("/settings/exercises");
   revalidatePath("/workout/start");
   revalidatePath("/progress");
@@ -151,21 +189,17 @@ export async function reorderExercise(
 export async function deleteExercise(id: string) {
   const supabase = await createClient();
 
-  const { count, error: cErr } = await supabase
+  const { error: setsErr } = await supabase
     .from("workout_sets")
-    .select("*", { count: "exact", head: true })
+    .delete()
     .eq("exercise_id", id);
-
-  if (cErr) throw new Error(cErr.message);
-  if (count && count > 0) {
-    throw new Error(
-      "This exercise has logged sets in workouts. Remove or archive is not supported yet.",
-    );
-  }
+  if (setsErr) throw new Error(setsErr.message);
 
   const { error } = await supabase.from("exercises").delete().eq("id", id);
   if (error) throw new Error(error.message);
 
   revalidatePath("/settings/exercises");
   revalidatePath("/workout/start");
+  revalidatePath("/progress");
+  revalidatePath("/history");
 }

@@ -28,7 +28,8 @@ export async function fetchSetsForWorkout(
         machine_end_weight,
         machine_increment,
         stretch_kind,
-        sort_order
+        sort_order,
+        rest_seconds
       )
     `,
     )
@@ -46,6 +47,7 @@ export async function fetchSetsForWorkout(
       machine_increment: number | null;
       stretch_kind?: string | null;
       sort_order?: number | null;
+      rest_seconds?: number | null;
     } | null;
 
     const sk = ex?.stretch_kind;
@@ -70,6 +72,8 @@ export async function fetchSetsForWorkout(
       machine_increment: ex?.machine_increment ?? null,
       stretch_kind,
       sort_order: ex?.sort_order ?? 0,
+      rest_seconds:
+        ex?.rest_seconds == null ? null : Number(ex.rest_seconds),
     };
   });
 
@@ -123,16 +127,31 @@ export async function fetchExerciseWeightPresetsMap(
   );
 }
 
-export async function fetchBodyWeight(): Promise<number | null> {
+export async function fetchTrainingProfile(): Promise<{
+  body_weight: number | null;
+  progression_base_pct: number | null;
+}> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("user_training_profile")
-    .select("body_weight")
+    .select("body_weight, progression_base_pct")
     .eq("singleton", true)
     .maybeSingle();
 
   if (error) throw new Error(error.message);
-  return data?.body_weight == null ? null : Number(data.body_weight);
+  return {
+    body_weight:
+      data?.body_weight == null ? null : Number(data.body_weight),
+    progression_base_pct:
+      data?.progression_base_pct == null
+        ? null
+        : Number(data.progression_base_pct),
+  };
+}
+
+export async function fetchBodyWeight(): Promise<number | null> {
+  const p = await fetchTrainingProfile();
+  return p.body_weight;
 }
 
 /** Latest logged weight per `(exercise_id, set_number)` from completed workouts on or before `beforeDate` (YYYY-MM-DD). */
@@ -256,7 +275,7 @@ export async function fetchSplitsCatalog(): Promise<SplitsCatalog> {
   const { data, error } = await supabase
     .from("workout_splits")
     .select("id, name")
-    .order("sort_order", { ascending: false })
+    .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
 
   if (!error) {

@@ -9,14 +9,17 @@ import {
   isWorkoutSplitsTableUnavailable,
 } from "@/lib/queries/read";
 import {
+  progressionOverloadPctToApply,
+  SMART_PROGRESSION_RIR_TARGET,
+} from "@/lib/progressionRir";
+import {
   applyProgressiveOverload,
   usesLoggedWeightColumn,
 } from "@/lib/progressiveOverload";
 import { createClient } from "@/lib/supabase/server";
+import { UNASSIGNED_SPLIT_NAME } from "@/lib/constants";
 import { formatWorkoutWeek } from "@/lib/week";
 import { computeSetVolume } from "@/lib/volume";
-
-const SMART_PROGRESSION_RIR_TARGET = 2;
 
 type CompletedSetPerf = {
   set_number: number;
@@ -111,6 +114,11 @@ function shouldApplySmartProgressionForSet(
 export async function createWorkoutDraftAndRedirect(split: string) {
   const splitName = split.trim();
   if (!splitName) throw new Error("Choose a split");
+  if (splitName === UNASSIGNED_SPLIT_NAME) {
+    throw new Error(
+      "Unassigned is only for parking exercises in settings, not for starting a workout.",
+    );
+  }
 
   const supabase = await createClient();
 
@@ -161,11 +169,15 @@ export async function createWorkoutDraftAndRedirect(split: string) {
 
   const { data: profile } = await supabase
     .from("user_training_profile")
-    .select("body_weight")
+    .select("body_weight, progression_base_pct")
     .eq("singleton", true)
     .maybeSingle();
   const bodyWeight =
     profile?.body_weight == null ? null : Number(profile.body_weight);
+  const profileBasePct =
+    profile?.progression_base_pct == null
+      ? null
+      : Number(profile.progression_base_pct);
 
   const exerciseIds = exercises.map((e) => e.id);
   const previousByKey = await fetchPreviousWeightsBeforeDate(
@@ -197,10 +209,12 @@ export async function createWorkoutDraftAndRedirect(split: string) {
         defaultReps,
         setPerf,
       );
-      const pctToApply =
-        progressionPassed && pctConfigured != null && pctConfigured > 0
-          ? pctConfigured
-          : 0;
+      const pctToApply = progressionOverloadPctToApply({
+        profileBasePct,
+        exercisePct: pctConfigured,
+        progressionPassed,
+        rir: setPerf?.rir,
+      });
 
       let weight: number | null = null;
       if (usesLoggedWeightColumn(tt)) {
@@ -344,18 +358,22 @@ export async function addWorkoutSet(workoutId: string, exerciseId: string) {
   if (exErr || !exercise) throw new Error(exErr?.message ?? "Exercise not found");
 
   const trackingType = (exercise.tracking_type ?? "weighted") as TrackingType;
-  const pct =
+  const pctConfigured =
     exercise.progressive_overload_pct == null
       ? null
       : Number(exercise.progressive_overload_pct);
 
   const { data: profile } = await supabase
     .from("user_training_profile")
-    .select("body_weight")
+    .select("body_weight, progression_base_pct")
     .eq("singleton", true)
     .maybeSingle();
   const bodyWeight =
     profile?.body_weight == null ? null : Number(profile.body_weight);
+  const profileBasePct =
+    profile?.progression_base_pct == null
+      ? null
+      : Number(profile.progression_base_pct);
 
   const previousByKey = await fetchPreviousWeightsBeforeDate(workout.date, [
     exerciseId,
@@ -364,11 +382,29 @@ export async function addWorkoutSet(workoutId: string, exerciseId: string) {
   const reps =
     exercise.default_reps != null ? Number(exercise.default_reps) : null;
 
+  const latestPerfByExercise = await fetchLatestCompletedSetsByExercise(
+    workout.date,
+    [exerciseId],
+    workout.split,
+  );
+  const latestSets = latestPerfByExercise[exerciseId] ?? [];
+  const setPerf = latestSets.find((s) => s.set_number === next);
+  const progressionPassed = shouldApplySmartProgressionForSet(
+    reps,
+    setPerf,
+  );
+  const pctToApply = progressionOverloadPctToApply({
+    profileBasePct,
+    exercisePct: pctConfigured,
+    progressionPassed,
+    rir: setPerf?.rir,
+  });
+
   let weight: number | null = null;
   if (usesLoggedWeightColumn(trackingType)) {
     weight = applyProgressiveOverload(
       lastW,
-      pct,
+      pctToApply,
       exercise.machine_start_weight,
       exercise.machine_end_weight,
       exercise.machine_increment,
