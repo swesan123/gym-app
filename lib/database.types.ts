@@ -20,7 +20,6 @@ export type Database = {
           machine_end_weight: number | null;
           machine_increment: number | null;
           default_reps: number | null;
-          progressive_overload_pct: number | null;
           progressive_overload_increment: number | null;
           rest_seconds: number | null;
           sort_order: number;
@@ -39,7 +38,6 @@ export type Database = {
           machine_end_weight?: number | null;
           machine_increment?: number | null;
           default_reps?: number | null;
-          progressive_overload_pct?: number | null;
           progressive_overload_increment?: number | null;
           rest_seconds?: number | null;
           sort_order?: number;
@@ -58,7 +56,6 @@ export type Database = {
           machine_end_weight?: number | null;
           machine_increment?: number | null;
           default_reps?: number | null;
-          progressive_overload_pct?: number | null;
           progressive_overload_increment?: number | null;
           rest_seconds?: number | null;
           sort_order?: number;

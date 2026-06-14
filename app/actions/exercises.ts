@@ -17,7 +17,6 @@ export async function updateExercise(input: {
   machine_end_weight: number | null;
   machine_increment: number | null;
   default_reps: number | null;
-  progressive_overload_pct: number | null;
   progressive_overload_increment: number | null;
   rest_seconds: number | null;
   stretch_kind: StretchKind;
@@ -35,7 +34,6 @@ export async function updateExercise(input: {
       machine_end_weight: input.machine_end_weight,
       machine_increment: input.machine_increment,
       default_reps: input.default_reps,
-      progressive_overload_pct: input.progressive_overload_pct,
       progressive_overload_increment: input.progressive_overload_increment,
       rest_seconds: input.rest_seconds,
       stretch_kind: input.stretch_kind,
@@ -82,7 +80,6 @@ export async function createExercise(input: {
   machine_end_weight: number | null;
   machine_increment: number | null;
   default_reps: number | null;
-  progressive_overload_pct: number | null;
   progressive_overload_increment: number | null;
   rest_seconds: number | null;
   stretch_kind: StretchKind;
@@ -101,7 +98,6 @@ export async function createExercise(input: {
       machine_end_weight: input.machine_end_weight,
       machine_increment: input.machine_increment,
       default_reps: input.default_reps,
-      progressive_overload_pct: input.progressive_overload_pct,
       progressive_overload_increment: input.progressive_overload_increment,
       rest_seconds: input.rest_seconds,
       stretch_kind: input.stretch_kind,
