@@ -19,6 +19,11 @@ import type { Database, StretchKind, TrackingType } from "@/lib/database.types";
 import type { WorkoutSplitRow } from "@/lib/queries/read";
 
 type ExerciseRow = Database["public"]["Tables"]["exercises"]["Row"];
+type ExerciseSplitRow = Database["public"]["Tables"]["exercise_splits"]["Row"];
+
+type ExerciseWithSplits = ExerciseRow & {
+  exercise_splits: ExerciseSplitRow[];
+};
 
 const TRACKING: TrackingType[] = [
   "weighted",
@@ -50,7 +55,6 @@ function parseOptionalReps(raw: FormDataEntryValue | null): number | null {
   return r;
 }
 
-/** Empty or 0 → no percentage bump (stored as null). */
 function parseOverloadPct(raw: FormDataEntryValue | null): number | null {
   const value = String(raw ?? "").trim();
   if (!value) return null;
@@ -60,7 +64,6 @@ function parseOverloadPct(raw: FormDataEntryValue | null): number | null {
   return n;
 }
 
-/** Empty or invalid → null; fixed increment in lbs/kg. */
 function parseOverloadIncrement(raw: FormDataEntryValue | null): number | null {
   const value = String(raw ?? "").trim();
   if (!value) return null;
@@ -69,7 +72,6 @@ function parseOverloadIncrement(raw: FormDataEntryValue | null): number | null {
   return n;
 }
 
-/** Empty or invalid → null; seconds between sets after logging (0–3600). */
 function parseRestSeconds(raw: FormDataEntryValue | null): number | null {
   const value = String(raw ?? "").trim();
   if (!value) return null;
@@ -93,17 +95,24 @@ function stretchCategory(stretch: StretchKind | null | undefined): StretchCatego
   return "main";
 }
 
-function peersInCategory(all: ExerciseRow[], ex: ExerciseRow): ExerciseRow[] {
+function getExerciseSplits(ex: ExerciseWithSplits): string[] {
+  return (ex.exercise_splits ?? []).map((es) => es.split_name).sort();
+}
+
+function peersInCategoryAndSplit(
+  all: ExerciseWithSplits[],
+  ex: ExerciseWithSplits,
+  splitName: string,
+): ExerciseWithSplits[] {
   const cat = stretchCategory(ex.stretch_kind);
+  const exerciseSplits = getExerciseSplits(ex);
   return all
     .filter(
-      (e) => e.split === ex.split && stretchCategory(e.stretch_kind) === cat,
+      (e) =>
+        getExerciseSplits(e).includes(splitName) &&
+        stretchCategory(e.stretch_kind) === cat,
     )
-    .sort(
-      (a, b) =>
-        (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
-        a.name.localeCompare(b.name),
-    );
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function ExerciseSettingsClient({
@@ -111,7 +120,7 @@ export function ExerciseSettingsClient({
   splits,
   splitsTableReady,
 }: {
-  exercises: ExerciseRow[];
+  exercises: ExerciseWithSplits[];
   splits: WorkoutSplitRow[];
   splitsTableReady: boolean;
 }) {
@@ -119,27 +128,18 @@ export function ExerciseSettingsClient({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [editing, setEditing] = useState<ExerciseRow | null>(null);
+  const [editing, setEditing] = useState<ExerciseWithSplits | null>(null);
   const [adding, setAdding] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const sortedSplits = useMemo(() => [...splits], [splits]);
 
-  const sorted = useMemo(
-    () =>
-      [...exercises].sort((a, b) => {
-        const splitCmp = a.split.localeCompare(b.split);
-        if (splitCmp !== 0) return splitCmp;
-        const ord = (a.sort_order ?? 0) - (b.sort_order ?? 0);
-        if (ord !== 0) return ord;
-        return a.name.localeCompare(b.name);
-      }),
-    [exercises],
-  );
-
   const splitOrder = useMemo(() => {
     const catalogNames = sortedSplits.map((s) => s.name);
-    const present = new Set(exercises.map((ex) => ex.split));
+    const present = new Set<string>();
+    exercises.forEach((ex) => {
+      getExerciseSplits(ex).forEach((s) => present.add(s));
+    });
     const ordered: string[] = [];
     for (const n of catalogNames) {
       if (present.has(n)) ordered.push(n);
@@ -167,7 +167,7 @@ export function ExerciseSettingsClient({
     const fd = new FormData(e.currentTarget);
     const name = String(fd.get("name") ?? "");
     const muscle = String(fd.get("muscle") ?? "");
-    const split = String(fd.get("split") ?? "");
+    const splits = fd.getAll("splits").map((s) => String(s));
     const default_sets = Number(fd.get("default_sets"));
     const tracking_type = String(fd.get("tracking_type")) as TrackingType;
     const notes = String(fd.get("notes") ?? "").trim() || null;
@@ -191,7 +191,7 @@ export function ExerciseSettingsClient({
           id: editing.id,
           name,
           muscle,
-          split,
+          splits: splits.length > 0 ? splits : [sortedSplits[0]?.name ?? "Unassigned"],
           default_sets: Number.isFinite(default_sets) ? default_sets : 3,
           tracking_type,
           notes,
@@ -217,7 +217,7 @@ export function ExerciseSettingsClient({
     const fd = new FormData(e.currentTarget);
     const name = String(fd.get("name") ?? "");
     const muscle = String(fd.get("muscle") ?? "");
-    const split = String(fd.get("split") ?? "");
+    const splits = fd.getAll("splits").map((s) => String(s));
     const default_sets = Number(fd.get("default_sets"));
     const tracking_type = String(fd.get("tracking_type")) as TrackingType;
     const notes = String(fd.get("notes") ?? "").trim() || null;
@@ -240,7 +240,7 @@ export function ExerciseSettingsClient({
         await createExercise({
           name,
           muscle,
-          split,
+          splits: splits.length > 0 ? splits : [sortedSplits[0]?.name ?? "Unassigned"],
           default_sets: Number.isFinite(default_sets) ? default_sets : 3,
           tracking_type,
           notes,
@@ -307,7 +307,9 @@ export function ExerciseSettingsClient({
 
         <div className="mt-6 flex flex-col gap-8">
           {splitOrder.map((splitName) => {
-            const forSplit = sorted.filter((ex) => ex.split === splitName);
+            const forSplit = exercises.filter((ex) =>
+              getExerciseSplits(ex).includes(splitName),
+            );
             if (forSplit.length === 0) return null;
             return (
               <section
@@ -330,13 +332,13 @@ export function ExerciseSettingsClient({
                         </h3>
                         <ul className="mt-3 flex flex-col gap-3">
                           {inCat.map((ex) => {
-                            const peers = peersInCategory(exercises, ex);
+                            const peers = peersInCategoryAndSplit(exercises, ex, splitName);
                             const idx = peers.findIndex((e) => e.id === ex.id);
                             const disableUp = idx <= 0;
                             const disableDown = idx < 0 || idx >= peers.length - 1;
                             return (
                               <li
-                                key={ex.id}
+                                key={`${splitName}-${ex.id}`}
                                 className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
                               >
                                 <div className="flex items-start justify-between gap-2">
@@ -355,6 +357,14 @@ export function ExerciseSettingsClient({
                                         {ex.notes}
                                       </p>
                                     ) : null}
+                                    {getExerciseSplits(ex).length > 1 ? (
+                                      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                        Also in:{" "}
+                                        {getExerciseSplits(ex)
+                                          .filter((s) => s !== splitName)
+                                          .join(", ")}
+                                      </p>
+                                    ) : null}
                                   </div>
                                   <div className="flex shrink-0 flex-col gap-2">
                                     <div className="flex justify-end gap-1">
@@ -368,7 +378,11 @@ export function ExerciseSettingsClient({
                                           startTransition(async () => {
                                             try {
                                               setError(null);
-                                              await reorderExercise(ex.id, "up");
+                                              await reorderExercise(
+                                                ex.id,
+                                                splitName,
+                                                "up",
+                                              );
                                               refresh();
                                             } catch (err) {
                                               setError(
@@ -394,6 +408,7 @@ export function ExerciseSettingsClient({
                                               setError(null);
                                               await reorderExercise(
                                                 ex.id,
+                                                splitName,
                                                 "down",
                                               );
                                               refresh();
@@ -483,41 +498,23 @@ export function ExerciseSettingsClient({
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              Split
-              {splitsTableReady ? (
-                <select
-                  name="split"
-                  required
-                  defaultValue={editing.split}
-                  className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
-                >
-                  {!sortedSplits.some((s) => s.name === editing.split) ? (
-                    <option value={editing.split}>{editing.split}</option>
-                  ) : null}
-                  {sortedSplits.map((s) => (
-                    <option key={s.id} value={s.name}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <>
-                  <input
-                    name="split"
-                    list="edit-split-suggestions"
-                    required
-                    defaultValue={editing.split}
-                    className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
-                  />
-                  <datalist id="edit-split-suggestions">
-                    {sortedSplits.map((s) => (
-                      <option key={s.id} value={s.name} />
-                    ))}
-                  </datalist>
-                </>
-              )}
-            </label>
+            <fieldset className="flex flex-col gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              <legend>Splits</legend>
+              <div className="space-y-2">
+                {sortedSplits.map((s) => (
+                  <label key={s.id} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      name="splits"
+                      value={s.name}
+                      defaultChecked={getExerciseSplits(editing).includes(s.name)}
+                      className="rounded"
+                    />
+                    <span>{s.name}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
               Default sets
               <input
@@ -708,41 +705,23 @@ export function ExerciseSettingsClient({
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-            Split
-            {splitsTableReady ? (
-              <select
-                name="split"
-                required
-                defaultValue={sortedSplits[0]?.name ?? ""}
-                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
-              >
-                {sortedSplits.map((s) => (
-                  <option key={s.id} value={s.name}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <>
-                <input
-                  name="split"
-                  list="add-split-suggestions"
-                  required
-                  placeholder={
-                    sortedSplits[0]?.name ?? "e.g. Push day"
-                  }
-                  defaultValue={sortedSplits[0]?.name ?? ""}
-                  className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
-                />
-                <datalist id="add-split-suggestions">
-                  {sortedSplits.map((s) => (
-                    <option key={s.id} value={s.name} />
-                  ))}
-                </datalist>
-              </>
-            )}
-          </label>
+          <fieldset className="flex flex-col gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <legend>Splits</legend>
+            <div className="space-y-2">
+              {sortedSplits.map((s) => (
+                <label key={s.id} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="splits"
+                    value={s.name}
+                    defaultChecked={s.id === sortedSplits[0]?.id}
+                    className="rounded"
+                  />
+                  <span>{s.name}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
             Default sets
             <input
@@ -872,53 +851,35 @@ export function ExerciseSettingsClient({
               />
             </label>
           </div>
-          {sortedSplits.length === 0 ? (
-            <p className="text-sm text-amber-800 dark:text-amber-200">
-              {splitsTableReady ? (
-                <>
-                  Add a split under{" "}
-                  <Link href="/settings/splits" className="underline">
-                    Settings → Splits
-                  </Link>{" "}
-                  first.
-                </>
-              ) : (
-                <>
-                  Enter a split name above (suggestions appear after you have exercises).
-                  After running the database migration, you can manage splits under{" "}
-                  <Link href="/settings/splits" className="underline">
-                    Settings → Splits
-                  </Link>
-                  .
-                </>
-              )}
-            </p>
-          ) : null}
         </form>
       </Modal>
 
       <Modal
         open={!!deleteId}
         title="Delete exercise?"
-        description="This removes the exercise and deletes all logged sets for it from every workout. This cannot be undone. To keep history, move the exercise to Unassigned instead."
-        variant="danger"
-        confirmLabel="Delete exercise"
+        cancelLabel="Cancel"
+        confirmLabel="Delete"
         onCancel={() => setDeleteId(null)}
         onConfirm={() => {
+          if (!deleteId) return;
           const id = deleteId;
-          if (!id) return;
-          setDeleteId(null);
           startTransition(async () => {
             try {
               setError(null);
               await deleteExercise(id);
+              setDeleteId(null);
               refresh();
             } catch (err) {
               setError(err instanceof Error ? err.message : "Delete failed");
             }
           });
         }}
-      />
+      >
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          Deleting an exercise will also delete all logged sets for it. This cannot
+          be undone.
+        </p>
+      </Modal>
     </>
   );
 }

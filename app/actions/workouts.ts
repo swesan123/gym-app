@@ -159,10 +159,10 @@ export async function createWorkoutDraftAndRedirect(split: string) {
   const { data: exercises, error: eErr } = await supabase
     .from("exercises")
     .select(
-      "id, default_sets, default_reps, progressive_overload_pct, progressive_overload_increment, tracking_type, machine_start_weight, machine_end_weight, machine_increment, sort_order",
+      "id, default_sets, default_reps, progressive_overload_pct, progressive_overload_increment, tracking_type, machine_start_weight, machine_end_weight, machine_increment, exercise_splits!inner(sort_order)",
     )
-    .eq("split", splitName)
-    .order("sort_order", { ascending: true })
+    .eq("exercise_splits.split_name", splitName)
+    .order("exercise_splits.sort_order", { ascending: true })
     .order("name", { ascending: true });
 
   if (eErr || !exercises?.length) {

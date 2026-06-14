@@ -14,8 +14,7 @@ export default async function ExercisesSettingsPage() {
   const [{ data, error }, catalog] = await Promise.all([
     supabase
       .from("exercises")
-      .select("*")
-      .order("split", { ascending: true })
+      .select("*, exercise_splits(split_name)")
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     fetchSplitsCatalog(),

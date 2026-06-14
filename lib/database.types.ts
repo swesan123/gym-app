@@ -86,6 +86,23 @@ export type Database = {
           updated_at?: string;
         };
       };
+      exercise_splits: {
+        Row: {
+          exercise_id: string;
+          split_name: string;
+          sort_order: number;
+        };
+        Insert: {
+          exercise_id: string;
+          split_name: string;
+          sort_order?: number;
+        };
+        Update: {
+          exercise_id?: string;
+          split_name?: string;
+          sort_order?: number;
+        };
+      };
       workout_splits: {
         Row: {
           id: string;
