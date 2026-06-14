@@ -122,6 +122,8 @@ export function ExerciseSettingsClient({
   const [editing, setEditing] = useState<ExerciseWithSplits | null>(null);
   const [adding, setAdding] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingSplits, setEditingSplits] = useState<Set<string>>(new Set());
+  const [addingSplits, setAddingSplits] = useState<Set<string>>(new Set());
 
   const sortedSplits = useMemo(() => [...splits], [splits]);
 
@@ -158,7 +160,7 @@ export function ExerciseSettingsClient({
     const fd = new FormData(e.currentTarget);
     const name = String(fd.get("name") ?? "");
     const muscle = String(fd.get("muscle") ?? "");
-    const splits = fd.getAll("splits").map((s) => String(s));
+    const splits = Array.from(editingSplits);
     const default_sets = Number(fd.get("default_sets"));
     const tracking_type = String(fd.get("tracking_type")) as TrackingType;
     const notes = String(fd.get("notes") ?? "").trim() || null;
@@ -192,6 +194,7 @@ export function ExerciseSettingsClient({
           stretch_kind,
         });
         setEditing(null);
+        setEditingSplits(new Set());
         refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Update failed");
@@ -204,7 +207,7 @@ export function ExerciseSettingsClient({
     const fd = new FormData(e.currentTarget);
     const name = String(fd.get("name") ?? "");
     const muscle = String(fd.get("muscle") ?? "");
-    const splits = fd.getAll("splits").map((s) => String(s));
+    const splits = Array.from(addingSplits);
     const default_sets = Number(fd.get("default_sets"));
     const tracking_type = String(fd.get("tracking_type")) as TrackingType;
     const notes = String(fd.get("notes") ?? "").trim() || null;
@@ -237,6 +240,7 @@ export function ExerciseSettingsClient({
           stretch_kind,
         });
         setAdding(false);
+        setAddingSplits(new Set());
         refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Create failed");
@@ -275,7 +279,16 @@ export function ExerciseSettingsClient({
               .
             </p>
           </div>
-          <Button type="button" disabled={pending} onClick={() => setAdding(true)}>
+          <Button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              setAdding(true);
+              setAddingSplits(
+                sortedSplits[0]?.name ? new Set([sortedSplits[0].name]) : new Set()
+              );
+            }}
+          >
             Add
           </Button>
         </div>
@@ -413,7 +426,10 @@ export function ExerciseSettingsClient({
                                       variant="secondary"
                                       disabled={pending}
                                       className="min-h-10 px-3 py-2 text-sm"
-                                      onClick={() => setEditing(ex)}
+                                      onClick={() => {
+                                        setEditing(ex);
+                                        setEditingSplits(new Set(getExerciseSplits(ex)));
+                                      }}
                                     >
                                       Edit
                                     </Button>
@@ -447,7 +463,10 @@ export function ExerciseSettingsClient({
         title="Edit exercise"
         cancelLabel="Close"
         confirmLabel="Save"
-        onCancel={() => setEditing(null)}
+        onCancel={() => {
+          setEditing(null);
+          setEditingSplits(new Set());
+        }}
         onConfirm={() => {
           const form = document.getElementById(
             "edit-exercise-form",
@@ -484,20 +503,24 @@ export function ExerciseSettingsClient({
             <fieldset className="flex flex-col gap-3 text-xs font-medium text-zinc-600 dark:text-zinc-400">
               <legend className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Splits</legend>
               <div className="flex flex-wrap gap-2">
-                {getExerciseSplits(editing).map((splitName) => (
+                {Array.from(editing ? editingSplits : addingSplits).map((splitName) => (
                   <button
                     key={splitName}
                     type="button"
                     onClick={() => {
-                      const allInputs = document.querySelectorAll(
-                        'input[name="splits"]',
-                      ) as NodeListOf<HTMLInputElement>;
-                      allInputs.forEach((input) => {
-                        if (input.value === splitName) input.checked = false;
-                      });
-                      // Re-render by triggering a state change if needed
-                      const event = new Event("change", { bubbles: true });
-                      allInputs.forEach((input) => input.dispatchEvent(event));
+                      if (editing) {
+                        setEditingSplits((prev) => {
+                          const next = new Set(prev);
+                          next.delete(splitName);
+                          return next;
+                        });
+                      } else {
+                        setAddingSplits((prev) => {
+                          const next = new Set(prev);
+                          next.delete(splitName);
+                          return next;
+                        });
+                      }
                     }}
                     className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
                   >
@@ -511,20 +534,17 @@ export function ExerciseSettingsClient({
               <div className="max-h-48 overflow-y-auto rounded-lg border border-zinc-300 dark:border-zinc-600">
                 <div className="flex flex-wrap gap-2 p-3">
                   {sortedSplits
-                    .filter((s) => !getExerciseSplits(editing).includes(s.name))
+                    .filter((s) => !(editing ? editingSplits : addingSplits).has(s.name))
                     .map((s) => (
                       <button
                         key={s.id}
                         type="button"
                         onClick={() => {
-                          const allInputs = document.querySelectorAll(
-                            'input[name="splits"]',
-                          ) as NodeListOf<HTMLInputElement>;
-                          allInputs.forEach((input) => {
-                            if (input.value === s.name) input.checked = true;
-                          });
-                          const event = new Event("change", { bubbles: true });
-                          allInputs.forEach((input) => input.dispatchEvent(event));
+                          if (editing) {
+                            setEditingSplits((prev) => new Set([...prev, s.name]));
+                          } else {
+                            setAddingSplits((prev) => new Set([...prev, s.name]));
+                          }
                         }}
                         className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
                       >
@@ -532,18 +552,6 @@ export function ExerciseSettingsClient({
                       </button>
                     ))}
                 </div>
-              </div>
-              <div className="hidden">
-                {sortedSplits.map((s) => (
-                  <input
-                    key={`hidden-${s.id}`}
-                    type="checkbox"
-                    name="splits"
-                    value={s.name}
-                    defaultChecked={getExerciseSplits(editing).includes(s.name)}
-                    className="hidden"
-                  />
-                ))}
               </div>
             </fieldset>
             <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
@@ -687,7 +695,10 @@ export function ExerciseSettingsClient({
         title="Add exercise"
         cancelLabel="Cancel"
         confirmLabel="Create"
-        onCancel={() => setAdding(false)}
+        onCancel={() => {
+          setAdding(false);
+          setAddingSplits(new Set());
+        }}
         onConfirm={() => {
           const form = document.getElementById(
             "add-exercise-form",
@@ -722,48 +733,36 @@ export function ExerciseSettingsClient({
           <fieldset className="flex flex-col gap-3 text-xs font-medium text-zinc-600 dark:text-zinc-400">
             <legend className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Splits</legend>
             <div id="selected-splits-add" className="flex flex-wrap gap-2 min-h-8">
-              {sortedSplits
-                .filter((s) => s.id === sortedSplits[0]?.id)
-                .map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => {
-                      const allInputs = document.querySelectorAll(
-                        'input[name="splits"]',
-                      ) as NodeListOf<HTMLInputElement>;
-                      allInputs.forEach((input) => {
-                        if (input.value === s.name) input.checked = false;
-                      });
-                      const event = new Event("change", { bubbles: true });
-                      allInputs.forEach((input) => input.dispatchEvent(event));
-                    }}
-                    className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
-                  >
-                    {s.name}
-                    <span className="text-emerald-600 dark:text-emerald-400">
-                      ✕
-                    </span>
-                  </button>
-                ))}
+              {Array.from(addingSplits).map((splitName) => (
+                <button
+                  key={splitName}
+                  type="button"
+                  onClick={() => {
+                    setAddingSplits((prev) => {
+                      const next = new Set(prev);
+                      next.delete(splitName);
+                      return next;
+                    });
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
+                >
+                  {splitName}
+                  <span className="text-emerald-600 dark:text-emerald-400">
+                    ✕
+                  </span>
+                </button>
+              ))}
             </div>
             <div className="max-h-48 overflow-y-auto rounded-lg border border-zinc-300 dark:border-zinc-600">
               <div className="flex flex-wrap gap-2 p-3">
                 {sortedSplits
-                  .filter((s) => s.id !== sortedSplits[0]?.id)
+                  .filter((s) => !addingSplits.has(s.name))
                   .map((s) => (
                     <button
                       key={s.id}
                       type="button"
                       onClick={() => {
-                        const allInputs = document.querySelectorAll(
-                          'input[name="splits"]',
-                        ) as NodeListOf<HTMLInputElement>;
-                        allInputs.forEach((input) => {
-                          if (input.value === s.name) input.checked = true;
-                        });
-                        const event = new Event("change", { bubbles: true });
-                        allInputs.forEach((input) => input.dispatchEvent(event));
+                        setAddingSplits((prev) => new Set([...prev, s.name]));
                       }}
                       className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
                     >
@@ -771,18 +770,6 @@ export function ExerciseSettingsClient({
                     </button>
                   ))}
               </div>
-            </div>
-            <div className="hidden">
-              {sortedSplits.map((s) => (
-                <input
-                  key={`hidden-add-${s.id}`}
-                  type="checkbox"
-                  name="splits"
-                  value={s.name}
-                  defaultChecked={s.id === sortedSplits[0]?.id}
-                  className="hidden"
-                />
-              ))}
             </div>
           </fieldset>
           <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
