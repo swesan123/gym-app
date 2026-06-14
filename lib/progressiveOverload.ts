@@ -131,3 +131,84 @@ export function usesLoggedWeightColumn(trackingType: string): boolean {
     trackingType === "bodyweight"
   );
 }
+
+type ProgressionDirection = "increase" | "decrease" | "none";
+
+/** Apply a fixed absolute increment for progressive overload. */
+export function applyFixedIncrement(
+  lastWeight: number | null | undefined,
+  increment: number | null | undefined,
+  direction: ProgressionDirection,
+  machineStart: number | null | undefined,
+  machineEnd: number | null | undefined,
+  machineIncrement: number | null | undefined,
+  trackingType?: string,
+): number | null {
+  if (lastWeight == null || !Number.isFinite(Number(lastWeight))) return null;
+  if (increment == null || !Number.isFinite(Number(increment))) return null;
+  if (direction === "none") return lastWeight;
+
+  const prev = Number(lastWeight);
+  const inc = Number(increment);
+  const isAssisted = trackingType === "assisted";
+
+  const raw =
+    direction === "increase"
+      ? isAssisted
+        ? prev - inc
+        : prev + inc
+      : direction === "decrease"
+        ? isAssisted
+          ? prev + inc
+          : prev - inc
+        : prev;
+
+  const hasGrid =
+    machineStart != null &&
+    machineEnd != null &&
+    machineIncrement != null &&
+    Number(machineIncrement) > 0 &&
+    Number(machineEnd) >= Number(machineStart);
+
+  if (hasGrid) {
+    if (direction === "increase") {
+      const computed = isAssisted
+        ? floorOnMachineGrid(
+            raw,
+            Number(machineStart),
+            Number(machineEnd),
+            Number(machineIncrement),
+          )
+        : ceilOnMachineGrid(
+            raw,
+            Number(machineStart),
+            Number(machineEnd),
+            Number(machineIncrement),
+          );
+      return computed;
+    } else if (direction === "decrease") {
+      const computed = isAssisted
+        ? ceilOnMachineGrid(
+            raw,
+            Number(machineStart),
+            Number(machineEnd),
+            Number(machineIncrement),
+          )
+        : floorOnMachineGrid(
+            raw,
+            Number(machineStart),
+            Number(machineEnd),
+            Number(machineIncrement),
+          );
+      return computed;
+    }
+    return nearestOnMachineGrid(
+      raw,
+      Number(machineStart),
+      Number(machineEnd),
+      Number(machineIncrement),
+    );
+  }
+
+  return Number(Math.max(0, raw).toFixed(2));
+}

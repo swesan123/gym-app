@@ -60,6 +60,15 @@ function parseOverloadPct(raw: FormDataEntryValue | null): number | null {
   return n;
 }
 
+/** Empty or invalid → null; fixed increment in lbs/kg. */
+function parseOverloadIncrement(raw: FormDataEntryValue | null): number | null {
+  const value = String(raw ?? "").trim();
+  if (!value) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0 || n > 1000) return null;
+  return n;
+}
+
 /** Empty or invalid → null; seconds between sets after logging (0–3600). */
 function parseRestSeconds(raw: FormDataEntryValue | null): number | null {
   const value = String(raw ?? "").trim();
@@ -169,6 +178,9 @@ export function ExerciseSettingsClient({
     const progressive_overload_pct = parseOverloadPct(
       fd.get("progressive_overload_pct"),
     );
+    const progressive_overload_increment = parseOverloadIncrement(
+      fd.get("progressive_overload_increment"),
+    );
     const rest_seconds = parseRestSeconds(fd.get("rest_seconds"));
     const stretch_kind = parseStretchKind(fd.get("stretch_kind"));
 
@@ -188,6 +200,7 @@ export function ExerciseSettingsClient({
           machine_increment,
           default_reps,
           progressive_overload_pct,
+          progressive_overload_increment,
           rest_seconds,
           stretch_kind,
         });
@@ -215,6 +228,9 @@ export function ExerciseSettingsClient({
     const progressive_overload_pct = parseOverloadPct(
       fd.get("progressive_overload_pct"),
     );
+    const progressive_overload_increment = parseOverloadIncrement(
+      fd.get("progressive_overload_increment"),
+    );
     const rest_seconds = parseRestSeconds(fd.get("rest_seconds"));
     const stretch_kind = parseStretchKind(fd.get("stretch_kind"));
 
@@ -233,6 +249,7 @@ export function ExerciseSettingsClient({
           machine_increment,
           default_reps,
           progressive_overload_pct,
+          progressive_overload_increment,
           rest_seconds,
           stretch_kind,
         });
@@ -258,12 +275,19 @@ export function ExerciseSettingsClient({
               >
                 Manage splits
               </Link>
-              {" "}and{" "}
+              ,{" "}
               <Link
                 href="/settings/profile"
                 className="font-medium text-emerald-700 underline dark:text-emerald-400"
               >
                 profile
+              </Link>
+              , or{" "}
+              <Link
+                href="/settings/backup"
+                className="font-medium text-emerald-700 underline dark:text-emerald-400"
+              >
+                backup
               </Link>
               .
             </p>
@@ -536,6 +560,24 @@ export function ExerciseSettingsClient({
               />
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              Increment (lb/kg)
+              <input
+                name="progressive_overload_increment"
+                type="number"
+                min={0}
+                max={1000}
+                step={0.5}
+                inputMode="decimal"
+                placeholder="Fixed increase (takes priority over %)"
+                defaultValue={
+                  editing.progressive_overload_increment != null
+                    ? String(editing.progressive_overload_increment)
+                    : ""
+                }
+                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
               Rest between sets (seconds)
               <input
                 name="rest_seconds"
@@ -733,6 +775,19 @@ export function ExerciseSettingsClient({
               max={100}
               step={0.5}
               placeholder="0 = off"
+              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            Increment (lb/kg)
+            <input
+              name="progressive_overload_increment"
+              type="number"
+              min={0}
+              max={1000}
+              step={0.5}
+              inputMode="decimal"
+              placeholder="Fixed increase (takes priority over %)"
               className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
             />
           </label>

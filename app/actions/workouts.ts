@@ -11,9 +11,12 @@ import {
 import {
   progressionOverloadPctToApply,
   SMART_PROGRESSION_RIR_TARGET,
+  resolveProgressionDirection,
+  type ProgressionDirection,
 } from "@/lib/progressionRir";
 import {
   applyProgressiveOverload,
+  applyFixedIncrement,
   usesLoggedWeightColumn,
 } from "@/lib/progressiveOverload";
 import { createClient } from "@/lib/supabase/server";
@@ -156,7 +159,7 @@ export async function createWorkoutDraftAndRedirect(split: string) {
   const { data: exercises, error: eErr } = await supabase
     .from("exercises")
     .select(
-      "id, default_sets, default_reps, progressive_overload_pct, tracking_type, machine_start_weight, machine_end_weight, machine_increment, sort_order",
+      "id, default_sets, default_reps, progressive_overload_pct, progressive_overload_increment, tracking_type, machine_start_weight, machine_end_weight, machine_increment, sort_order",
     )
     .eq("split", splitName)
     .order("sort_order", { ascending: true })
@@ -193,34 +196,63 @@ export async function createWorkoutDraftAndRedirect(split: string) {
       ex.progressive_overload_pct == null
         ? null
         : Number(ex.progressive_overload_pct);
+    const incrementConfigured =
+      ex.progressive_overload_increment == null
+        ? null
+        : Number(ex.progressive_overload_increment);
     const defaultReps = ex.default_reps != null ? Number(ex.default_reps) : null;
     const latestSets = latestPerfByExercise[ex.id] ?? [];
+
+    // Resolve progression direction at exercise level (not per-set)
+    const progressionDirection = resolveProgressionDirection({
+      latestSets,
+      defaultSets: ex.default_sets,
+      defaultReps,
+      rirTarget: SMART_PROGRESSION_RIR_TARGET,
+    });
+
     return Array.from({ length: ex.default_sets }, (_, i) => {
       const set_number = i + 1;
       const key = `${ex.id}:${set_number}`;
       const lastW = previousByKey[key] ?? null;
       const reps = defaultReps;
-      const setPerf = latestSets.find((s) => s.set_number === set_number);
-      const progressionPassed = shouldApplySmartProgressionForSet(
-        defaultReps,
-        setPerf,
-      );
-      const pctToApply = progressionOverloadPctToApply({
-        exercisePct: pctConfigured,
-        progressionPassed,
-        rir: setPerf?.rir,
-      });
 
       let weight: number | null = null;
       if (usesLoggedWeightColumn(tt)) {
-        weight = applyProgressiveOverload(
-          lastW,
-          pctToApply,
-          ex.machine_start_weight,
-          ex.machine_end_weight,
-          ex.machine_increment,
-          tt,
-        );
+        if (incrementConfigured != null) {
+          // Use fixed increment for this exercise
+          weight = applyFixedIncrement(
+            lastW,
+            incrementConfigured,
+            progressionDirection,
+            ex.machine_start_weight,
+            ex.machine_end_weight,
+            ex.machine_increment,
+            tt,
+          );
+        } else if (pctConfigured != null) {
+          // Fall back to legacy percentage-based progression
+          const setPerf = latestSets.find((s) => s.set_number === set_number);
+          const progressionPassed = shouldApplySmartProgressionForSet(
+            defaultReps,
+            setPerf,
+          );
+          const pctToApply = progressionOverloadPctToApply({
+            exercisePct: pctConfigured,
+            progressionPassed,
+            rir: setPerf?.rir,
+          });
+          weight = applyProgressiveOverload(
+            lastW,
+            pctToApply,
+            ex.machine_start_weight,
+            ex.machine_end_weight,
+            ex.machine_increment,
+            tt,
+          );
+        } else {
+          weight = lastW;
+        }
       }
 
       const volume = computeSetVolume(tt, {
@@ -345,7 +377,7 @@ export async function addWorkoutSet(workoutId: string, exerciseId: string) {
   const { data: exercise, error: exErr } = await supabase
     .from("exercises")
     .select(
-      "tracking_type, default_reps, progressive_overload_pct, machine_start_weight, machine_end_weight, machine_increment",
+      "tracking_type, default_sets, default_reps, progressive_overload_pct, progressive_overload_increment, machine_start_weight, machine_end_weight, machine_increment",
     )
     .eq("id", exerciseId)
     .single();
@@ -357,6 +389,10 @@ export async function addWorkoutSet(workoutId: string, exerciseId: string) {
     exercise.progressive_overload_pct == null
       ? null
       : Number(exercise.progressive_overload_pct);
+  const incrementConfigured =
+    exercise.progressive_overload_increment == null
+      ? null
+      : Number(exercise.progressive_overload_increment);
 
   const { data: profile } = await supabase
     .from("user_training_profile")
@@ -379,27 +415,51 @@ export async function addWorkoutSet(workoutId: string, exerciseId: string) {
     workout.split,
   );
   const latestSets = latestPerfByExercise[exerciseId] ?? [];
-  const setPerf = latestSets.find((s) => s.set_number === next);
-  const progressionPassed = shouldApplySmartProgressionForSet(
-    reps,
-    setPerf,
-  );
-  const pctToApply = progressionOverloadPctToApply({
-    exercisePct: pctConfigured,
-    progressionPassed,
-    rir: setPerf?.rir,
+
+  // Resolve progression direction at exercise level
+  const progressionDirection = resolveProgressionDirection({
+    latestSets,
+    defaultSets: exercise.default_sets ?? 3,
+    defaultReps: reps,
+    rirTarget: SMART_PROGRESSION_RIR_TARGET,
   });
 
   let weight: number | null = null;
   if (usesLoggedWeightColumn(trackingType)) {
-    weight = applyProgressiveOverload(
-      lastW,
-      pctToApply,
-      exercise.machine_start_weight,
-      exercise.machine_end_weight,
-      exercise.machine_increment,
-      trackingType,
-    );
+    if (incrementConfigured != null) {
+      // Use fixed increment for this exercise
+      weight = applyFixedIncrement(
+        lastW,
+        incrementConfigured,
+        progressionDirection,
+        exercise.machine_start_weight,
+        exercise.machine_end_weight,
+        exercise.machine_increment,
+        trackingType,
+      );
+    } else if (pctConfigured != null) {
+      // Fall back to legacy percentage-based progression
+      const setPerf = latestSets.find((s) => s.set_number === next);
+      const progressionPassed = shouldApplySmartProgressionForSet(
+        reps,
+        setPerf,
+      );
+      const pctToApply = progressionOverloadPctToApply({
+        exercisePct: pctConfigured,
+        progressionPassed,
+        rir: setPerf?.rir,
+      });
+      weight = applyProgressiveOverload(
+        lastW,
+        pctToApply,
+        exercise.machine_start_weight,
+        exercise.machine_end_weight,
+        exercise.machine_increment,
+        trackingType,
+      );
+    } else {
+      weight = lastW;
+    }
   }
 
   const volume = computeSetVolume(trackingType, {
