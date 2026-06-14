@@ -498,20 +498,68 @@ export function ExerciseSettingsClient({
                 ))}
               </select>
             </label>
-            <fieldset className="flex flex-col gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              <legend>Splits</legend>
-              <div className="space-y-2">
+            <fieldset className="flex flex-col gap-3 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              <legend className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Splits</legend>
+              <div className="flex flex-wrap gap-2">
+                {getExerciseSplits(editing).map((splitName) => (
+                  <button
+                    key={splitName}
+                    type="button"
+                    onClick={() => {
+                      const allInputs = document.querySelectorAll(
+                        'input[name="splits"]',
+                      ) as NodeListOf<HTMLInputElement>;
+                      allInputs.forEach((input) => {
+                        if (input.value === splitName) input.checked = false;
+                      });
+                      // Re-render by triggering a state change if needed
+                      const event = new Event("change", { bubbles: true });
+                      allInputs.forEach((input) => input.dispatchEvent(event));
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
+                  >
+                    {splitName}
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      ✕
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-zinc-300 dark:border-zinc-600">
+                <div className="flex flex-wrap gap-2 p-3">
+                  {sortedSplits
+                    .filter((s) => !getExerciseSplits(editing).includes(s.name))
+                    .map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => {
+                          const allInputs = document.querySelectorAll(
+                            'input[name="splits"]',
+                          ) as NodeListOf<HTMLInputElement>;
+                          allInputs.forEach((input) => {
+                            if (input.value === s.name) input.checked = true;
+                          });
+                          const event = new Event("change", { bubbles: true });
+                          allInputs.forEach((input) => input.dispatchEvent(event));
+                        }}
+                        className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                      >
+                        + {s.name}
+                      </button>
+                    ))}
+                </div>
+              </div>
+              <div className="hidden">
                 {sortedSplits.map((s) => (
-                  <label key={s.id} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="splits"
-                      value={s.name}
-                      defaultChecked={getExerciseSplits(editing).includes(s.name)}
-                      className="rounded"
-                    />
-                    <span>{s.name}</span>
-                  </label>
+                  <input
+                    key={`hidden-${s.id}`}
+                    type="checkbox"
+                    name="splits"
+                    value={s.name}
+                    defaultChecked={getExerciseSplits(editing).includes(s.name)}
+                    className="hidden"
+                  />
                 ))}
               </div>
             </fieldset>
@@ -705,20 +753,69 @@ export function ExerciseSettingsClient({
               ))}
             </select>
           </label>
-          <fieldset className="flex flex-col gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-            <legend>Splits</legend>
-            <div className="space-y-2">
+          <fieldset className="flex flex-col gap-3 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <legend className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Splits</legend>
+            <div id="selected-splits-add" className="flex flex-wrap gap-2 min-h-8">
+              {sortedSplits
+                .filter((s) => s.id === sortedSplits[0]?.id)
+                .map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      const allInputs = document.querySelectorAll(
+                        'input[name="splits"]',
+                      ) as NodeListOf<HTMLInputElement>;
+                      allInputs.forEach((input) => {
+                        if (input.value === s.name) input.checked = false;
+                      });
+                      const event = new Event("change", { bubbles: true });
+                      allInputs.forEach((input) => input.dispatchEvent(event));
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
+                  >
+                    {s.name}
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      ✕
+                    </span>
+                  </button>
+                ))}
+            </div>
+            <div className="max-h-48 overflow-y-auto rounded-lg border border-zinc-300 dark:border-zinc-600">
+              <div className="flex flex-wrap gap-2 p-3">
+                {sortedSplits
+                  .filter((s) => s.id !== sortedSplits[0]?.id)
+                  .map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        const allInputs = document.querySelectorAll(
+                          'input[name="splits"]',
+                        ) as NodeListOf<HTMLInputElement>;
+                        allInputs.forEach((input) => {
+                          if (input.value === s.name) input.checked = true;
+                        });
+                        const event = new Event("change", { bubbles: true });
+                        allInputs.forEach((input) => input.dispatchEvent(event));
+                      }}
+                      className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    >
+                      + {s.name}
+                    </button>
+                  ))}
+              </div>
+            </div>
+            <div className="hidden">
               {sortedSplits.map((s) => (
-                <label key={s.id} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="splits"
-                    value={s.name}
-                    defaultChecked={s.id === sortedSplits[0]?.id}
-                    className="rounded"
-                  />
-                  <span>{s.name}</span>
-                </label>
+                <input
+                  key={`hidden-add-${s.id}`}
+                  type="checkbox"
+                  name="splits"
+                  value={s.name}
+                  defaultChecked={s.id === sortedSplits[0]?.id}
+                  className="hidden"
+                />
               ))}
             </div>
           </fieldset>
