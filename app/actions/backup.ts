@@ -7,6 +7,7 @@ export async function exportAllData() {
 
   const [
     { data: exercises, error: exercisesError },
+    { data: exerciseSplits, error: exerciseSplitsError },
     { data: workoutSplits, error: splitsError },
     { data: workouts, error: workoutsError },
     { data: workoutSets, error: setsError },
@@ -14,6 +15,7 @@ export async function exportAllData() {
     { data: profile, error: profileError },
   ] = await Promise.all([
     supabase.from("exercises").select("*"),
+    supabase.from("exercise_splits").select("*"),
     supabase.from("workout_splits").select("*"),
     supabase.from("workouts").select("*"),
     supabase.from("workout_sets").select("*"),
@@ -23,6 +25,7 @@ export async function exportAllData() {
 
   if (
     exercisesError ||
+    exerciseSplitsError ||
     splitsError ||
     workoutsError ||
     setsError ||
@@ -35,6 +38,7 @@ export async function exportAllData() {
   const backupData = {
     exported_at: new Date().toISOString(),
     exercises: exercises ?? [],
+    exercise_splits: exerciseSplits ?? [],
     workout_splits: workoutSplits ?? [],
     workouts: workouts ?? [],
     workout_sets: workoutSets ?? [],
