@@ -539,7 +539,8 @@ export function ActiveWorkout({
     // Web Audio API beep for rest end
     if (event === "end") {
       try {
-        const audioContext = new ((window.AudioContext || (window as Record<string, unknown>).webkitAudioContext) as typeof window.AudioContext)();
+        const AudioContextConstructor = window.AudioContext || ((window as unknown as Record<string, unknown>).webkitAudioContext as typeof window.AudioContext);
+        const audioContext = new AudioContextConstructor();
         const osc = audioContext.createOscillator();
         const gain = audioContext.createGain();
         osc.connect(gain);

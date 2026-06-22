@@ -10,6 +10,7 @@ import {
 } from "@/lib/queries/read";
 import {
   SMART_PROGRESSION_RIR_TARGET,
+  resolveProgressionDirection,
 } from "@/lib/progressionRir";
 import {
   applyFixedIncrement,
