@@ -50,13 +50,13 @@ export default async function HistoryDetailPage({ params }: Props) {
       <header className="flex items-center justify-between gap-2 px-4">
         <Link
           href="/history"
-          className="inline-flex min-h-10 items-center justify-center rounded-lg px-2 font-semibold text-[var(--gym-amber)] hover:bg-[var(--gray-100)] dark:text-orange-400 dark:hover:bg-[var(--gray-800)]"
+          className="inline-flex min-h-10 items-center justify-center rounded-lg px-2 font-semibold text-[var(--gym-amber)] hover:bg-[var(--gray-100)] dark:text-orange-400 dark:hover:bg-[var(--gray-100)]"
         >
           ← History
         </Link>
         <Link
           href={`/workout/${workoutId}`}
-          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-4 font-semibold text-[var(--steel-gray)] hover:bg-[var(--gray-50)] dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)] dark:text-[var(--chalk-white)] dark:hover:bg-[var(--gray-800)]"
+          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-4 font-semibold text-[var(--steel-gray)] hover:bg-[var(--gray-50)] dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)] dark:text-[var(--chalk-white)] dark:hover:bg-[var(--gray-100)]"
         >
           Open session
         </Link>

@@ -54,7 +54,7 @@ export default async function ProgressPage() {
         {rows.map((r, i) => (
           <div
             key={`${r.week}-${r.split}-${r.exercise}-${r.muscle}-${i}`}
-            className="rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] p-3 text-sm transition hover:border-[var(--gym-amber)]/30 dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)] dark:hover:border-[var(--gym-amber)]/40"
+            className="rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] p-3 text-sm transition hover:border-[var(--gym-amber)]/30 dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)] dark:hover:border-[var(--gym-amber)]/40"
           >
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div>

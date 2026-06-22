@@ -41,7 +41,7 @@ export default async function ProfileSettingsPage() {
             step="any"
             defaultValue={body_weight ?? ""}
             placeholder="e.g. 175"
-            className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
+            className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
           />
         </label>
         <p className="text-xs text-[var(--gray-500)] dark:text-[var(--gray-400)]">

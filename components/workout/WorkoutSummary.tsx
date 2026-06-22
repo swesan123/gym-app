@@ -32,7 +32,7 @@ function formatVolume(v: number | null) {
 function ExerciseCard({ g }: { g: SummaryExercise }) {
   return (
     <section
-      className="rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] p-4 dark:border-[var(--gray-800)] dark:bg-[var(--gray-900)]"
+      className="rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] p-4 dark:border-[var(--gray-100)] dark:bg-[var(--gray-50)]"
     >
       <h3 className="text-lg font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
         {g.exercise_name}
@@ -41,7 +41,7 @@ function ExerciseCard({ g }: { g: SummaryExercise }) {
         {g.sets.map((s) => (
           <li
             key={s.id}
-            className="rounded-lg bg-[var(--gray-50)] p-3 dark:bg-[var(--gray-800)]/80"
+            className="rounded-lg bg-[var(--gray-50)] p-3 dark:bg-[var(--gray-100)]/80"
           >
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
               <span className="font-semibold text-[var(--steel-gray)] dark:text-[var(--gray-200)]">
@@ -98,7 +98,7 @@ export function WorkoutSummary({ groups }: { groups: SummaryExercise[] }) {
           sec.groups.length > 0 && (
             <section
               key={sec.key}
-              className="rounded-lg border border-[var(--gray-300)]/80 bg-[var(--gray-50)]/80 p-4 dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]/50"
+              className="rounded-lg border border-[var(--gray-300)]/80 bg-[var(--gray-50)]/80 p-4 dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]/50"
             >
               <h2 className="text-base font-bold uppercase tracking-wide text-[var(--gray-600)] dark:text-[var(--gray-400)]">
                 {sec.title}

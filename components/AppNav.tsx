@@ -12,7 +12,7 @@ const links = [
 export function AppNav() {
   return (
     <nav
-      className="sticky bottom-0 z-40 border-t border-[var(--gray-200)] bg-[var(--chalk-white)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur dark:border-[var(--gray-700)] dark:bg-[var(--iron-black)]/95"
+      className="sticky bottom-0 z-40 border-t border-[var(--gray-200)] bg-[var(--chalk-white)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur dark:border-[var(--gray-200)] dark:bg-[var(--iron-black)]/95"
       aria-label="Main"
     >
       <ul className="flex flex-wrap justify-around gap-x-1 gap-y-0 px-1 pt-2">
@@ -20,7 +20,7 @@ export function AppNav() {
           <li key={l.href}>
             <Link
               href={l.href}
-              className="flex min-h-11 min-w-[3.75rem] items-center justify-center rounded-lg px-1.5 text-center text-xs font-medium text-[var(--gray-600)] hover:bg-[var(--gray-100)] sm:min-w-[4.25rem] sm:text-sm dark:text-[var(--gray-400)] dark:hover:bg-[var(--gray-800)] transition-colors"
+              className="flex min-h-11 min-w-[3.75rem] items-center justify-center rounded-lg px-1.5 text-center text-xs font-medium text-[var(--gray-600)] hover:bg-[var(--gray-100)] sm:min-w-[4.25rem] sm:text-sm dark:text-[var(--gray-400)] dark:hover:bg-[var(--gray-100)] transition-colors"
             >
               {l.label}
             </Link>

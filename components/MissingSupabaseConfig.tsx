@@ -6,15 +6,15 @@ export function MissingSupabaseConfig() {
       </h1>
       <p className="mt-3 text-[var(--gray-600)] dark:text-[var(--gray-400)]">
         Copy{" "}
-        <code className="rounded bg-[var(--gray-100)] px-1 dark:bg-[var(--gray-800)]">
+        <code className="rounded bg-[var(--gray-100)] px-1 dark:bg-[var(--gray-100)]">
           .env.example
         </code>{" "}
         to{" "}
-        <code className="rounded bg-[var(--gray-100)] px-1 dark:bg-[var(--gray-800)]">
+        <code className="rounded bg-[var(--gray-100)] px-1 dark:bg-[var(--gray-100)]">
           .env.local
         </code>{" "}
         and add your project URL and anon key. Apply migrations and seed from{" "}
-        <code className="rounded bg-[var(--gray-100)] px-1 dark:bg-[var(--gray-800)]">
+        <code className="rounded bg-[var(--gray-100)] px-1 dark:bg-[var(--gray-100)]">
           supabase/
         </code>
         .

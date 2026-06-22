@@ -67,7 +67,7 @@ export default async function HomePage() {
           <div className="mt-4 flex flex-wrap gap-2">
             <Link
               href={`/workout/${draft.id}`}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-4 py-2 font-semibold text-[var(--steel-gray)] transition hover:bg-[var(--gray-100)] dark:border-[var(--gray-700)] dark:bg-[var(--gray-800)] dark:text-[var(--chalk-white)] dark:hover:bg-[var(--gray-700)]"
+              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-4 py-2 font-semibold text-[var(--steel-gray)] transition hover:bg-[var(--gray-100)] dark:border-[var(--gray-200)] dark:bg-[var(--gray-100)] dark:text-[var(--chalk-white)] dark:hover:bg-[var(--gray-200)]"
             >
               Continue
             </Link>
@@ -93,7 +93,7 @@ export default async function HomePage() {
             {recentByDate.map((workout) => (
               <li
                 key={workout.id}
-                className="rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] p-4 text-sm transition hover:border-[var(--gym-amber)]/50 dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)] dark:hover:border-[var(--gym-amber)]/30"
+                className="rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] p-4 text-sm transition hover:border-[var(--gym-amber)]/50 dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)] dark:hover:border-[var(--gym-amber)]/30"
               >
                 <Link href={`/history/${workout.id}`} className="block">
                   <span className="font-data font-semibold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">

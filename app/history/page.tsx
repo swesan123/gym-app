@@ -230,7 +230,7 @@ export default async function HistoryPage() {
                     <li key={w.id}>
                       <Link
                         href={`/history/${w.id}`}
-                        className="block rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] p-4 transition hover:border-[var(--gym-amber)]/50 dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)] dark:hover:border-[var(--gym-amber)]/30"
+                        className="block rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] p-4 transition hover:border-[var(--gym-amber)]/50 dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)] dark:hover:border-[var(--gym-amber)]/30"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>

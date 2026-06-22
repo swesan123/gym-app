@@ -11,9 +11,9 @@ const base =
 const variants: Record<NonNullable<Props["variant"]>, string> = {
   primary: "bg-[var(--gym-amber)] text-[var(--chalk-white)] hover:bg-orange-600 active:bg-orange-700",
   secondary:
-    "border border-[var(--gray-300)] bg-[var(--chalk-white)] text-[var(--steel-gray)] hover:bg-[var(--gray-100)] dark:border-[var(--gray-700)] dark:bg-[var(--gray-800)] dark:text-[var(--chalk-white)] dark:hover:bg-[var(--gray-700)]",
+    "border border-[var(--gray-300)] bg-[var(--chalk-white)] text-[var(--steel-gray)] hover:bg-[var(--gray-100)] dark:border-[var(--gray-200)] dark:bg-[var(--gray-100)] dark:text-[var(--chalk-white)] dark:hover:bg-[var(--gray-200)]",
   danger: "bg-[var(--muted-red)] text-[var(--chalk-white)] hover:bg-red-700 active:bg-red-800",
-  ghost: "text-[var(--gym-amber)] hover:bg-[var(--gray-100)] dark:hover:bg-[var(--gray-800)]",
+  ghost: "text-[var(--gym-amber)] hover:bg-[var(--gray-100)] dark:hover:bg-[var(--gray-100)]",
 };
 
 export function Button({

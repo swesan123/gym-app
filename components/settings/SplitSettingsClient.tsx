@@ -34,7 +34,7 @@ function ExerciseSection({
       </h4>
       <ul className="mt-2 space-y-2">
         {exercises.map((ex) => (
-          <li key={ex.id} className="flex items-center justify-between gap-2 rounded-lg bg-[var(--gray-50)] px-3 py-2 dark:bg-[var(--gray-800)]/50">
+          <li key={ex.id} className="flex items-center justify-between gap-2 rounded-lg bg-[var(--gray-50)] px-3 py-2 dark:bg-[var(--gray-100)]/50">
             <span className="text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">{ex.name}</span>
             <div className="flex shrink-0 items-center gap-1">
               <Button
@@ -179,7 +179,7 @@ export function SplitSettingsClient({
               onChange={(e) => setNewName(e.target.value)}
               placeholder="e.g. Push / Pull / Legs"
               disabled={!splitsTableReady || pending}
-              className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base disabled:opacity-60 dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
+              className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base disabled:opacity-60 dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
             />
           </label>
           <Button
@@ -218,9 +218,9 @@ export function SplitSettingsClient({
             };
 
             return (
-              <div key={s.id} className="overflow-hidden rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]">
+              <div key={s.id} className="overflow-hidden rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]">
                 {/* Split header */}
-                <div className="flex items-center justify-between gap-2 border-b border-[var(--gray-200)] px-4 py-3 dark:border-[var(--gray-700)]">
+                <div className="flex items-center justify-between gap-2 border-b border-[var(--gray-200)] px-4 py-3 dark:border-[var(--gray-200)]">
                   <div className="flex-1">
                     {renamingId === s.id ? (
                       <input
@@ -237,7 +237,7 @@ export function SplitSettingsClient({
                         }}
                         placeholder={s.name}
                         disabled={pending}
-                        className="min-h-9 w-full rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-2 text-sm dark:border-[var(--gray-700)] dark:bg-[var(--gray-800)]"
+                        className="min-h-9 w-full rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-2 text-sm dark:border-[var(--gray-200)] dark:bg-[var(--gray-100)]"
                       />
                     ) : (
                       <h3 className="font-semibold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">{s.name}</h3>
