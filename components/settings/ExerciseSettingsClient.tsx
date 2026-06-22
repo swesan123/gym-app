@@ -124,13 +124,25 @@ export function ExerciseSettingsClient({
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingSplits, setEditingSplits] = useState<Set<string>>(new Set());
   const [addingSplits, setAddingSplits] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
 
   const sortedSplits = useMemo(() => [...splits], [splits]);
+
+  const filteredExercises = useMemo(() => {
+    if (!searchQuery.trim()) return exercises;
+    const q = searchQuery.toLowerCase();
+    return exercises.filter(
+      (ex) =>
+        ex.name.toLowerCase().includes(q) ||
+        ex.muscle.toLowerCase().includes(q) ||
+        (ex.notes?.toLowerCase().includes(q) ?? false)
+    );
+  }, [exercises, searchQuery]);
 
   const splitOrder = useMemo(() => {
     const catalogNames = sortedSplits.map((s) => s.name);
     const present = new Set<string>();
-    exercises.forEach((ex) => {
+    filteredExercises.forEach((ex) => {
       getExerciseSplits(ex).forEach((s) => present.add(s));
     });
     const ordered: string[] = [];
@@ -141,7 +153,7 @@ export function ExerciseSettingsClient({
       .filter((n) => !ordered.includes(n))
       .sort((a, b) => a.localeCompare(b));
     return [...ordered, ...extra];
-  }, [sortedSplits, exercises]);
+  }, [sortedSplits, filteredExercises]);
 
   const categorySections: {
     key: StretchCategoryKey;
@@ -293,6 +305,16 @@ export function ExerciseSettingsClient({
           </Button>
         </div>
 
+        <div className="mt-4">
+          <input
+            type="text"
+            placeholder="Search by name, muscle, or notes…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-900 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder-zinc-400"
+          />
+        </div>
+
         {!splitsTableReady ? <SplitsMigrationBanner className="mt-4" /> : null}
 
         {error ? (
@@ -302,8 +324,13 @@ export function ExerciseSettingsClient({
         ) : null}
 
         <div className="mt-6 flex flex-col gap-8">
+          {filteredExercises.length === 0 && searchQuery ? (
+            <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+              No exercises match "{searchQuery}"
+            </p>
+          ) : null}
           {splitOrder.map((splitName) => {
-            const forSplit = exercises.filter((ex) =>
+            const forSplit = filteredExercises.filter((ex) =>
               getExerciseSplits(ex).includes(splitName),
             );
             if (forSplit.length === 0) return null;
