@@ -1,26 +1,90 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Gym-inspired color palette */
+  --steel-gray: #3a3a3a;
+  --chalk-white: #fafafa;
+  --iron-black: #1a1a1a;
+  --gym-amber: #c9733d;
+  --muted-red: #8b4545;
+
+  /* Semantic colors */
+  --background: var(--chalk-white);
+  --foreground: var(--steel-gray);
+  --brand-amber: var(--gym-amber);
+  --intensity-red: var(--muted-red);
+
+  /* Neutral grays for hierarchy */
+  --gray-50: #f9f7f5;
+  --gray-100: #f0ede8;
+  --gray-200: #e5e1db;
+  --gray-300: #d9d3cc;
+  --gray-400: #a8a29c;
+  --gray-500: #78716b;
+  --gray-600: #5b5450;
+  --gray-700: #3e3934;
+  --gray-800: #2d2926;
+  --gray-900: var(--iron-black);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-primary: var(--gym-amber);
+  --color-primary-fg: var(--chalk-white);
+  --color-secondary: var(--steel-gray);
+  --color-accent: var(--muted-red);
+  --font-sans: "Inter", var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", var(--font-geist-mono), monospace;
+
+  /* Extended color palette */
+  --color-surface: var(--chalk-white);
+  --color-surface-alt: var(--gray-100);
+  --color-border: var(--gray-200);
+  --color-muted: var(--gray-500);
+  --color-muted-fg: var(--gray-700);
+
+  /* Spacing scale */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+  --spacing-3xl: 40px;
+  --spacing-4xl: 48px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: var(--iron-black);
+    --foreground: var(--chalk-white);
+    --gray-50: #2d2926;
+    --gray-100: #3e3934;
+    --gray-200: #5b5450;
+    --gray-300: #78716b;
+    --gray-400: #a8a29c;
+    --gray-500: #d9d3cc;
+    --gray-600: #e5e1db;
+    --gray-700: #f0ede8;
+    --gray-800: #f9f7f5;
+    --gray-900: var(--chalk-white);
   }
+}
+
+html {
+  font-family: "Inter", system-ui, sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  letter-spacing: -0.3px;
+}
+
+/* Monospace for numbers and data */
+.font-data,
+.tabular-nums {
+  font-family: "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums;
 }
