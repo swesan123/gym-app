@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-import { createSplit, deleteSplit, reorderSplit } from "@/app/actions/splits";
+import { createSplit, deleteSplit, reorderSplit, renameSplit } from "@/app/actions/splits";
 import type { WorkoutSplitRow } from "@/lib/queries/read";
 import { UNASSIGNED_SPLIT_NAME } from "@/lib/constants";
 import { SplitsMigrationBanner } from "@/components/SplitsMigrationBanner";
@@ -24,6 +24,8 @@ export function SplitSettingsClient({
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const refresh = () => router.refresh();
 
@@ -55,6 +57,22 @@ export function SplitSettingsClient({
         refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not delete");
+      }
+    });
+  };
+
+  const onConfirmRename = () => {
+    const id = renamingId;
+    if (!id || !renameValue.trim()) return;
+    startTransition(async () => {
+      try {
+        setError(null);
+        await renameSplit(id, renameValue);
+        setRenamingId(null);
+        setRenameValue("");
+        refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not rename");
       }
     });
   };
@@ -122,65 +140,124 @@ export function SplitSettingsClient({
               movableIdx < movable.length - 1;
             return (
             <li key={s.id} className="flex items-center justify-between gap-2 px-4 py-3">
-              <span className="font-medium">{s.name}</span>
+              {renamingId === s.id ? (
+                <input
+                  autoFocus
+                  type="text"
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") onConfirmRename();
+                    if (e.key === "Escape") {
+                      setRenamingId(null);
+                      setRenameValue("");
+                    }
+                  }}
+                  placeholder={s.name}
+                  disabled={pending}
+                  className="min-h-9 flex-1 rounded-lg border border-zinc-300 bg-white px-2 text-sm dark:border-zinc-600 dark:bg-zinc-950"
+                />
+              ) : (
+                <span className="font-medium">{s.name}</span>
+              )}
               <div className="flex shrink-0 items-center gap-1">
-                {!isUnassigned ? (
+                {renamingId === s.id ? (
                   <>
                     <Button
                       type="button"
                       variant="ghost"
-                      disabled={pending || !splitsTableReady || !canMoveUp}
-                      className="min-h-9 min-w-9 px-0 text-zinc-600 dark:text-zinc-400"
-                      aria-label="Move split up"
-                      onClick={() => {
-                        startTransition(async () => {
-                          try {
-                            setError(null);
-                            await reorderSplit(s.id, "up");
-                            refresh();
-                          } catch (err) {
-                            setError(
-                              err instanceof Error ? err.message : "Could not reorder",
-                            );
-                          }
-                        });
-                      }}
+                      disabled={pending || !renameValue.trim()}
+                      className="min-h-9 text-emerald-700 dark:text-emerald-400"
+                      onClick={onConfirmRename}
                     >
-                      ↑
+                      Save
                     </Button>
                     <Button
                       type="button"
                       variant="ghost"
-                      disabled={pending || !splitsTableReady || !canMoveDown}
-                      className="min-h-9 min-w-9 px-0 text-zinc-600 dark:text-zinc-400"
-                      aria-label="Move split down"
+                      disabled={pending}
+                      className="min-h-9 text-zinc-600 dark:text-zinc-400"
                       onClick={() => {
-                        startTransition(async () => {
-                          try {
-                            setError(null);
-                            await reorderSplit(s.id, "down");
-                            refresh();
-                          } catch (err) {
-                            setError(
-                              err instanceof Error ? err.message : "Could not reorder",
-                            );
-                          }
-                        });
+                        setRenamingId(null);
+                        setRenameValue("");
                       }}
                     >
-                      ↓
+                      Cancel
                     </Button>
                   </>
-                ) : null}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={pending || !splitsTableReady || isUnassigned}
-                  className="min-h-9 shrink-0 text-red-700 dark:text-red-400"
-                  onClick={() => setDeleteId(s.id)}
-                >
-                  Delete
-                </Button>
+                ) : (
+                  <>
+                    {!isUnassigned ? (
+                      <>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={pending || !splitsTableReady || !canMoveUp}
+                          className="min-h-9 min-w-9 px-0 text-zinc-600 dark:text-zinc-400"
+                          aria-label="Move split up"
+                          onClick={() => {
+                            startTransition(async () => {
+                              try {
+                                setError(null);
+                                await reorderSplit(s.id, "up");
+                                refresh();
+                              } catch (err) {
+                                setError(
+                                  err instanceof Error ? err.message : "Could not reorder",
+                                );
+                              }
+                            });
+                          }}
+                        >
+                          ↑
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={pending || !splitsTableReady || !canMoveDown}
+                          className="min-h-9 min-w-9 px-0 text-zinc-600 dark:text-zinc-400"
+                          aria-label="Move split down"
+                          onClick={() => {
+                            startTransition(async () => {
+                              try {
+                                setError(null);
+                                await reorderSplit(s.id, "down");
+                                refresh();
+                              } catch (err) {
+                                setError(
+                                  err instanceof Error ? err.message : "Could not reorder",
+                                );
+                              }
+                            });
+                          }}
+                        >
+                          ↓
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={pending || !splitsTableReady}
+                          className="min-h-9 text-zinc-600 dark:text-zinc-400"
+                          onClick={() => {
+                            setRenamingId(s.id);
+                            setRenameValue(s.name);
+                          }}
+                        >
+                          ✎
+                        </Button>
+                      </>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={pending || !splitsTableReady || isUnassigned}
+                      className="min-h-9 shrink-0 text-red-700 dark:text-red-400"
+                      onClick={() => setDeleteId(s.id)}
+                    >
+                      Delete
+                    </Button>
+                  </>
+                )}
               </div>
             </li>
           );

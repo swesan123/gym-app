@@ -85,6 +85,72 @@ export async function restoreSplit(id: string) {
   revalidatePath("/settings/exercises");
 }
 
+export async function renameSplit(id: string, newName: string) {
+  const trimmed = newName.trim();
+  if (!trimmed) throw new Error("Split name is required");
+  if (trimmed.toLowerCase() === UNASSIGNED_SPLIT_NAME.toLowerCase()) {
+    throw new Error(`"${UNASSIGNED_SPLIT_NAME}" is reserved by the app.`);
+  }
+
+  const supabase = await createClient();
+
+  const { data: row, error: fErr } = await supabase
+    .from("workout_splits")
+    .select("name")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fErr) throw new Error(fErr.message);
+  if (!row) throw new Error("Split not found");
+
+  const oldName = row.name;
+  if (oldName === UNASSIGNED_SPLIT_NAME) {
+    throw new Error(`The "${UNASSIGNED_SPLIT_NAME}" split cannot be renamed.`);
+  }
+
+  // Check if new name already exists
+  const { count: existing } = await supabase
+    .from("workout_splits")
+    .select("*", { count: "exact", head: true })
+    .eq("name", trimmed)
+    .neq("id", id);
+
+  if (existing && existing > 0) {
+    throw new Error("A split with that name already exists.");
+  }
+
+  // Update the split name
+  const { error: updateErr } = await supabase
+    .from("workout_splits")
+    .update({ name: trimmed })
+    .eq("id", id);
+
+  if (updateErr) throw new Error(updateErr.message);
+
+  // Cascade update: exercise_splits
+  const { error: exErr } = await supabase
+    .from("exercise_splits")
+    .update({ split_name: trimmed })
+    .eq("split_name", oldName);
+
+  if (exErr) throw new Error(exErr.message);
+
+  // Cascade update: workouts
+  const { error: woErr } = await supabase
+    .from("workouts")
+    .update({ split: trimmed })
+    .eq("split", oldName);
+
+  if (woErr) throw new Error(woErr.message);
+
+  revalidatePath("/settings/splits");
+  revalidatePath("/workout/start");
+  revalidatePath("/settings/exercises");
+  revalidatePath("/");
+  revalidatePath("/history");
+  revalidatePath("/progress");
+}
+
 export async function deleteSplit(id: string) {
   const supabase = await createClient();
 

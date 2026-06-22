@@ -534,32 +534,12 @@ export function ActiveWorkout({
     }
   }, []);
 
-  const scheduleRest = useCallback((seconds: number, label: string) => {
-    if (status === "completed" || seconds <= 0) return;
-    setRest({ seconds, label });
-    playRestAlert("start");
-  }, [status]);
-
-  useEffect(() => {
-    if (rest == null || rest.seconds <= 0) return;
-    const id = window.setInterval(() => {
-      setRest((r) => {
-        if (r == null || r.seconds <= 1) {
-          playRestAlert("end");
-          return null;
-        }
-        return { ...r, seconds: r.seconds - 1 };
-      });
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [rest]);
-
   /** Play audio/haptic feedback for rest timer */
-  const playRestAlert = (event: "start" | "end") => {
+  const playRestAlert = useCallback((event: "start" | "end") => {
     // Web Audio API beep for rest end
     if (event === "end") {
       try {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const audioContext = new ((window.AudioContext || (window as Record<string, unknown>).webkitAudioContext) as typeof window.AudioContext)();
         const osc = audioContext.createOscillator();
         const gain = audioContext.createGain();
         osc.connect(gain);
@@ -587,7 +567,27 @@ export function ActiveWorkout({
         });
       }
     }
-  };
+  }, [rest]);
+
+  const scheduleRest = useCallback((seconds: number, label: string) => {
+    if (status === "completed" || seconds <= 0) return;
+    setRest({ seconds, label });
+    playRestAlert("start");
+  }, [status, playRestAlert]);
+
+  useEffect(() => {
+    if (rest == null || rest.seconds <= 0) return;
+    const id = window.setInterval(() => {
+      setRest((r) => {
+        if (r == null || r.seconds <= 1) {
+          playRestAlert("end");
+          return null;
+        }
+        return { ...r, seconds: r.seconds - 1 };
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [rest, playRestAlert]);
 
   const exerciseWeightPresets = useMemo(() => {
     const map = new Map<string, number[]>();

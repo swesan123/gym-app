@@ -96,7 +96,6 @@ function peersInCategoryAndSplit(
   splitName: string,
 ): ExerciseWithSplits[] {
   const cat = stretchCategory(ex.stretch_kind);
-  const exerciseSplits = getExerciseSplits(ex);
   return all
     .filter(
       (e) =>
@@ -326,7 +325,7 @@ export function ExerciseSettingsClient({
         <div className="mt-6 flex flex-col gap-8">
           {filteredExercises.length === 0 && searchQuery ? (
             <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
-              No exercises match "{searchQuery}"
+              No exercises match &ldquo;{searchQuery}&rdquo;
             </p>
           ) : null}
           {splitOrder.map((splitName) => {

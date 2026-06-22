@@ -10,8 +10,6 @@ import {
 } from "@/lib/queries/read";
 import {
   SMART_PROGRESSION_RIR_TARGET,
-  resolveProgressionDirection,
-  type ProgressionDirection,
 } from "@/lib/progressionRir";
 import {
   applyFixedIncrement,
@@ -148,8 +146,8 @@ export async function createWorkoutDraftAndRedirect(split: string) {
 
   if (!eErr && exercises) {
     exercises.sort((a, b) => {
-      const aSort = (a.exercise_splits as any)?.[0]?.sort_order ?? Infinity;
-      const bSort = (b.exercise_splits as any)?.[0]?.sort_order ?? Infinity;
+      const aSort = (a.exercise_splits as { sort_order: number }[])?.[0]?.sort_order ?? Infinity;
+      const bSort = (b.exercise_splits as { sort_order: number }[])?.[0]?.sort_order ?? Infinity;
       return aSort - bSort || a.name.localeCompare(b.name);
     });
   }

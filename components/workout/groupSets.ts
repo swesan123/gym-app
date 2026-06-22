@@ -1,4 +1,4 @@
-import type { SetType, StretchKind, TrackingType } from "@/lib/database.types";
+import type { StretchKind, TrackingType } from "@/lib/database.types";
 
 import type { SummaryExercise, SummarySet } from "@/components/workout/WorkoutSummary";
 
