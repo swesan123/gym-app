@@ -5,7 +5,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-import { createSplit, deleteSplit, reorderSplit, renameSplit } from "@/app/actions/splits";
+import { createSplit, deleteSplit, reorderSplit, renameSplit, archiveSplit } from "@/app/actions/splits";
+import { reorderExercise } from "@/app/actions/exercises";
 import type { WorkoutSplitRow } from "@/lib/queries/read";
 import type { StretchKind } from "@/lib/database.types";
 import { UNASSIGNED_SPLIT_NAME } from "@/lib/constants";
@@ -23,9 +24,15 @@ type ExerciseWithSplits = {
 function ExerciseSection({
   title,
   exercises,
+  splitName,
+  pending,
+  onReorder,
 }: {
   title: string;
   exercises: ExerciseWithSplits[];
+  splitName: string;
+  pending: boolean;
+  onReorder: (exerciseId: string, splitName: string, direction: "up" | "down") => void;
 }) {
   return (
     <div className="px-4 py-3">
@@ -33,7 +40,7 @@ function ExerciseSection({
         {title}
       </h4>
       <ul className="mt-2 space-y-2">
-        {exercises.map((ex) => (
+        {exercises.map((ex, idx) => (
           <li key={ex.id} className="flex items-center justify-between gap-2 rounded-lg bg-[var(--gray-50)] px-3 py-2 dark:bg-[var(--gray-100)]/50">
             <span className="text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">{ex.name}</span>
             <div className="flex shrink-0 items-center gap-1">
@@ -41,7 +48,8 @@ function ExerciseSection({
                 type="button"
                 variant="ghost"
                 className="min-h-8 min-w-8 px-0 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]"
-                disabled
+                disabled={pending || idx === 0}
+                onClick={() => onReorder(ex.id, splitName, "up")}
               >
                 ↑
               </Button>
@@ -49,17 +57,10 @@ function ExerciseSection({
                 type="button"
                 variant="ghost"
                 className="min-h-8 min-w-8 px-0 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]"
-                disabled
+                disabled={pending || idx === exercises.length - 1}
+                onClick={() => onReorder(ex.id, splitName, "down")}
               >
                 ↓
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="min-h-8 shrink-0 text-sm text-[var(--muted-red)] dark:text-red-400"
-                disabled
-              >
-                ✕
               </Button>
             </div>
           </li>
@@ -85,8 +86,36 @@ export function SplitSettingsClient({
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [archiveId, setArchiveId] = useState<string | null>(null);
 
   const refresh = () => router.refresh();
+
+  const onReorderExercise = (exerciseId: string, splitName: string, direction: "up" | "down") => {
+    startTransition(async () => {
+      try {
+        setError(null);
+        await reorderExercise(exerciseId, splitName, direction);
+        refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not reorder");
+      }
+    });
+  };
+
+  const onConfirmArchive = () => {
+    const id = archiveId;
+    if (!id) return;
+    setArchiveId(null);
+    startTransition(async () => {
+      try {
+        setError(null);
+        await archiveSplit(id);
+        refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not archive");
+      }
+    });
+  };
 
   const onAdd = (e: FormEvent) => {
     e.preventDefault();
@@ -330,6 +359,17 @@ export function SplitSettingsClient({
                             </Button>
                           </>
                         ) : null}
+                        {!isUnassigned ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            disabled={pending || !splitsTableReady}
+                            className="min-h-9 text-[var(--gray-500)] dark:text-[var(--gray-400)]"
+                            onClick={() => setArchiveId(s.id)}
+                          >
+                            Archive
+                          </Button>
+                        ) : null}
                         <Button
                           type="button"
                           variant="ghost"
@@ -350,13 +390,13 @@ export function SplitSettingsClient({
                 ) : (
                   <div className="divide-y divide-[var(--gray-100)] dark:divide-[var(--gray-800)]">
                     {groupedExercises.dynamic.length > 0 && (
-                      <ExerciseSection title="Dynamic stretches" exercises={groupedExercises.dynamic} />
+                      <ExerciseSection title="Dynamic stretches" exercises={groupedExercises.dynamic} splitName={s.name} pending={pending} onReorder={onReorderExercise} />
                     )}
                     {groupedExercises.main.length > 0 && (
-                      <ExerciseSection title="Exercises" exercises={groupedExercises.main} />
+                      <ExerciseSection title="Exercises" exercises={groupedExercises.main} splitName={s.name} pending={pending} onReorder={onReorderExercise} />
                     )}
                     {groupedExercises.static.length > 0 && (
-                      <ExerciseSection title="Static stretches" exercises={groupedExercises.static} />
+                      <ExerciseSection title="Static stretches" exercises={groupedExercises.static} splitName={s.name} pending={pending} onReorder={onReorderExercise} />
                     )}
                   </div>
                 )}
@@ -379,6 +419,15 @@ export function SplitSettingsClient({
           .
         </p>
       </div>
+
+      <Modal
+        open={!!archiveId}
+        title="Archive split?"
+        description="Archived splits are hidden from the Start workout screen but your workout history is preserved. You can restore them later."
+        confirmLabel="Archive split"
+        onCancel={() => setArchiveId(null)}
+        onConfirm={onConfirmArchive}
+      />
 
       <Modal
         open={!!deleteId}
