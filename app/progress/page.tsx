@@ -30,7 +30,7 @@ export default async function ProgressPage() {
   );
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
+    <div className="px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)] tracking-tight">
           Progress

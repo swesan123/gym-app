@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <div className="mx-auto max-w-lg px-4 py-16 text-center">
+    <div className="px-4 py-16 text-center">
       <h1 className="text-2xl font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">Not found</h1>
       <p className="mt-2 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
         That workout or page does not exist.

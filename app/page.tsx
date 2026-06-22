@@ -34,7 +34,7 @@ export default async function HomePage() {
     ]);
 
   return (
-    <div className="mx-auto max-w-lg px-4 pb-28 pt-[max(1.25rem,env(safe-area-inset-top))]">
+    <div className="px-4 pb-28 pt-[max(1.25rem,env(safe-area-inset-top))]">
       {/* Header */}
       <div className="mb-12">
         <h1 className="text-4xl font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)] tracking-tight">

@@ -47,7 +47,7 @@ export default async function HistoryDetailPage({ params }: Props) {
 
   return (
     <div className="pb-28 pt-[max(0.75rem,env(safe-area-inset-top))]">
-      <header className="mx-auto flex max-w-lg items-center justify-between gap-2 px-4">
+      <header className="flex items-center justify-between gap-2 px-4">
         <Link
           href="/history"
           className="inline-flex min-h-10 items-center justify-center rounded-lg px-2 font-semibold text-[var(--gym-amber)] hover:bg-[var(--gray-100)] dark:text-orange-400 dark:hover:bg-[var(--gray-800)]"
@@ -62,7 +62,7 @@ export default async function HistoryDetailPage({ params }: Props) {
         </Link>
       </header>
 
-      <div className="mx-auto max-w-lg px-4 pt-3">
+      <div className="px-4 pt-3">
         <h1 className="text-4xl font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)] tracking-tight">{workout.split}</h1>
         <p className="mt-2 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
           {workout.date} · {workout.week} ·{" "}
@@ -77,7 +77,7 @@ export default async function HistoryDetailPage({ params }: Props) {
 
       <WorkoutSummary groups={groups} />
 
-      <div className="mx-auto max-w-lg px-4 pt-2">
+      <div className="px-4 pt-2">
         <DeleteWorkoutButton workoutId={workoutId} />
       </div>
     </div>

@@ -15,7 +15,7 @@ export function AppNav() {
       className="sticky bottom-0 z-40 border-t border-[var(--gray-200)] bg-[var(--chalk-white)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur dark:border-[var(--gray-700)] dark:bg-[var(--iron-black)]/95"
       aria-label="Main"
     >
-      <ul className="mx-auto flex max-w-2xl flex-wrap justify-around gap-x-1 gap-y-0 px-1 pt-2">
+      <ul className="flex flex-wrap justify-around gap-x-1 gap-y-0 px-1 pt-2">
         {links.map((l) => (
           <li key={l.href}>
             <Link

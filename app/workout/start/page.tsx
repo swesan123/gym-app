@@ -17,7 +17,7 @@ export default async function StartWorkoutPage() {
   const splitsForStart = splits.filter((s) => s.name !== UNASSIGNED_SPLIT_NAME);
 
   return (
-    <div className="mx-auto max-w-lg px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
+    <div className="px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
       {/* Header */}
       <div className="mb-8">
         <Link
