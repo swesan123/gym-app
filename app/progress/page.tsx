@@ -31,10 +31,14 @@ export default async function ProgressPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
-      <h1 className="text-2xl font-bold">Progress</h1>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        Weekly volume by split, exercise, and muscle (completed workouts).
-      </p>
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)] tracking-tight">
+          Progress
+        </h1>
+        <p className="mt-2 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+          Volume trends by split, exercise, and muscle group.
+        </p>
+      </div>
 
       {rows.length > 0 ? (
         <ProgressCharts
@@ -43,40 +47,40 @@ export default async function ProgressPage() {
         />
       ) : null}
 
-      <div className="mt-6 flex flex-col gap-2">
-        <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+      <div className="mt-10 flex flex-col gap-2">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-[var(--gray-500)] dark:text-[var(--gray-400)]">
           Weekly detail
         </h2>
         {rows.map((r, i) => (
           <div
             key={`${r.week}-${r.split}-${r.exercise}-${r.muscle}-${i}`}
-            className="rounded-xl border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-800 dark:bg-zinc-900"
+            className="rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] p-3 text-sm transition hover:border-[var(--gym-amber)]/30 dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)] dark:hover:border-[var(--gym-amber)]/40"
           >
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div>
-                <p className="font-semibold text-zinc-900 dark:text-zinc-50">
+                <p className="font-semibold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
                   {r.exercise}
                 </p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs text-[var(--gray-500)] dark:text-[var(--gray-400)]">
                   {r.split} · {r.week} · {r.muscle}
                 </p>
               </div>
-              <dl className="grid grid-cols-3 gap-x-4 gap-y-1 text-right text-xs tabular-nums sm:text-sm">
+              <dl className="font-data grid grid-cols-3 gap-x-4 gap-y-1 text-right text-xs tabular-nums sm:text-sm">
                 <div>
-                  <dt className="text-zinc-500 dark:text-zinc-400">Sets</dt>
-                  <dd className="font-medium">{r.total_sets}</dd>
+                  <dt className="text-[var(--gray-500)] dark:text-[var(--gray-400)]">Sets</dt>
+                  <dd className="font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">{r.total_sets}</dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500 dark:text-zinc-400">Reps</dt>
-                  <dd className="font-medium">
+                  <dt className="text-[var(--gray-500)] dark:text-[var(--gray-400)]">Reps</dt>
+                  <dd className="font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
                     {r.total_reps != null
                       ? Number(r.total_reps).toLocaleString()
                       : "—"}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500 dark:text-zinc-400">Volume</dt>
-                  <dd className="font-semibold">
+                  <dt className="text-[var(--gray-500)] dark:text-[var(--gray-400)]">Volume</dt>
+                  <dd className="font-semibold text-[var(--gym-amber)]">
                     {r.total_volume != null
                       ? Math.round(Number(r.total_volume)).toLocaleString()
                       : "—"}

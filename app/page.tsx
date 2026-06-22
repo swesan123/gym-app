@@ -35,38 +35,46 @@ export default async function HomePage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 pb-28 pt-[max(1.25rem,env(safe-area-inset-top))]">
-      <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-        Gym Tracker
-      </h1>
+      {/* Header */}
+      <div className="mb-12">
+        <h1 className="text-4xl font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)] tracking-tight">
+          Gym Tracker
+        </h1>
+        <p className="mt-2 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+          Log, track, and push harder
+        </p>
+      </div>
 
-      <div className="mt-8">
+      {/* Primary CTA */}
+      <div className="mb-10">
         <Link
           href="/workout/start"
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-lg font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]"
+          className="inline-flex min-h-14 w-full items-center justify-center rounded-lg bg-[var(--gym-amber)] px-6 py-4 text-lg font-semibold text-[var(--chalk-white)] transition hover:bg-orange-600 active:scale-[0.98]"
         >
           Start workout
         </Link>
       </div>
 
+      {/* Draft workout banner */}
       {draft ? (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/40">
-          <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+        <div className="mb-10 rounded-lg border border-[var(--gym-amber)]/30 bg-[var(--gym-amber)]/5 p-4 dark:border-[var(--gym-amber)]/40 dark:bg-[var(--gym-amber)]/10">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--gym-amber)] dark:text-orange-400">
             Draft in progress
           </p>
-          <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
+          <p className="mt-2 font-data text-lg font-semibold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
             {draft.split}
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2">
             <Link
               href={`/workout/${draft.id}`}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 py-2 font-semibold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-4 py-2 font-semibold text-[var(--steel-gray)] transition hover:bg-[var(--gray-100)] dark:border-[var(--gray-700)] dark:bg-[var(--gray-800)] dark:text-[var(--chalk-white)] dark:hover:bg-[var(--gray-700)]"
             >
-              Continue workout
+              Continue
             </Link>
             <form action={discardDraft.bind(null, draft.id)}>
               <button
                 type="submit"
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-red-300 bg-white px-4 py-2 font-semibold text-red-700 hover:bg-red-50 dark:border-red-900 dark:bg-zinc-900 dark:text-red-400 dark:hover:bg-red-950/40"
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--muted-red)]/40 bg-transparent px-4 py-2 font-semibold text-[var(--muted-red)] transition hover:bg-[var(--muted-red)]/5 dark:hover:bg-[var(--muted-red)]/10"
               >
                 Discard
               </button>
@@ -75,28 +83,33 @@ export default async function HomePage() {
         </div>
       ) : null}
 
-      <section className="mt-8">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+      {/* Recent workouts section */}
+      <section>
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-[var(--gray-500)] dark:text-[var(--gray-400)]">
           Last 7 days
         </h2>
         {recentByDate && recentByDate.length > 0 ? (
-          <ul className="mt-3 space-y-2">
+          <ul className="mt-4 space-y-2">
             {recentByDate.map((workout) => (
               <li
                 key={workout.id}
-                className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900"
+                className="rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] p-4 text-sm transition hover:border-[var(--gym-amber)]/50 dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)] dark:hover:border-[var(--gym-amber)]/30"
               >
-                <span className="font-semibold">{workout.split}</span>
-                <span className="text-zinc-600 dark:text-zinc-400">
-                  {" "}
-                  · {workout.date}
-                </span>
+                <Link href={`/history/${workout.id}`} className="block">
+                  <span className="font-data font-semibold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
+                    {workout.split}
+                  </span>
+                  <span className="text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+                    {" "}
+                    · {workout.date}
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-            No completed workouts in the last 7 days.
+          <p className="mt-4 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+            No completed workouts in the last 7 days. Start one to see your history here.
           </p>
         )}
       </section>
