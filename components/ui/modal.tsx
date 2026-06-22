@@ -1,7 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 
@@ -35,6 +36,8 @@ export function Modal({
   onCancel,
 }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -60,9 +63,9 @@ export function Modal({
     return true;
   };
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto overscroll-contain bg-black/50 sm:items-center"
       role="presentation"
@@ -105,6 +108,7 @@ export function Modal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

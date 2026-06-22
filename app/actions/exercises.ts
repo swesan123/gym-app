@@ -139,32 +139,38 @@ export async function reorderExercise(
 ) {
   const supabase = await createClient();
 
-  const { data: ex, error: exErr } = await supabase
-    .from("exercises")
-    .select("id, stretch_kind")
-    .eq("id", exerciseId)
-    .single();
-
-  if (exErr || !ex) throw new Error(exErr?.message ?? "Exercise not found");
-
-  const { data: list, error: listErr } = await supabase
+  // Fetch all exercise_splits for this split with exercise stretch_kind
+  const { data: allRows, error: listErr } = await supabase
     .from("exercise_splits")
-    .select("exercise_id, sort_order, exercises!inner(id, name, stretch_kind)")
+    .select("exercise_id, sort_order, exercises(stretch_kind)")
     .eq("split_name", splitName)
-    .eq("exercises.stretch_kind", ex.stretch_kind ?? "none")
     .order("sort_order", { ascending: true })
     .order("exercise_id", { ascending: true });
 
-  if (listErr || !list?.length) {
+  if (listErr || !allRows?.length) {
     throw new Error(listErr?.message ?? "Could not load exercises");
   }
 
-  const idx = list.findIndex((r) => r.exercise_id === exerciseId);
-  const j = direction === "up" ? idx - 1 : idx + 1;
-  if (idx < 0 || j < 0 || j >= list.length) return;
+  // Find the target exercise's stretch_kind
+  const target = allRows.find((r) => r.exercise_id === exerciseId);
+  if (!target) throw new Error("Exercise not found in split");
 
-  const a = list[idx];
-  const b = list[j];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const targetKind = ((target.exercises as any)?.[0]?.stretch_kind ?? (target.exercises as any)?.stretch_kind) ?? "none";
+
+  // Filter to only same stretch_kind section (same group as the target)
+  const sameSection = allRows.filter((r) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const kind = ((r.exercises as any)?.[0]?.stretch_kind ?? (r.exercises as any)?.stretch_kind) ?? "none";
+    return kind === targetKind;
+  });
+
+  const idx = sameSection.findIndex((r) => r.exercise_id === exerciseId);
+  const j = direction === "up" ? idx - 1 : idx + 1;
+  if (idx < 0 || j < 0 || j >= sameSection.length) return;
+
+  const a = sameSection[idx];
+  const b = sameSection[j];
   const orderA = Number(a.sort_order);
   const orderB = Number(b.sort_order);
 
@@ -183,6 +189,7 @@ export async function reorderExercise(
   if (u2) throw new Error(u2.message);
 
   revalidatePath("/settings/exercises");
+  revalidatePath("/settings/splits");
   revalidatePath("/workout/start");
 }
 
