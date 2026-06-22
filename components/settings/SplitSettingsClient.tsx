@@ -7,16 +7,75 @@ import Link from "next/link";
 
 import { createSplit, deleteSplit, reorderSplit, renameSplit } from "@/app/actions/splits";
 import type { WorkoutSplitRow } from "@/lib/queries/read";
+import type { StretchKind } from "@/lib/database.types";
 import { UNASSIGNED_SPLIT_NAME } from "@/lib/constants";
 import { SplitsMigrationBanner } from "@/components/SplitsMigrationBanner";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 
+type ExerciseWithSplits = {
+  id: string;
+  name: string;
+  stretch_kind: StretchKind;
+  exercise_splits: Array<{ split_name: string; sort_order: number }>;
+};
+
+function ExerciseSection({
+  title,
+  exercises,
+}: {
+  title: string;
+  exercises: ExerciseWithSplits[];
+}) {
+  return (
+    <div className="px-4 py-3">
+      <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+        {title}
+      </h4>
+      <ul className="mt-2 space-y-2">
+        {exercises.map((ex) => (
+          <li key={ex.id} className="flex items-center justify-between gap-2 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800/50">
+            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{ex.name}</span>
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                className="min-h-8 min-w-8 px-0 text-sm text-zinc-600 dark:text-zinc-400"
+                disabled
+              >
+                ↑
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="min-h-8 min-w-8 px-0 text-sm text-zinc-600 dark:text-zinc-400"
+                disabled
+              >
+                ↓
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="min-h-8 shrink-0 text-sm text-red-700 dark:text-red-400"
+                disabled
+              >
+                ✕
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function SplitSettingsClient({
   splits: initialSplits,
+  exercises: allExercises,
   splitsTableReady,
 }: {
   splits: WorkoutSplitRow[];
+  exercises: ExerciseWithSplits[];
   splitsTableReady: boolean;
 }) {
   const router = useRouter();
@@ -90,8 +149,8 @@ export function SplitSettingsClient({
         </div>
         <h1 className="mt-4 text-2xl font-bold">Splits</h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          Names listed here appear when you start a workout. Drag order with ↑ / ↓ (the{" "}
-          <span className="font-medium">{UNASSIGNED_SPLIT_NAME}</span> row is for parking exercises only — it does not appear on Start workout). Assign exercises to a split under{" "}
+          Organize exercises by split. Reorder splits with ↑ / ↓. The{" "}
+          <span className="font-medium">{UNASSIGNED_SPLIT_NAME}</span> split is for parking exercises and does not appear on Start workout. Manage exercise properties like name, muscle, and notes under{" "}
           <Link href="/settings/exercises" className="font-medium text-emerald-700 underline dark:text-emerald-400">
             Exercises
           </Link>
@@ -128,7 +187,7 @@ export function SplitSettingsClient({
           </Button>
         </form>
 
-        <ul className="mt-8 divide-y divide-zinc-200 rounded-2xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="mt-8 flex flex-col gap-6">
           {initialSplits.map((s) => {
             const isUnassigned = s.name === UNASSIGNED_SPLIT_NAME;
             const movable = initialSplits.filter((x) => x.name !== UNASSIGNED_SPLIT_NAME);
@@ -138,131 +197,170 @@ export function SplitSettingsClient({
               !isUnassigned &&
               movableIdx >= 0 &&
               movableIdx < movable.length - 1;
+
+            // Get exercises for this split
+            const splitExercises = allExercises
+              .filter((ex) => ex.exercise_splits.some((es) => es.split_name === s.name))
+              .sort((a, b) => {
+                const aSort = a.exercise_splits.find((es) => es.split_name === s.name)?.sort_order ?? Infinity;
+                const bSort = b.exercise_splits.find((es) => es.split_name === s.name)?.sort_order ?? Infinity;
+                return aSort - bSort || a.name.localeCompare(b.name);
+              });
+
+            // Group exercises by stretch category
+            const groupedExercises = {
+              dynamic: splitExercises.filter((ex) => ex.stretch_kind === "dynamic"),
+              main: splitExercises.filter((ex) => ex.stretch_kind === "none"),
+              static: splitExercises.filter((ex) => ex.stretch_kind === "static"),
+            };
+
             return (
-            <li key={s.id} className="flex items-center justify-between gap-2 px-4 py-3">
-              {renamingId === s.id ? (
-                <input
-                  autoFocus
-                  type="text"
-                  value={renameValue}
-                  onChange={(e) => setRenameValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") onConfirmRename();
-                    if (e.key === "Escape") {
-                      setRenamingId(null);
-                      setRenameValue("");
-                    }
-                  }}
-                  placeholder={s.name}
-                  disabled={pending}
-                  className="min-h-9 flex-1 rounded-lg border border-zinc-300 bg-white px-2 text-sm dark:border-zinc-600 dark:bg-zinc-950"
-                />
-              ) : (
-                <span className="font-medium">{s.name}</span>
-              )}
-              <div className="flex shrink-0 items-center gap-1">
-                {renamingId === s.id ? (
-                  <>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      disabled={pending || !renameValue.trim()}
-                      className="min-h-9 text-emerald-700 dark:text-emerald-400"
-                      onClick={onConfirmRename}
-                    >
-                      Save
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      disabled={pending}
-                      className="min-h-9 text-zinc-600 dark:text-zinc-400"
-                      onClick={() => {
-                        setRenamingId(null);
-                        setRenameValue("");
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    {!isUnassigned ? (
+              <div key={s.id} className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+                {/* Split header */}
+                <div className="flex items-center justify-between gap-2 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+                  <div className="flex-1">
+                    {renamingId === s.id ? (
+                      <input
+                        autoFocus
+                        type="text"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") onConfirmRename();
+                          if (e.key === "Escape") {
+                            setRenamingId(null);
+                            setRenameValue("");
+                          }
+                        }}
+                        placeholder={s.name}
+                        disabled={pending}
+                        className="min-h-9 w-full rounded-lg border border-zinc-300 bg-white px-2 text-sm dark:border-zinc-600 dark:bg-zinc-950"
+                      />
+                    ) : (
+                      <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">{s.name}</h3>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {renamingId === s.id ? (
                       <>
                         <Button
                           type="button"
                           variant="ghost"
-                          disabled={pending || !splitsTableReady || !canMoveUp}
-                          className="min-h-9 min-w-9 px-0 text-zinc-600 dark:text-zinc-400"
-                          aria-label="Move split up"
-                          onClick={() => {
-                            startTransition(async () => {
-                              try {
-                                setError(null);
-                                await reorderSplit(s.id, "up");
-                                refresh();
-                              } catch (err) {
-                                setError(
-                                  err instanceof Error ? err.message : "Could not reorder",
-                                );
-                              }
-                            });
-                          }}
+                          disabled={pending || !renameValue.trim()}
+                          className="min-h-9 text-emerald-700 dark:text-emerald-400"
+                          onClick={onConfirmRename}
                         >
-                          ↑
+                          Save
                         </Button>
                         <Button
                           type="button"
                           variant="ghost"
-                          disabled={pending || !splitsTableReady || !canMoveDown}
-                          className="min-h-9 min-w-9 px-0 text-zinc-600 dark:text-zinc-400"
-                          aria-label="Move split down"
-                          onClick={() => {
-                            startTransition(async () => {
-                              try {
-                                setError(null);
-                                await reorderSplit(s.id, "down");
-                                refresh();
-                              } catch (err) {
-                                setError(
-                                  err instanceof Error ? err.message : "Could not reorder",
-                                );
-                              }
-                            });
-                          }}
-                        >
-                          ↓
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          disabled={pending || !splitsTableReady}
+                          disabled={pending}
                           className="min-h-9 text-zinc-600 dark:text-zinc-400"
                           onClick={() => {
-                            setRenamingId(s.id);
-                            setRenameValue(s.name);
+                            setRenamingId(null);
+                            setRenameValue("");
                           }}
                         >
-                          ✎
+                          Cancel
                         </Button>
                       </>
-                    ) : null}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      disabled={pending || !splitsTableReady || isUnassigned}
-                      className="min-h-9 shrink-0 text-red-700 dark:text-red-400"
-                      onClick={() => setDeleteId(s.id)}
-                    >
-                      Delete
-                    </Button>
-                  </>
+                    ) : (
+                      <>
+                        {!isUnassigned ? (
+                          <>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              disabled={pending || !splitsTableReady || !canMoveUp}
+                              className="min-h-9 min-w-9 px-0 text-zinc-600 dark:text-zinc-400"
+                              aria-label="Move split up"
+                              onClick={() => {
+                                startTransition(async () => {
+                                  try {
+                                    setError(null);
+                                    await reorderSplit(s.id, "up");
+                                    refresh();
+                                  } catch (err) {
+                                    setError(
+                                      err instanceof Error ? err.message : "Could not reorder",
+                                    );
+                                  }
+                                });
+                              }}
+                            >
+                              ↑
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              disabled={pending || !splitsTableReady || !canMoveDown}
+                              className="min-h-9 min-w-9 px-0 text-zinc-600 dark:text-zinc-400"
+                              aria-label="Move split down"
+                              onClick={() => {
+                                startTransition(async () => {
+                                  try {
+                                    setError(null);
+                                    await reorderSplit(s.id, "down");
+                                    refresh();
+                                  } catch (err) {
+                                    setError(
+                                      err instanceof Error ? err.message : "Could not reorder",
+                                    );
+                                  }
+                                });
+                              }}
+                            >
+                              ↓
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              disabled={pending || !splitsTableReady}
+                              className="min-h-9 text-zinc-600 dark:text-zinc-400"
+                              onClick={() => {
+                                setRenamingId(s.id);
+                                setRenameValue(s.name);
+                              }}
+                            >
+                              ✎
+                            </Button>
+                          </>
+                        ) : null}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={pending || !splitsTableReady || isUnassigned}
+                          className="min-h-9 shrink-0 text-red-700 dark:text-red-400"
+                          onClick={() => setDeleteId(s.id)}
+                        >
+                          Delete
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Exercise sections */}
+                {splitExercises.length === 0 ? (
+                  <p className="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">No exercises in this split</p>
+                ) : (
+                  <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {groupedExercises.dynamic.length > 0 && (
+                      <ExerciseSection title="Dynamic stretches" exercises={groupedExercises.dynamic} />
+                    )}
+                    {groupedExercises.main.length > 0 && (
+                      <ExerciseSection title="Exercises" exercises={groupedExercises.main} />
+                    )}
+                    {groupedExercises.static.length > 0 && (
+                      <ExerciseSection title="Static stretches" exercises={groupedExercises.static} />
+                    )}
+                  </div>
                 )}
               </div>
-            </li>
-          );
+            );
           })}
-        </ul>
+        </div>
 
         {initialSplits.length === 0 ? (
           <p className="mt-6 text-center text-sm text-zinc-600 dark:text-zinc-400">
