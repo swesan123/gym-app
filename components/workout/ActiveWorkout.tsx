@@ -75,6 +75,9 @@ function SetTableRow({
   readOnly,
   onRequestRemove,
   onOpenNote,
+  onSetSaved,
+  restSeconds,
+  exerciseName,
 }: {
   row: FlatSetRow;
   weightPresets: number[];
@@ -83,6 +86,9 @@ function SetTableRow({
   readOnly?: boolean;
   onRequestRemove: (setId: string) => void;
   onOpenNote: (setId: string, initial: string) => void;
+  onSetSaved?: (restSeconds: number, exerciseName: string) => void;
+  restSeconds?: number | null;
+  exerciseName?: string;
 }) {
   const [reps, setReps] = useState(() => row.reps?.toString() ?? "");
   const [weight, setWeight] = useState(() => row.weight?.toString() ?? "");
@@ -107,16 +113,26 @@ function SetTableRow({
       return;
     }
     const t = setTimeout(() => {
-      void updateWorkoutSet({
-        id: row.id,
-        reps: parseOptionalNumber(reps),
-        weight: parseOptionalNumber(weight),
-        rir: parseOptionalNumber(rir),
-        duration_seconds: parseOptionalNumber(duration),
-      });
+      void (async () => {
+        try {
+          await updateWorkoutSet({
+            id: row.id,
+            reps: parseOptionalNumber(reps),
+            weight: parseOptionalNumber(weight),
+            rir: parseOptionalNumber(rir),
+            duration_seconds: parseOptionalNumber(duration),
+          });
+          // Auto-trigger rest timer after successful set save
+          if (onSetSaved && restSeconds && restSeconds > 0 && exerciseName) {
+            onSetSaved(restSeconds, exerciseName);
+          }
+        } catch {
+          // Error handling is done at the parent level
+        }
+      })();
     }, 500);
     return () => clearTimeout(t);
-  }, [readOnly, row.id, reps, weight, rir, duration]);
+  }, [readOnly, row.id, reps, weight, rir, duration, onSetSaved, restSeconds, exerciseName]);
 
   const savedNote = row.note ?? "";
   const notePreview =
@@ -378,6 +394,9 @@ function ExerciseSetTable({
                   onOpenNote={(setId, initial) =>
                     setNoteTarget({ setId, draft: initial })
                   }
+                  onSetSaved={onScheduleRest}
+                  restSeconds={restSeconds}
+                  exerciseName={exerciseName}
                 />
               );
             })}
@@ -470,21 +489,67 @@ export function ActiveWorkout({
 
   const groups = useMemo(() => groupFlatSets(rows), [rows]);
 
+  // Request notification permission on mount
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
   const scheduleRest = useCallback((seconds: number, label: string) => {
     if (status === "completed" || seconds <= 0) return;
     setRest({ seconds, label });
+    playRestAlert("start");
   }, [status]);
 
   useEffect(() => {
     if (rest == null || rest.seconds <= 0) return;
     const id = window.setInterval(() => {
       setRest((r) => {
-        if (r == null || r.seconds <= 1) return null;
+        if (r == null || r.seconds <= 1) {
+          playRestAlert("end");
+          return null;
+        }
         return { ...r, seconds: r.seconds - 1 };
       });
     }, 1000);
     return () => window.clearInterval(id);
   }, [rest]);
+
+  /** Play audio/haptic feedback for rest timer */
+  const playRestAlert = (event: "start" | "end") => {
+    // Web Audio API beep for rest end
+    if (event === "end") {
+      try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.value = 800;
+        osc.type = "sine";
+        gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.1);
+      } catch {
+        // Audio context not available
+      }
+
+      // Haptic feedback for Android PWA
+      if (navigator.vibrate) {
+        navigator.vibrate(200);
+      }
+
+      // Native notification
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("Rest complete", {
+          body: rest?.label || "Time to lift",
+          tag: "rest-timer",
+        });
+      }
+    }
+  };
 
   const exerciseWeightPresets = useMemo(() => {
     const map = new Map<string, number[]>();

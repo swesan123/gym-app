@@ -4,6 +4,8 @@ export type StretchKind = "none" | "dynamic" | "static";
 
 export type WorkoutStatus = "draft" | "completed";
 
+export type SetType = "warmup" | "working";
+
 export type Database = {
   public: {
     Tables: {
@@ -24,6 +26,7 @@ export type Database = {
           rest_seconds: number | null;
           sort_order: number;
           stretch_kind: StretchKind;
+          archived_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -42,6 +45,7 @@ export type Database = {
           rest_seconds?: number | null;
           sort_order?: number;
           stretch_kind?: StretchKind;
+          archived_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -60,6 +64,7 @@ export type Database = {
           rest_seconds?: number | null;
           sort_order?: number;
           stretch_kind?: StretchKind;
+          archived_at?: string | null;
           created_at?: string;
         };
       };
@@ -105,18 +110,21 @@ export type Database = {
           id: string;
           name: string;
           sort_order: number;
+          archived_at: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           name: string;
           sort_order?: number;
+          archived_at?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           name?: string;
           sort_order?: number;
+          archived_at?: string | null;
           created_at?: string;
         };
       };
@@ -164,6 +172,7 @@ export type Database = {
           duration_seconds: number | null;
           volume: number | null;
           note: string | null;
+          set_type: SetType;
           created_at: string;
         };
         Insert: {
@@ -177,6 +186,7 @@ export type Database = {
           duration_seconds?: number | null;
           volume?: number | null;
           note?: string | null;
+          set_type?: SetType;
           created_at?: string;
         };
         Update: {
@@ -190,6 +200,7 @@ export type Database = {
           duration_seconds?: number | null;
           volume?: number | null;
           note?: string | null;
+          set_type?: SetType;
           created_at?: string;
         };
       };
