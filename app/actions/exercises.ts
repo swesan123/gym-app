@@ -153,7 +153,6 @@ export async function reorderExercise(
     .eq("split_name", splitName)
     .eq("exercises.stretch_kind", ex.stretch_kind ?? "none")
     .order("sort_order", { ascending: true })
-    .order("exercises.name", { ascending: true })
     .order("exercise_id", { ascending: true });
 
   if (listErr || !list?.length) {

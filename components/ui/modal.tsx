@@ -64,7 +64,7 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto overscroll-contain bg-black/40 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto overscroll-contain bg-black/50 sm:items-center"
       role="presentation"
       onPointerUp={(e) => {
         if (!closeOnBackdrop) return;
@@ -73,34 +73,36 @@ export function Modal({
         onCancel();
       }}
     >
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modal-title"
-        className="w-full max-w-md max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl bg-white p-5 shadow-xl dark:bg-zinc-900"
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        <h2 id="modal-title" className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
-          {title}
-        </h2>
-        {description ? (
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            {description}
-          </p>
-        ) : null}
-        {children ? <div className="mt-4">{children}</div> : null}
-        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button variant="secondary" type="button" onClick={onCancel}>
-            {cancelLabel}
-          </Button>
-          <Button
-            variant={variant === "danger" ? "danger" : "primary"}
-            type="button"
-            onClick={onConfirm}
-          >
-            {confirmLabel}
-          </Button>
+      <div className="w-full p-4 sm:flex sm:justify-center">
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+          className="w-full max-w-md max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl bg-[var(--chalk-white)] p-5 shadow-xl dark:bg-[var(--gray-50)]"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <h2 id="modal-title" className="text-lg font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
+            {title}
+          </h2>
+          {description ? (
+            <p className="mt-2 text-sm text-[var(--gray-600)] dark:text-[var(--gray-400)]">
+              {description}
+            </p>
+          ) : null}
+          {children ? <div className="mt-4">{children}</div> : null}
+          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="secondary" type="button" onClick={onCancel}>
+              {cancelLabel}
+            </Button>
+            <Button
+              variant={variant === "danger" ? "danger" : "primary"}
+              type="button"
+              onClick={onConfirm}
+            >
+              {confirmLabel}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
