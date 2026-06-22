@@ -138,7 +138,7 @@ export function SplitSettingsClient({
 
   return (
     <>
-      <div className="mx-auto max-w-lg px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
+      <div className="px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
         <Link
           href="/settings/exercises"
           className="inline-flex min-h-10 items-center text-sm font-semibold text-[var(--gym-amber)] hover:text-orange-600"

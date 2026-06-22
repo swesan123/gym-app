@@ -202,7 +202,7 @@ export function ExerciseSettingsClient({
 
   return (
     <>
-      <div className="mx-auto max-w-lg px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
+      <div className="px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
         <div className="mb-8 flex flex-col gap-4">
           <div className="flex items-start justify-between gap-3">
             <div>

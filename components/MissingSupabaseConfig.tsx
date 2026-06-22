@@ -1,6 +1,6 @@
 export function MissingSupabaseConfig() {
   return (
-    <div className="mx-auto max-w-lg px-4 py-10 text-center">
+    <div className="px-4 py-10 text-center">
       <h1 className="text-xl font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
         Configure Supabase
       </h1>
