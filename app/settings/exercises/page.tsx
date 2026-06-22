@@ -1,7 +1,6 @@
 import { ExerciseSettingsClient } from "@/components/settings/ExerciseSettingsClient";
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
 import { createClient } from "@/lib/supabase/server";
-import { fetchSplitsCatalog } from "@/lib/queries/read";
 import { hasSupabaseEnv } from "@/lib/env";
 
 export default async function ExercisesSettingsPage() {
@@ -11,25 +10,16 @@ export default async function ExercisesSettingsPage() {
 
   const supabase = await createClient();
 
-  const [{ data, error }, catalog] = await Promise.all([
-    supabase
-      .from("exercises")
-      .select("*, exercise_splits(split_name)")
-      .is("archived_at", null)
-      .order("sort_order", { ascending: true })
-      .order("name", { ascending: true }),
-    fetchSplitsCatalog(),
-  ]);
+  const { data, error } = await supabase
+    .from("exercises")
+    .select("*, exercise_splits(split_name, sort_order)")
+    .is("archived_at", null)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return (
-    <ExerciseSettingsClient
-      exercises={data ?? []}
-      splits={catalog.splits}
-      splitsTableReady={catalog.splitsTableReady}
-    />
-  );
+  return <ExerciseSettingsClient exercises={data ?? []} />;
 }

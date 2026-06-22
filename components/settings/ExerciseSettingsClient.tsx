@@ -8,21 +8,17 @@ import Link from "next/link";
 import {
   createExercise,
   deleteExercise,
-  reorderExercise,
   updateExercise,
 } from "@/app/actions/exercises";
-import { SplitsMigrationBanner } from "@/components/SplitsMigrationBanner";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { MUSCLES } from "@/lib/constants";
 import type { Database, StretchKind, TrackingType } from "@/lib/database.types";
-import type { WorkoutSplitRow } from "@/lib/queries/read";
 
 type ExerciseRow = Database["public"]["Tables"]["exercises"]["Row"];
-type ExerciseSplitRow = Database["public"]["Tables"]["exercise_splits"]["Row"];
 
 type ExerciseWithSplits = ExerciseRow & {
-  exercise_splits: ExerciseSplitRow[];
+  exercise_splits: Array<{ split_name: string; sort_order: number }>;
 };
 
 const TRACKING: TrackingType[] = [
@@ -78,41 +74,11 @@ function parseStretchKind(raw: FormDataEntryValue | null): StretchKind {
   return "none";
 }
 
-type StretchCategoryKey = "dynamic" | "main" | "static";
-
-function stretchCategory(stretch: StretchKind | null | undefined): StretchCategoryKey {
-  if (stretch === "dynamic") return "dynamic";
-  if (stretch === "static") return "static";
-  return "main";
-}
-
-function getExerciseSplits(ex: ExerciseWithSplits): string[] {
-  return (ex.exercise_splits ?? []).map((es) => es.split_name).sort();
-}
-
-function peersInCategoryAndSplit(
-  all: ExerciseWithSplits[],
-  ex: ExerciseWithSplits,
-  splitName: string,
-): ExerciseWithSplits[] {
-  const cat = stretchCategory(ex.stretch_kind);
-  return all
-    .filter(
-      (e) =>
-        getExerciseSplits(e).includes(splitName) &&
-        stretchCategory(e.stretch_kind) === cat,
-    )
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
 
 export function ExerciseSettingsClient({
   exercises,
-  splits,
-  splitsTableReady,
 }: {
   exercises: ExerciseWithSplits[];
-  splits: WorkoutSplitRow[];
-  splitsTableReady: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -121,11 +87,7 @@ export function ExerciseSettingsClient({
   const [editing, setEditing] = useState<ExerciseWithSplits | null>(null);
   const [adding, setAdding] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [editingSplits, setEditingSplits] = useState<Set<string>>(new Set());
-  const [addingSplits, setAddingSplits] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
-
-  const sortedSplits = useMemo(() => [...splits], [splits]);
 
   const filteredExercises = useMemo(() => {
     if (!searchQuery.trim()) return exercises;
@@ -138,30 +100,13 @@ export function ExerciseSettingsClient({
     );
   }, [exercises, searchQuery]);
 
-  const splitOrder = useMemo(() => {
-    const catalogNames = sortedSplits.map((s) => s.name);
-    const present = new Set<string>();
-    filteredExercises.forEach((ex) => {
-      getExerciseSplits(ex).forEach((s) => present.add(s));
-    });
-    const ordered: string[] = [];
-    for (const n of catalogNames) {
-      if (present.has(n)) ordered.push(n);
-    }
-    const extra = [...present]
-      .filter((n) => !ordered.includes(n))
-      .sort((a, b) => a.localeCompare(b));
-    return [...ordered, ...extra];
-  }, [sortedSplits, filteredExercises]);
-
-  const categorySections: {
-    key: StretchCategoryKey;
-    title: string;
-  }[] = [
-    { key: "dynamic", title: "Dynamic stretches" },
-    { key: "main", title: "Exercises" },
-    { key: "static", title: "Static stretches" },
-  ];
+  const groupedByCategory = useMemo(() => {
+    return {
+      dynamic: filteredExercises.filter((ex) => ex.stretch_kind === "dynamic").sort((a, b) => a.name.localeCompare(b.name)),
+      main: filteredExercises.filter((ex) => ex.stretch_kind === "none").sort((a, b) => a.name.localeCompare(b.name)),
+      static: filteredExercises.filter((ex) => ex.stretch_kind === "static").sort((a, b) => a.name.localeCompare(b.name)),
+    };
+  }, [filteredExercises]);
 
   const refresh = () => router.refresh();
 
@@ -171,7 +116,6 @@ export function ExerciseSettingsClient({
     const fd = new FormData(e.currentTarget);
     const name = String(fd.get("name") ?? "");
     const muscle = String(fd.get("muscle") ?? "");
-    const splits = Array.from(editingSplits);
     const default_sets = Number(fd.get("default_sets"));
     const tracking_type = String(fd.get("tracking_type")) as TrackingType;
     const notes = String(fd.get("notes") ?? "").trim() || null;
@@ -192,7 +136,7 @@ export function ExerciseSettingsClient({
           id: editing.id,
           name,
           muscle,
-          splits: splits.length > 0 ? splits : [sortedSplits[0]?.name ?? "Unassigned"],
+          splits: (editing.exercise_splits ?? []).map((es) => es.split_name),
           default_sets: Number.isFinite(default_sets) ? default_sets : 3,
           tracking_type,
           notes,
@@ -205,7 +149,6 @@ export function ExerciseSettingsClient({
           stretch_kind,
         });
         setEditing(null);
-        setEditingSplits(new Set());
         refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Update failed");
@@ -218,7 +161,6 @@ export function ExerciseSettingsClient({
     const fd = new FormData(e.currentTarget);
     const name = String(fd.get("name") ?? "");
     const muscle = String(fd.get("muscle") ?? "");
-    const splits = Array.from(addingSplits);
     const default_sets = Number(fd.get("default_sets"));
     const tracking_type = String(fd.get("tracking_type")) as TrackingType;
     const notes = String(fd.get("notes") ?? "").trim() || null;
@@ -238,7 +180,7 @@ export function ExerciseSettingsClient({
         await createExercise({
           name,
           muscle,
-          splits: splits.length > 0 ? splits : [sortedSplits[0]?.name ?? "Unassigned"],
+          splits: [],
           default_sets: Number.isFinite(default_sets) ? default_sets : 3,
           tracking_type,
           notes,
@@ -251,7 +193,6 @@ export function ExerciseSettingsClient({
           stretch_kind,
         });
         setAdding(false);
-        setAddingSplits(new Set());
         refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Create failed");
@@ -266,14 +207,14 @@ export function ExerciseSettingsClient({
           <div>
             <h1 className="text-2xl font-bold">Exercises</h1>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              Edit moves used when you start a split.{" "}
+              Manage exercise properties. Assign exercises to splits under{" "}
               <Link
                 href="/settings/splits"
                 className="font-medium text-emerald-700 underline dark:text-emerald-400"
               >
-                Manage splits
+                Splits
               </Link>
-              ,{" "}
+              .{" "}
               <Link
                 href="/settings/profile"
                 className="font-medium text-emerald-700 underline dark:text-emerald-400"
@@ -293,12 +234,7 @@ export function ExerciseSettingsClient({
           <Button
             type="button"
             disabled={pending}
-            onClick={() => {
-              setAdding(true);
-              setAddingSplits(
-                sortedSplits[0]?.name ? new Set([sortedSplits[0].name]) : new Set()
-              );
-            }}
+            onClick={() => setAdding(true)}
           >
             Add
           </Button>
@@ -314,7 +250,6 @@ export function ExerciseSettingsClient({
           />
         </div>
 
-        {!splitsTableReady ? <SplitsMigrationBanner className="mt-4" /> : null}
 
         {error ? (
           <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100">
@@ -322,163 +257,74 @@ export function ExerciseSettingsClient({
           </p>
         ) : null}
 
-        <div className="mt-6 flex flex-col gap-8">
+        <div className="mt-6 flex flex-col gap-6">
           {filteredExercises.length === 0 && searchQuery ? (
             <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
               No exercises match &ldquo;{searchQuery}&rdquo;
             </p>
           ) : null}
-          {splitOrder.map((splitName) => {
-            const forSplit = filteredExercises.filter((ex) =>
-              getExerciseSplits(ex).includes(splitName),
-            );
-            if (forSplit.length === 0) return null;
+          {Object.entries(groupedByCategory).map(([key, exList]) => {
+            if (exList.length === 0) return null;
+            const titles: Record<string, string> = {
+              dynamic: "Dynamic stretches",
+              main: "Exercises",
+              static: "Static stretches",
+            };
             return (
-              <section
-                key={splitName}
-                className="rounded-2xl border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-700 dark:bg-zinc-950/40"
-              >
-                <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
-                  {splitName}
+              <div key={key} className="rounded-2xl border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-700 dark:bg-zinc-950/40">
+                <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
+                  {titles[key] || key}
                 </h2>
-                <div className="mt-4 flex flex-col gap-6">
-                  {categorySections.map((sec) => {
-                    const inCat = forSplit.filter(
-                      (ex) => stretchCategory(ex.stretch_kind) === sec.key,
-                    );
-                    if (inCat.length === 0) return null;
-                    return (
-                      <div key={sec.key}>
-                        <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                          {sec.title}
-                        </h3>
-                        <ul className="mt-3 flex flex-col gap-3">
-                          {inCat.map((ex) => {
-                            const peers = peersInCategoryAndSplit(exercises, ex, splitName);
-                            const idx = peers.findIndex((e) => e.id === ex.id);
-                            const disableUp = idx <= 0;
-                            const disableDown = idx < 0 || idx >= peers.length - 1;
-                            return (
-                              <li
-                                key={`${splitName}-${ex.id}`}
-                                className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div>
-                                    <p className="font-semibold">{ex.name}</p>
-                                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                                      {ex.muscle} · {ex.tracking_type} ·{" "}
-                                      {ex.default_sets} sets
-                                      {ex.stretch_kind &&
-                                      ex.stretch_kind !== "none"
-                                        ? ` · ${ex.stretch_kind} stretch`
-                                        : ""}
-                                    </p>
-                                    {ex.notes ? (
-                                      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                        {ex.notes}
-                                      </p>
-                                    ) : null}
-                                    {getExerciseSplits(ex).length > 1 ? (
-                                      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                        Also in:{" "}
-                                        {getExerciseSplits(ex)
-                                          .filter((s) => s !== splitName)
-                                          .join(", ")}
-                                      </p>
-                                    ) : null}
-                                  </div>
-                                  <div className="flex shrink-0 flex-col gap-2">
-                                    <div className="flex justify-end gap-1">
-                                      <Button
-                                        type="button"
-                                        variant="secondary"
-                                        disabled={pending || disableUp}
-                                        className="min-h-9 min-w-9 px-0 text-base leading-none"
-                                        aria-label={`Move ${ex.name} up in ${sec.title}`}
-                                        onClick={() => {
-                                          startTransition(async () => {
-                                            try {
-                                              setError(null);
-                                              await reorderExercise(
-                                                ex.id,
-                                                splitName,
-                                                "up",
-                                              );
-                                              refresh();
-                                            } catch (err) {
-                                              setError(
-                                                err instanceof Error
-                                                  ? err.message
-                                                  : "Reorder failed",
-                                              );
-                                            }
-                                          });
-                                        }}
-                                      >
-                                        ↑
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="secondary"
-                                        disabled={pending || disableDown}
-                                        className="min-h-9 min-w-9 px-0 text-base leading-none"
-                                        aria-label={`Move ${ex.name} down in ${sec.title}`}
-                                        onClick={() => {
-                                          startTransition(async () => {
-                                            try {
-                                              setError(null);
-                                              await reorderExercise(
-                                                ex.id,
-                                                splitName,
-                                                "down",
-                                              );
-                                              refresh();
-                                            } catch (err) {
-                                              setError(
-                                                err instanceof Error
-                                                  ? err.message
-                                                  : "Reorder failed",
-                                              );
-                                            }
-                                          });
-                                        }}
-                                      >
-                                        ↓
-                                      </Button>
-                                    </div>
-                                    <Button
-                                      type="button"
-                                      variant="secondary"
-                                      disabled={pending}
-                                      className="min-h-10 px-3 py-2 text-sm"
-                                      onClick={() => {
-                                        setEditing(ex);
-                                        setEditingSplits(new Set(getExerciseSplits(ex)));
-                                      }}
-                                    >
-                                      Edit
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      disabled={pending}
-                                      className="min-h-10 px-3 py-2 text-sm text-red-700 dark:text-red-400"
-                                      onClick={() => setDeleteId(ex.id)}
-                                    >
-                                      Delete
-                                    </Button>
-                                  </div>
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
+                <ul className="mt-4 flex flex-col gap-3">
+                  {exList.map((ex) => (
+                    <li
+                      key={ex.id}
+                      className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="font-semibold text-zinc-900 dark:text-zinc-50">
+                            {ex.name}
+                          </p>
+                          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                            {ex.muscle} · {ex.tracking_type} · {ex.default_sets} sets
+                          </p>
+                          {ex.notes ? (
+                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                              {ex.notes}
+                            </p>
+                          ) : null}
+                          {ex.exercise_splits.length > 0 ? (
+                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                              In: {ex.exercise_splits.map((es) => es.split_name).join(", ")}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="flex shrink-0 gap-1">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            disabled={pending}
+                            className="min-h-10 px-3 py-2 text-sm"
+                            onClick={() => setEditing(ex)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            disabled={pending}
+                            className="min-h-10 px-3 py-2 text-sm text-red-700 dark:text-red-400"
+                            onClick={() => setDeleteId(ex.id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </section>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             );
           })}
         </div>
@@ -489,10 +335,7 @@ export function ExerciseSettingsClient({
         title="Edit exercise"
         cancelLabel="Close"
         confirmLabel="Save"
-        onCancel={() => {
-          setEditing(null);
-          setEditingSplits(new Set());
-        }}
+        onCancel={() => setEditing(null)}
         onConfirm={() => {
           const form = document.getElementById(
             "edit-exercise-form",
@@ -526,60 +369,6 @@ export function ExerciseSettingsClient({
                 ))}
               </select>
             </label>
-            <fieldset className="flex flex-col gap-3 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              <legend className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Splits</legend>
-              <div className="flex flex-wrap gap-2">
-                {Array.from(editing ? editingSplits : addingSplits).map((splitName) => (
-                  <button
-                    key={splitName}
-                    type="button"
-                    onClick={() => {
-                      if (editing) {
-                        setEditingSplits((prev) => {
-                          const next = new Set(prev);
-                          next.delete(splitName);
-                          return next;
-                        });
-                      } else {
-                        setAddingSplits((prev) => {
-                          const next = new Set(prev);
-                          next.delete(splitName);
-                          return next;
-                        });
-                      }
-                    }}
-                    className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
-                  >
-                    {splitName}
-                    <span className="text-emerald-600 dark:text-emerald-400">
-                      ✕
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="max-h-48 overflow-y-auto rounded-lg border border-zinc-300 dark:border-zinc-600">
-                <div className="flex flex-wrap gap-2 p-3">
-                  {sortedSplits
-                    .filter((s) => !(editing ? editingSplits : addingSplits).has(s.name))
-                    .map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => {
-                          if (editing) {
-                            setEditingSplits((prev) => new Set([...prev, s.name]));
-                          } else {
-                            setAddingSplits((prev) => new Set([...prev, s.name]));
-                          }
-                        }}
-                        className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                      >
-                        + {s.name}
-                      </button>
-                    ))}
-                </div>
-              </div>
-            </fieldset>
             <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
               Default sets
               <input
@@ -721,10 +510,7 @@ export function ExerciseSettingsClient({
         title="Add exercise"
         cancelLabel="Cancel"
         confirmLabel="Create"
-        onCancel={() => {
-          setAdding(false);
-          setAddingSplits(new Set());
-        }}
+        onCancel={() => setAdding(false)}
         onConfirm={() => {
           const form = document.getElementById(
             "add-exercise-form",
@@ -756,48 +542,6 @@ export function ExerciseSettingsClient({
               ))}
             </select>
           </label>
-          <fieldset className="flex flex-col gap-3 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-            <legend className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Splits</legend>
-            <div id="selected-splits-add" className="flex flex-wrap gap-2 min-h-8">
-              {Array.from(addingSplits).map((splitName) => (
-                <button
-                  key={splitName}
-                  type="button"
-                  onClick={() => {
-                    setAddingSplits((prev) => {
-                      const next = new Set(prev);
-                      next.delete(splitName);
-                      return next;
-                    });
-                  }}
-                  className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
-                >
-                  {splitName}
-                  <span className="text-emerald-600 dark:text-emerald-400">
-                    ✕
-                  </span>
-                </button>
-              ))}
-            </div>
-            <div className="max-h-48 overflow-y-auto rounded-lg border border-zinc-300 dark:border-zinc-600">
-              <div className="flex flex-wrap gap-2 p-3">
-                {sortedSplits
-                  .filter((s) => !addingSplits.has(s.name))
-                  .map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => {
-                        setAddingSplits((prev) => new Set([...prev, s.name]));
-                      }}
-                      className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                    >
-                      + {s.name}
-                    </button>
-                  ))}
-              </div>
-            </div>
-          </fieldset>
           <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
             Default sets
             <input
