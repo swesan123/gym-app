@@ -141,11 +141,18 @@ export async function createWorkoutDraftAndRedirect(split: string) {
   const { data: exercises, error: eErr } = await supabase
     .from("exercises")
     .select(
-      "id, default_sets, default_reps, progressive_overload_increment, tracking_type, machine_start_weight, machine_end_weight, machine_increment, exercise_splits!inner(sort_order)",
+      "id, default_sets, default_reps, progressive_overload_increment, tracking_type, machine_start_weight, machine_end_weight, machine_increment, name, exercise_splits!inner(sort_order)",
     )
     .eq("exercise_splits.split_name", splitName)
-    .order("exercise_splits.sort_order", { ascending: true })
     .order("name", { ascending: true });
+
+  if (!eErr && exercises) {
+    exercises.sort((a, b) => {
+      const aSort = (a.exercise_splits as any)?.[0]?.sort_order ?? Infinity;
+      const bSort = (b.exercise_splits as any)?.[0]?.sort_order ?? Infinity;
+      return aSort - bSort || a.name.localeCompare(b.name);
+    });
+  }
 
   if (eErr || !exercises?.length) {
     await supabase.from("workouts").delete().eq("id", workout.id);
