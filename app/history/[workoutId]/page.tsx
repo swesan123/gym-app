@@ -50,26 +50,26 @@ export default async function HistoryDetailPage({ params }: Props) {
       <header className="mx-auto flex max-w-lg items-center justify-between gap-2 px-4">
         <Link
           href="/history"
-          className="inline-flex min-h-11 items-center justify-center rounded-xl px-2 font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950"
+          className="inline-flex min-h-10 items-center justify-center rounded-lg px-2 font-semibold text-[var(--gym-amber)] hover:bg-[var(--gray-100)] dark:text-orange-400 dark:hover:bg-[var(--gray-800)]"
         >
           ← History
         </Link>
         <Link
           href={`/workout/${workoutId}`}
-          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 font-semibold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-4 font-semibold text-[var(--steel-gray)] hover:bg-[var(--gray-50)] dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)] dark:text-[var(--chalk-white)] dark:hover:bg-[var(--gray-800)]"
         >
           Open session
         </Link>
       </header>
 
       <div className="mx-auto max-w-lg px-4 pt-3">
-        <h1 className="text-2xl font-bold">{workout.split}</h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+        <h1 className="text-4xl font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)] tracking-tight">{workout.split}</h1>
+        <p className="mt-2 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
           {workout.date} · {workout.week} ·{" "}
           {workout.status === "draft" ? "Draft" : "Completed"}
         </p>
         {workout.status === "completed" ? (
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
             Duration: {formatDurationSeconds(durationSeconds)}
           </p>
         ) : null}

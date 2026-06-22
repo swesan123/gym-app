@@ -34,27 +34,28 @@ export default function BackupSettingsClient() {
 
   return (
     <div className="mx-auto max-w-lg px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
-      <div>
-        <h1 className="text-2xl font-bold">Backup</h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Download a backup of all your data as a JSON file. You can save this
-          to Google Drive or another cloud storage service.
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)] tracking-tight">
+          Backup
+        </h1>
+        <p className="mt-2 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+          Download a backup of all your data as JSON. Save to cloud storage for safekeeping.
         </p>
       </div>
 
       {error ? (
-        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100">
+        <p className="mt-4 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-100">
           {error}
         </p>
       ) : null}
 
       {success ? (
-        <p className="mt-4 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-100">
+        <p className="mt-4 rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-900 dark:border-green-800 dark:bg-green-950/40 dark:text-green-100">
           Backup downloaded successfully!
         </p>
       ) : null}
 
-      <div className="mt-6">
+      <div className="mt-8">
         <Button
           type="button"
           onClick={handleDownload}

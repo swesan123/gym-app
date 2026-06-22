@@ -203,63 +203,64 @@ export function ExerciseSettingsClient({
   return (
     <>
       <div className="mx-auto max-w-lg px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold">Exercises</h1>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              Manage exercise properties. Assign exercises to splits under{" "}
-              <Link
-                href="/settings/splits"
-                className="font-medium text-emerald-700 underline dark:text-emerald-400"
-              >
-                Splits
-              </Link>
-              .{" "}
-              <Link
-                href="/settings/profile"
-                className="font-medium text-emerald-700 underline dark:text-emerald-400"
-              >
-                profile
-              </Link>
-              , or{" "}
-              <Link
-                href="/settings/backup"
-                className="font-medium text-emerald-700 underline dark:text-emerald-400"
-              >
-                backup
-              </Link>
-              .
-            </p>
+        <div className="mb-8 flex flex-col gap-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-4xl font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)] tracking-tight">
+                Exercises
+              </h1>
+              <p className="mt-2 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+                Manage exercise properties. Assign exercises to splits under{" "}
+                <Link
+                  href="/settings/splits"
+                  className="font-medium text-[var(--gym-amber)] underline"
+                >
+                  Splits
+                </Link>
+                . Set training defaults,{" "}
+                <Link
+                  href="/settings/profile"
+                  className="font-medium text-[var(--gym-amber)] underline"
+                >
+                  profile
+                </Link>
+                , or{" "}
+                <Link
+                  href="/settings/backup"
+                  className="font-medium text-[var(--gym-amber)] underline"
+                >
+                  backup
+                </Link>
+                .
+              </p>
+            </div>
+            <Button
+              type="button"
+              disabled={pending}
+              onClick={() => setAdding(true)}
+            >
+              Add
+            </Button>
           </div>
-          <Button
-            type="button"
-            disabled={pending}
-            onClick={() => setAdding(true)}
-          >
-            Add
-          </Button>
-        </div>
 
-        <div className="mt-4">
           <input
             type="text"
             placeholder="Search by name, muscle, or notes…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-900 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder-zinc-400"
+            className="w-full rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-4 py-2 text-sm text-[var(--steel-gray)] placeholder-[var(--gray-500)] focus:border-[var(--gym-amber)] focus:outline-none focus:ring-2 focus:ring-[var(--gym-amber)]/20 dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)] dark:text-[var(--chalk-white)] dark:placeholder-[var(--gray-400)]"
           />
         </div>
 
-
         {error ? (
-          <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100">
+          <p className="mt-4 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-100">
             {error}
           </p>
         ) : null}
 
         <div className="mt-6 flex flex-col gap-6">
           {filteredExercises.length === 0 && searchQuery ? (
-            <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+            <p className="text-center text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
               No exercises match &ldquo;{searchQuery}&rdquo;
             </p>
           ) : null}
@@ -271,31 +272,31 @@ export function ExerciseSettingsClient({
               static: "Static stretches",
             };
             return (
-              <div key={key} className="rounded-2xl border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-700 dark:bg-zinc-950/40">
-                <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
+              <div key={key} className="rounded-lg border border-[var(--gray-200)] bg-[var(--gray-50)] p-4 dark:border-[var(--gray-700)] dark:bg-[var(--gray-950)]/40">
+                <h2 className="text-lg font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
                   {titles[key] || key}
                 </h2>
                 <ul className="mt-4 flex flex-col gap-3">
                   {exList.map((ex) => (
                     <li
                       key={ex.id}
-                      className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900"
+                      className="rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] p-3 dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
-                          <p className="font-semibold text-zinc-900 dark:text-zinc-50">
+                          <p className="font-semibold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
                             {ex.name}
                           </p>
-                          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                          <p className="text-sm text-[var(--gray-600)] dark:text-[var(--gray-400)]">
                             {ex.muscle} · {ex.tracking_type} · {ex.default_sets} sets
                           </p>
                           {ex.notes ? (
-                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                            <p className="mt-1 text-xs text-[var(--gray-500)] dark:text-[var(--gray-400)]">
                               {ex.notes}
                             </p>
                           ) : null}
                           {ex.exercise_splits.length > 0 ? (
-                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                            <p className="mt-1 text-xs text-[var(--gray-500)] dark:text-[var(--gray-400)]">
                               In: {ex.exercise_splits.map((es) => es.split_name).join(", ")}
                             </p>
                           ) : null}
@@ -314,7 +315,7 @@ export function ExerciseSettingsClient({
                             type="button"
                             variant="ghost"
                             disabled={pending}
-                            className="min-h-10 px-3 py-2 text-sm text-red-700 dark:text-red-400"
+                            className="min-h-10 px-3 py-2 text-sm text-[var(--muted-red)] dark:text-red-400"
                             onClick={() => setDeleteId(ex.id)}
                           >
                             Delete
@@ -345,22 +346,22 @@ export function ExerciseSettingsClient({
       >
         {editing ? (
           <form key={editing.id} id="edit-exercise-form" className="space-y-3" onSubmit={onSaveEdit}>
-            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
               Name
               <input
                 name="name"
                 required
                 defaultValue={editing.name}
-                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
               Muscle
               <select
                 name="muscle"
                 required
                 defaultValue={editing.muscle}
-                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
               >
                 {muscleOptions(editing.muscle).map((m) => (
                   <option key={m} value={m}>
@@ -369,7 +370,7 @@ export function ExerciseSettingsClient({
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
               Default sets
               <input
                 name="default_sets"
@@ -378,10 +379,10 @@ export function ExerciseSettingsClient({
                 max={20}
                 required
                 defaultValue={editing.default_sets}
-                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
               Default reps
               <input
                 name="default_reps"
@@ -390,10 +391,10 @@ export function ExerciseSettingsClient({
                 max={50}
                 placeholder="Prefill new sets"
                 defaultValue={editing.default_reps ?? ""}
-                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
               Increment (lb/kg)
               <input
                 name="progressive_overload_increment"
@@ -408,10 +409,10 @@ export function ExerciseSettingsClient({
                     ? String(editing.progressive_overload_increment)
                     : ""
                 }
-                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
               Rest between sets (seconds)
               <input
                 name="rest_seconds"
@@ -425,29 +426,29 @@ export function ExerciseSettingsClient({
                     ? String(editing.rest_seconds)
                     : ""
                 }
-                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
               Stretch section
               <select
                 name="stretch_kind"
                 required
                 defaultValue={editing.stretch_kind ?? "none"}
-                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
               >
                 <option value="none">Main</option>
                 <option value="dynamic">Dynamic stretch</option>
                 <option value="static">Static stretch</option>
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
               Tracking type
               <select
                 name="tracking_type"
                 required
                 defaultValue={editing.tracking_type}
-                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
               >
                 {TRACKING.map((t) => (
                   <option key={t} value={t}>
@@ -456,18 +457,18 @@ export function ExerciseSettingsClient({
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
               Exercise notes
               <textarea
                 name="notes"
                 rows={3}
                 defaultValue={editing.notes ?? ""}
                 placeholder="Machine settings, setup cues, or reminders"
-                className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                className="rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 py-2 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
               />
             </label>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
                 Machine start
                 <input
                   name="machine_start_weight"
@@ -475,10 +476,10 @@ export function ExerciseSettingsClient({
                   inputMode="decimal"
                   step="any"
                   defaultValue={editing.machine_start_weight ?? ""}
-                  className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                  className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
                 />
               </label>
-              <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
                 Machine end
                 <input
                   name="machine_end_weight"
@@ -486,10 +487,10 @@ export function ExerciseSettingsClient({
                   inputMode="decimal"
                   step="any"
                   defaultValue={editing.machine_end_weight ?? ""}
-                  className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                  className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
                 />
               </label>
-              <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
                 Machine increment
                 <input
                   name="machine_increment"
@@ -497,7 +498,7 @@ export function ExerciseSettingsClient({
                   inputMode="decimal"
                   step="any"
                   defaultValue={editing.machine_increment ?? ""}
-                  className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                  className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
                 />
               </label>
             </div>
@@ -519,21 +520,21 @@ export function ExerciseSettingsClient({
         }}
       >
         <form id="add-exercise-form" className="space-y-3" onSubmit={onSaveAdd}>
-          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
             Name
             <input
               name="name"
               required
-              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
             Muscle
             <select
               name="muscle"
               required
               defaultValue={MUSCLES[0]}
-              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
             >
               {MUSCLES.map((m) => (
                 <option key={m} value={m}>
@@ -542,7 +543,7 @@ export function ExerciseSettingsClient({
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
             Default sets
             <input
               name="default_sets"
@@ -551,10 +552,10 @@ export function ExerciseSettingsClient({
               max={20}
               required
               defaultValue={3}
-              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
             Default reps
             <input
               name="default_reps"
@@ -562,10 +563,10 @@ export function ExerciseSettingsClient({
               min={1}
               max={50}
               placeholder="Prefill new sets"
-              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
             Increment (lb/kg)
             <input
               name="progressive_overload_increment"
@@ -575,10 +576,10 @@ export function ExerciseSettingsClient({
               step={0.5}
               inputMode="decimal"
               placeholder="Fixed weight increase per set"
-              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
             Rest between sets (seconds)
             <input
               name="rest_seconds"
@@ -587,29 +588,29 @@ export function ExerciseSettingsClient({
               max={3600}
               step={5}
               placeholder="Optional timer after logging a set"
-              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
             Stretch section
             <select
               name="stretch_kind"
               required
               defaultValue="none"
-              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
             >
               <option value="none">Main</option>
               <option value="dynamic">Dynamic stretch</option>
               <option value="static">Static stretch</option>
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
             Tracking type
             <select
               name="tracking_type"
               required
               defaultValue="weighted"
-              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
             >
               {TRACKING.map((t) => (
                 <option key={t} value={t}>
@@ -618,7 +619,7 @@ export function ExerciseSettingsClient({
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
             Exercise notes
             <textarea
               name="notes"
@@ -628,34 +629,34 @@ export function ExerciseSettingsClient({
             />
           </label>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
               Machine start
               <input
                 name="machine_start_weight"
                 type="number"
                 inputMode="decimal"
                 step="any"
-                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
               Machine end
               <input
                 name="machine_end_weight"
                 type="number"
                 inputMode="decimal"
                 step="any"
-                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
               Machine increment
               <input
                 name="machine_increment"
                 type="number"
                 inputMode="decimal"
                 step="any"
-                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+                className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
               />
             </label>
           </div>

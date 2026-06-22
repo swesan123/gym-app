@@ -29,18 +29,18 @@ function ExerciseSection({
 }) {
   return (
     <div className="px-4 py-3">
-      <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+      <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--gray-500)] dark:text-[var(--gray-400)]">
         {title}
       </h4>
       <ul className="mt-2 space-y-2">
         {exercises.map((ex) => (
-          <li key={ex.id} className="flex items-center justify-between gap-2 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800/50">
-            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{ex.name}</span>
+          <li key={ex.id} className="flex items-center justify-between gap-2 rounded-lg bg-[var(--gray-50)] px-3 py-2 dark:bg-[var(--gray-800)]/50">
+            <span className="text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">{ex.name}</span>
             <div className="flex shrink-0 items-center gap-1">
               <Button
                 type="button"
                 variant="ghost"
-                className="min-h-8 min-w-8 px-0 text-sm text-zinc-600 dark:text-zinc-400"
+                className="min-h-8 min-w-8 px-0 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]"
                 disabled
               >
                 ↑
@@ -48,7 +48,7 @@ function ExerciseSection({
               <Button
                 type="button"
                 variant="ghost"
-                className="min-h-8 min-w-8 px-0 text-sm text-zinc-600 dark:text-zinc-400"
+                className="min-h-8 min-w-8 px-0 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]"
                 disabled
               >
                 ↓
@@ -56,7 +56,7 @@ function ExerciseSection({
               <Button
                 type="button"
                 variant="ghost"
-                className="min-h-8 shrink-0 text-sm text-red-700 dark:text-red-400"
+                className="min-h-8 shrink-0 text-sm text-[var(--muted-red)] dark:text-red-400"
                 disabled
               >
                 ✕
@@ -139,44 +139,47 @@ export function SplitSettingsClient({
   return (
     <>
       <div className="mx-auto max-w-lg px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/settings/exercises"
-            className="inline-flex min-h-11 items-center text-sm font-semibold text-emerald-700 dark:text-emerald-400"
-          >
-            ← Exercises
-          </Link>
+        <Link
+          href="/settings/exercises"
+          className="inline-flex min-h-10 items-center text-sm font-semibold text-[var(--gym-amber)] hover:text-orange-600"
+        >
+          ← Exercises
+        </Link>
+
+        <div className="mt-6 mb-8">
+          <h1 className="text-4xl font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)] tracking-tight">
+            Splits
+          </h1>
+          <p className="mt-2 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+            Organize exercises by split. Reorder splits with ↑ / ↓. The{" "}
+            <span className="font-medium">{UNASSIGNED_SPLIT_NAME}</span> split is for parking exercises and does not appear on Start workout. Manage exercise properties like name, muscle, and notes under{" "}
+            <Link href="/settings/exercises" className="font-medium text-[var(--gym-amber)] underline">
+              Exercises
+            </Link>
+            .
+          </p>
         </div>
-        <h1 className="mt-4 text-2xl font-bold">Splits</h1>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          Organize exercises by split. Reorder splits with ↑ / ↓. The{" "}
-          <span className="font-medium">{UNASSIGNED_SPLIT_NAME}</span> split is for parking exercises and does not appear on Start workout. Manage exercise properties like name, muscle, and notes under{" "}
-          <Link href="/settings/exercises" className="font-medium text-emerald-700 underline dark:text-emerald-400">
-            Exercises
-          </Link>
-          .
-        </p>
 
         {!splitsTableReady ? <SplitsMigrationBanner className="mt-4" /> : null}
 
         {error ? (
-          <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100">
+          <p className="mt-4 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-100">
             {error}
           </p>
         ) : null}
 
         <form
           onSubmit={onAdd}
-          className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-end"
+          className="mt-8 flex flex-col gap-2 sm:flex-row sm:items-end"
         >
-          <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <label className="flex flex-1 flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
             New split name
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="e.g. Push / Pull / Legs"
               disabled={!splitsTableReady || pending}
-              className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-950"
+              className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base disabled:opacity-60 dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
             />
           </label>
           <Button
@@ -215,9 +218,9 @@ export function SplitSettingsClient({
             };
 
             return (
-              <div key={s.id} className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+              <div key={s.id} className="overflow-hidden rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]">
                 {/* Split header */}
-                <div className="flex items-center justify-between gap-2 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+                <div className="flex items-center justify-between gap-2 border-b border-[var(--gray-200)] px-4 py-3 dark:border-[var(--gray-700)]">
                   <div className="flex-1">
                     {renamingId === s.id ? (
                       <input
@@ -234,10 +237,10 @@ export function SplitSettingsClient({
                         }}
                         placeholder={s.name}
                         disabled={pending}
-                        className="min-h-9 w-full rounded-lg border border-zinc-300 bg-white px-2 text-sm dark:border-zinc-600 dark:bg-zinc-950"
+                        className="min-h-9 w-full rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-2 text-sm dark:border-[var(--gray-700)] dark:bg-[var(--gray-800)]"
                       />
                     ) : (
-                      <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">{s.name}</h3>
+                      <h3 className="font-semibold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">{s.name}</h3>
                     )}
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
@@ -247,7 +250,7 @@ export function SplitSettingsClient({
                           type="button"
                           variant="ghost"
                           disabled={pending || !renameValue.trim()}
-                          className="min-h-9 text-emerald-700 dark:text-emerald-400"
+                          className="min-h-9 text-[var(--gym-amber)] dark:text-orange-400"
                           onClick={onConfirmRename}
                         >
                           Save
@@ -256,7 +259,7 @@ export function SplitSettingsClient({
                           type="button"
                           variant="ghost"
                           disabled={pending}
-                          className="min-h-9 text-zinc-600 dark:text-zinc-400"
+                          className="min-h-9 text-[var(--gray-500)] dark:text-[var(--gray-400)]"
                           onClick={() => {
                             setRenamingId(null);
                             setRenameValue("");
@@ -273,7 +276,7 @@ export function SplitSettingsClient({
                               type="button"
                               variant="ghost"
                               disabled={pending || !splitsTableReady || !canMoveUp}
-                              className="min-h-9 min-w-9 px-0 text-zinc-600 dark:text-zinc-400"
+                              className="min-h-9 min-w-9 px-0 text-[var(--gray-500)] dark:text-[var(--gray-400)]"
                               aria-label="Move split up"
                               onClick={() => {
                                 startTransition(async () => {
@@ -295,7 +298,7 @@ export function SplitSettingsClient({
                               type="button"
                               variant="ghost"
                               disabled={pending || !splitsTableReady || !canMoveDown}
-                              className="min-h-9 min-w-9 px-0 text-zinc-600 dark:text-zinc-400"
+                              className="min-h-9 min-w-9 px-0 text-[var(--gray-500)] dark:text-[var(--gray-400)]"
                               aria-label="Move split down"
                               onClick={() => {
                                 startTransition(async () => {
@@ -317,7 +320,7 @@ export function SplitSettingsClient({
                               type="button"
                               variant="ghost"
                               disabled={pending || !splitsTableReady}
-                              className="min-h-9 text-zinc-600 dark:text-zinc-400"
+                              className="min-h-9 text-[var(--gray-500)] dark:text-[var(--gray-400)]"
                               onClick={() => {
                                 setRenamingId(s.id);
                                 setRenameValue(s.name);
@@ -331,7 +334,7 @@ export function SplitSettingsClient({
                           type="button"
                           variant="ghost"
                           disabled={pending || !splitsTableReady || isUnassigned}
-                          className="min-h-9 shrink-0 text-red-700 dark:text-red-400"
+                          className="min-h-9 shrink-0 text-[var(--muted-red)] dark:text-red-400"
                           onClick={() => setDeleteId(s.id)}
                         >
                           Delete
@@ -343,9 +346,9 @@ export function SplitSettingsClient({
 
                 {/* Exercise sections */}
                 {splitExercises.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">No exercises in this split</p>
+                  <p className="px-4 py-3 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">No exercises in this split</p>
                 ) : (
-                  <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  <div className="divide-y divide-[var(--gray-100)] dark:divide-[var(--gray-800)]">
                     {groupedExercises.dynamic.length > 0 && (
                       <ExerciseSection title="Dynamic stretches" exercises={groupedExercises.dynamic} />
                     )}
@@ -363,14 +366,14 @@ export function SplitSettingsClient({
         </div>
 
         {initialSplits.length === 0 ? (
-          <p className="mt-6 text-center text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-6 text-center text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
             No splits yet. Add one above.
           </p>
         ) : null}
 
-        <p className="mt-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-8 text-center text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
           Start logging from{" "}
-          <Link href="/workout/start" className="font-medium text-emerald-700 underline dark:text-emerald-400">
+          <Link href="/workout/start" className="font-medium text-[var(--gym-amber)] underline">
             Start workout
           </Link>
           .

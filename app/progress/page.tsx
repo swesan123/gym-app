@@ -93,7 +93,7 @@ export default async function ProgressPage() {
       </div>
 
       {rows.length === 0 ? (
-        <p className="mt-8 text-center text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mt-8 text-center text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
           Finish a workout to see weekly totals here.
         </p>
       ) : null}

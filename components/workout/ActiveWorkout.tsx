@@ -163,13 +163,13 @@ function SetTableRow({
     .sort((a, b) => a - b);
 
   const cellInput =
-    "box-border h-10 min-h-10 w-full min-w-0 rounded border border-zinc-300 bg-white px-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-950";
+    "box-border h-10 min-h-10 w-full min-w-0 rounded border border-[var(--gray-300)] bg-[var(--chalk-white)] px-1.5 text-sm dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]";
   const readOnlyCellInput =
-    "box-border h-10 min-h-10 w-full min-w-0 rounded border border-zinc-300 bg-zinc-50 px-1.5 text-sm text-right tabular-nums text-zinc-700 cursor-default dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300";
+    "box-border h-10 min-h-10 w-full min-w-0 rounded border border-[var(--gray-300)] bg-[var(--gray-50)] px-1.5 text-sm text-right tabular-nums text-[var(--steel-gray)] cursor-default dark:border-[var(--gray-700)] dark:bg-[var(--gray-800)] dark:text-[var(--gray-300)]";
 
   return (
-    <tr className="border-b border-zinc-100 dark:border-zinc-800">
-      <td className="sticky left-0 z-10 bg-white py-1 pr-1 text-center text-xs font-semibold tabular-nums dark:bg-zinc-900">
+    <tr className="border-b border-[var(--gray-100)] dark:border-[var(--gray-800)]">
+      <td className="sticky left-0 z-10 bg-[var(--chalk-white)] py-1 pr-1 text-center text-xs font-semibold tabular-nums dark:bg-[var(--gray-900)]">
         {row.set_number}
       </td>
       {tt === "timed" ? (
@@ -252,7 +252,7 @@ function SetTableRow({
       </td>
       <td className="max-w-[7rem] min-w-0 py-1 pl-2 pr-1 sm:max-w-[10rem]">
         {readOnly ? (
-          <span className="block max-h-10 overflow-hidden break-words px-1.5 text-left text-sm leading-snug text-zinc-600 line-clamp-2 dark:text-zinc-400">
+          <span className="block max-h-10 overflow-hidden break-words px-1.5 text-left text-sm leading-snug text-[var(--gray-600)] line-clamp-2 dark:text-[var(--gray-400)]">
             {notePreview ?? "—"}
           </span>
         ) : (
@@ -265,7 +265,7 @@ function SetTableRow({
             {notePreview ? (
               <span className="block min-w-0 break-words">{notePreview}</span>
             ) : (
-              <span className="text-zinc-400">Add note…</span>
+              <span className="text-[var(--gray-400)]">Add note…</span>
             )}
           </button>
         )}
@@ -280,8 +280,8 @@ function SetTableRow({
               }}
               className={`text-xs font-semibold rounded px-2 py-1 transition ${
                 row.set_type === "warmup"
-                  ? "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
-                  : "text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                  ? "bg-[var(--gray-200)] text-[var(--gray-600)] dark:bg-[var(--gray-700)] dark:text-[var(--gray-300)]"
+                  : "text-[var(--gray-500)] hover:bg-[var(--gray-100)] dark:text-[var(--gray-400)] dark:hover:bg-[var(--gray-800)]"
               }`}
               aria-label={`Toggle set type: ${row.set_type}`}
               title={row.set_type === "warmup" ? "Warmup set - excluded from volume" : "Working set"}
@@ -364,13 +364,13 @@ function ExerciseSetTable({
 
   return (
     <>
-    <section className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="border-b border-zinc-100 px-2 py-2 dark:border-zinc-800">
-        <h2 className="text-base font-bold leading-tight text-zinc-900 dark:text-zinc-50">
+    <section className="rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] dark:border-[var(--gray-800)] dark:bg-[var(--gray-900)]">
+      <div className="border-b border-[var(--gray-100)] px-2 py-2 dark:border-[var(--gray-800)]">
+        <h2 className="text-base font-bold leading-tight text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
           {exerciseName}
         </h2>
         {exerciseNotes ? (
-          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1 text-xs text-[var(--gray-600)] dark:text-[var(--gray-400)]">
             {exerciseNotes}
           </p>
         ) : null}
@@ -378,8 +378,8 @@ function ExerciseSetTable({
       <div className="w-full min-w-0 overflow-x-hidden">
         <table className="w-full min-w-0 table-fixed border-collapse text-left text-sm">
           <thead>
-            <tr className="border-b border-zinc-200 bg-zinc-50 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-zinc-400">
-              <th className="sticky left-0 z-10 w-8 bg-zinc-50 py-2 pl-1 pr-1 text-center dark:bg-zinc-800/50">
+            <tr className="border-b border-[var(--gray-200)] bg-[var(--gray-50)] text-[11px] font-semibold uppercase tracking-wide text-[var(--gray-500)] dark:border-[var(--gray-800)] dark:bg-[var(--gray-800)]/50 dark:text-[var(--gray-400)]">
+              <th className="sticky left-0 z-10 w-8 bg-[var(--gray-50)] py-2 pl-1 pr-1 text-center dark:bg-[var(--gray-800)]/50">
                 #
               </th>
               <th className="min-w-[3rem] py-2 pr-1">
@@ -442,12 +442,12 @@ function ExerciseSetTable({
         </table>
       </div>
       {!readOnly ? (
-        <div className="flex flex-col gap-2 border-t border-zinc-100 px-2 py-2 dark:border-zinc-800 sm:flex-row">
+        <div className="flex flex-col gap-2 border-t border-[var(--gray-100)] px-2 py-2 dark:border-[var(--gray-800)] sm:flex-row">
           {restSeconds != null && restSeconds > 0 ? (
             <Button
               type="button"
               variant="ghost"
-              className="min-h-10 w-full shrink-0 border border-zinc-300 py-2 text-sm dark:border-zinc-600 sm:w-auto sm:min-w-[8rem]"
+              className="min-h-10 w-full shrink-0 border border-[var(--gray-300)] py-2 text-sm dark:border-[var(--gray-700)] sm:w-auto sm:min-w-[8rem]"
               disabled={pending}
               onClick={() => onScheduleRest(restSeconds, exerciseName)}
             >
@@ -489,7 +489,7 @@ function ExerciseSetTable({
           rows={6}
           autoFocus
           autoComplete="off"
-          className="min-h-[8rem] w-full resize-y rounded-lg border border-zinc-300 bg-white p-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+          className="min-h-[8rem] w-full resize-y rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] p-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
           aria-label="Note text"
         />
       </Modal>
@@ -659,7 +659,7 @@ export function ActiveWorkout({
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/95 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95">
+      <header className="sticky top-0 z-30 border-b border-[var(--gray-200)] bg-[var(--chalk-white)]/95 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur dark:border-[var(--gray-800)] dark:bg-[var(--gray-900)]/95">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-2">
           <Button
             variant="ghost"
@@ -681,8 +681,8 @@ export function ActiveWorkout({
           ) : null}
         </div>
         <div className="mx-auto max-w-3xl px-0 pt-1">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">{split}</p>
-          <h1 className="text-lg font-bold leading-snug text-zinc-900 dark:text-zinc-50">
+          <p className="text-xs text-[var(--gray-500)] dark:text-[var(--gray-400)]">{split}</p>
+          <h1 className="text-lg font-bold leading-snug text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
             {readOnly ? "Workout (completed)" : "Active workout"}
           </h1>
         </div>
@@ -718,9 +718,9 @@ export function ActiveWorkout({
               sec.groups.length > 0 && (
                 <section
                   key={sec.key}
-                  className="rounded-2xl border border-zinc-300/80 bg-zinc-50/80 p-3 dark:border-zinc-700 dark:bg-zinc-900/50 sm:p-4"
+                  className="rounded-lg border border-[var(--gray-300)]/80 bg-[var(--gray-50)]/80 p-3 dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]/50 sm:p-4"
                 >
-                  <h2 className="text-base font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                  <h2 className="text-base font-bold uppercase tracking-wide text-[var(--gray-600)] dark:text-[var(--gray-400)]">
                     {sec.title}
                   </h2>
                   <div className="mt-3 flex flex-col gap-3">

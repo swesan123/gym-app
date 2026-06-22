@@ -15,24 +15,25 @@ export default async function ProfileSettingsPage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
-      <div className="flex items-center gap-3">
-        <Link
-          href="/settings/exercises"
-          className="inline-flex min-h-11 items-center text-sm font-semibold text-emerald-700 dark:text-emerald-400"
-        >
-          ← Exercises
-        </Link>
+      <Link
+        href="/settings/exercises"
+        className="inline-flex min-h-10 items-center text-sm font-semibold text-[var(--gym-amber)] hover:text-orange-600"
+      >
+        ← Exercises
+      </Link>
+
+      <div className="mt-6 mb-8">
+        <h1 className="text-4xl font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)] tracking-tight">
+          Training profile
+        </h1>
+        <p className="mt-2 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+          Body weight is used to calculate volume for bodyweight and assisted movements.
+        </p>
       </div>
 
-      <h1 className="mt-4 text-2xl font-bold">Training profile</h1>
-      <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        Body weight is used to calculate volume for bodyweight and assisted
-        movements.
-      </p>
-
-      <form action={saveTrainingProfile} className="mt-6 space-y-4">
-        <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Body weight
+      <form action={saveTrainingProfile} className="space-y-4">
+        <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
+          Body weight (kg/lbs)
           <input
             name="body_weight"
             type="number"
@@ -40,13 +41,15 @@ export default async function ProfileSettingsPage() {
             step="any"
             defaultValue={body_weight ?? ""}
             placeholder="e.g. 175"
-            className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base dark:border-zinc-600 dark:bg-zinc-950"
+            className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-700)] dark:bg-[var(--gray-900)]"
           />
         </label>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Leave blank to disable bodyweight-based volume math.
+        <p className="text-xs text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+          Leave blank to disable bodyweight-based volume calculations.
         </p>
-        <Button type="submit">Save profile</Button>
+        <Button type="submit" className="mt-6">
+          Save profile
+        </Button>
       </form>
     </div>
   );
