@@ -273,6 +273,7 @@ export async function fetchSplitsCatalog(): Promise<SplitsCatalog> {
   const { data, error } = await supabase
     .from("workout_splits")
     .select("id, name")
+    .is("archived_at", null)
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
 
@@ -301,6 +302,20 @@ export async function fetchSplitsCatalog(): Promise<SplitsCatalog> {
     })),
     splitsTableReady: false,
   };
+}
+
+/** Fetch archived splits (for restore UI). */
+export async function fetchArchivedSplits(): Promise<WorkoutSplitRow[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("workout_splits")
+    .select("id, name")
+    .not("archived_at", "is", null)
+    .order("name", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }
 
 /** Prefer {@link fetchSplitsCatalog} when you need `splitsTableReady`. */

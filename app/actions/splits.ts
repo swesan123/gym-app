@@ -41,6 +41,50 @@ export async function createSplit(name: string) {
   revalidatePath("/settings/exercises");
 }
 
+export async function archiveSplit(id: string) {
+  const supabase = await createClient();
+
+  const { data: row, error: fErr } = await supabase
+    .from("workout_splits")
+    .select("name")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fErr) throw new Error(fErr.message);
+  if (!row) throw new Error("Split not found");
+
+  const splitName = row.name;
+  if (splitName === UNASSIGNED_SPLIT_NAME) {
+    throw new Error(`The "${UNASSIGNED_SPLIT_NAME}" split cannot be archived.`);
+  }
+
+  const { error } = await supabase
+    .from("workout_splits")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/settings/splits");
+  revalidatePath("/workout/start");
+  revalidatePath("/settings/exercises");
+}
+
+export async function restoreSplit(id: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("workout_splits")
+    .update({ archived_at: null })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/settings/splits");
+  revalidatePath("/workout/start");
+  revalidatePath("/settings/exercises");
+}
+
 export async function deleteSplit(id: string) {
   const supabase = await createClient();
 

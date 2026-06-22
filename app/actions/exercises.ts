@@ -187,6 +187,36 @@ export async function reorderExercise(
   revalidatePath("/workout/start");
 }
 
+export async function archiveExercise(id: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("exercises")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/settings/exercises");
+  revalidatePath("/workout/start");
+  revalidatePath("/progress");
+}
+
+export async function restoreExercise(id: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("exercises")
+    .update({ archived_at: null })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/settings/exercises");
+  revalidatePath("/workout/start");
+  revalidatePath("/progress");
+}
+
 export async function deleteExercise(id: string) {
   const supabase = await createClient();
 
