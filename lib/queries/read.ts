@@ -20,6 +20,7 @@ export async function fetchSetsForWorkout(
       duration_seconds,
       volume,
       note,
+      set_type,
       exercises (
         name,
         tracking_type,
@@ -64,6 +65,7 @@ export async function fetchSetsForWorkout(
       duration_seconds: row.duration_seconds,
       volume: row.volume,
       note: row.note,
+      set_type: row.set_type ?? "working",
       exercise_name: ex?.name ?? "Unknown",
       tracking_type: (ex?.tracking_type ?? "weighted") as TrackingType,
       exercise_notes: ex?.notes ?? null,
@@ -185,7 +187,8 @@ export async function fetchPreviousWeightsBeforeDate(
     .select("workout_id, exercise_id, set_number, weight")
     .in("workout_id", workoutIds)
     .in("exercise_id", ids)
-    .not("weight", "is", null);
+    .not("weight", "is", null)
+    .neq("set_type", "warmup");
   if (previousErr) throw new Error(previousErr.message);
 
   const best = new Map<

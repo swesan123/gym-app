@@ -15,7 +15,7 @@ import { partitionGroupsByStretchKind } from "@/components/workout/partitionGrou
 import { WorkoutSummary } from "@/components/workout/WorkoutSummary";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
-import type { TrackingType } from "@/lib/database.types";
+import type { SetType, TrackingType } from "@/lib/database.types";
 import { parseOptionalNumber } from "@/lib/parse";
 import { computeSetVolume } from "@/lib/volume";
 
@@ -78,6 +78,7 @@ function SetTableRow({
   onSetSaved,
   restSeconds,
   exerciseName,
+  onSetTypeChange,
 }: {
   row: FlatSetRow;
   weightPresets: number[];
@@ -89,6 +90,7 @@ function SetTableRow({
   onSetSaved?: (restSeconds: number, exerciseName: string) => void;
   restSeconds?: number | null;
   exerciseName?: string;
+  onSetTypeChange?: (setId: string, setType: SetType) => void;
 }) {
   const [reps, setReps] = useState(() => row.reps?.toString() ?? "");
   const [weight, setWeight] = useState(() => row.weight?.toString() ?? "");
@@ -269,15 +271,34 @@ function SetTableRow({
         )}
       </td>
       {!readOnly ? (
-        <td className="py-1 text-center">
-          <button
-            type="button"
-            onClick={() => onRequestRemove(row.id)}
-            className="rounded px-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
-          >
-            ×
-          </button>
-        </td>
+        <>
+          <td className="py-1 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                onSetTypeChange?.(row.id, row.set_type === "warmup" ? "working" : "warmup");
+              }}
+              className={`text-xs font-semibold rounded px-2 py-1 transition ${
+                row.set_type === "warmup"
+                  ? "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                  : "text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              }`}
+              aria-label={`Toggle set type: ${row.set_type}`}
+              title={row.set_type === "warmup" ? "Warmup set - excluded from volume" : "Working set"}
+            >
+              {row.set_type === "warmup" ? "W" : "○"}
+            </button>
+          </td>
+          <td className="py-1 text-center">
+            <button
+              type="button"
+              onClick={() => onRequestRemove(row.id)}
+              className="rounded px-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+            >
+              ×
+            </button>
+          </td>
+        </>
       ) : (
         <td className="py-1" />
       )}
@@ -375,7 +396,14 @@ function ExerciseSetTable({
               <th className="min-w-[4.5rem] py-2 pr-1">RIR</th>
               <th className="min-w-[4.75rem] py-2 pl-2 pr-1 text-right">Vol</th>
               <th className="min-w-[7.5rem] py-2 pl-2 pr-1">Note</th>
-              {!readOnly ? <th className="w-8 py-2 text-center" /> : null}
+              {!readOnly ? (
+                <>
+                  <th className="w-8 py-2 text-center" title="Warmup/Working">
+                    Type
+                  </th>
+                  <th className="w-8 py-2 text-center" />
+                </>
+              ) : null}
             </tr>
           </thead>
           <tbody>
@@ -397,6 +425,16 @@ function ExerciseSetTable({
                   onSetSaved={onScheduleRest}
                   restSeconds={restSeconds}
                   exerciseName={exerciseName}
+                  onSetTypeChange={(setId, setType) => {
+                    void (async () => {
+                      try {
+                        await updateWorkoutSet({ id: setId, set_type: setType });
+                        router.refresh();
+                      } catch {
+                        // Error handling done at parent level
+                      }
+                    })();
+                  }}
                 />
               );
             })}

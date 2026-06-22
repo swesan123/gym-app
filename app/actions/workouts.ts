@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import type { TrackingType } from "@/lib/database.types";
+import type { SetType, TrackingType } from "@/lib/database.types";
 import {
   fetchPreviousWeightsBeforeDate,
   isWorkoutSplitsTableUnavailable,
@@ -256,6 +256,7 @@ export async function updateWorkoutSet(input: {
   rir?: number | null;
   duration_seconds?: number | null;
   note?: string | null;
+  set_type?: SetType;
 }) {
   const supabase = await createClient();
   const { data: profile } = await supabase
@@ -268,7 +269,7 @@ export async function updateWorkoutSet(input: {
 
   const { data: row, error: fetchErr } = await supabase
     .from("workout_sets")
-    .select("exercise_id, reps, weight, rir, duration_seconds, note")
+    .select("exercise_id, reps, weight, rir, duration_seconds, note, set_type")
     .eq("id", input.id)
     .single();
 
@@ -290,6 +291,7 @@ export async function updateWorkoutSet(input: {
     input.duration_seconds !== undefined
       ? input.duration_seconds
       : row.duration_seconds;
+  const setType = input.set_type !== undefined ? input.set_type : row.set_type;
 
   const volume = computeSetVolume(trackingType, {
     reps,
@@ -306,6 +308,7 @@ export async function updateWorkoutSet(input: {
       rir: input.rir !== undefined ? input.rir : row.rir,
       duration_seconds: durationSeconds,
       note: input.note !== undefined ? input.note : row.note,
+      set_type: setType,
       volume,
     })
     .eq("id", input.id);

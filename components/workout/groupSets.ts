@@ -1,4 +1,4 @@
-import type { StretchKind, TrackingType } from "@/lib/database.types";
+import type { SetType, StretchKind, TrackingType } from "@/lib/database.types";
 
 import type { SummaryExercise, SummarySet } from "@/components/workout/WorkoutSummary";
 
@@ -48,6 +48,7 @@ export function groupFlatSets(rows: FlatSetRow[]): SummaryExercise[] {
       volume,
       note,
       rest_seconds,
+      set_type,
     } = r;
 
     const existing = map.get(exercise_id);
@@ -60,6 +61,7 @@ export function groupFlatSets(rows: FlatSetRow[]): SummaryExercise[] {
       duration_seconds,
       volume,
       note,
+      set_type,
     };
 
     if (!existing) {

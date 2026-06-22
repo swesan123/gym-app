@@ -1,4 +1,4 @@
-import type { StretchKind, TrackingType } from "@/lib/database.types";
+import type { SetType, StretchKind, TrackingType } from "@/lib/database.types";
 
 import { partitionGroupsByStretchKind } from "@/components/workout/partitionGroupsByStretchKind";
 
@@ -11,6 +11,7 @@ export type SummarySet = {
   duration_seconds: number | null;
   volume: number | null;
   note: string | null;
+  set_type: SetType;
 };
 
 export type SummaryExercise = {
