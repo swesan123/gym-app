@@ -92,7 +92,7 @@ export function WorkoutSummary({ groups }: { groups: SummaryExercise[] }) {
   const sections = partitionGroupsByStretchKind(groups);
 
   return (
-    <div className="mx-auto flex max-w-lg flex-col gap-6 px-4 pb-28 pt-4">
+    <div className="flex flex-col gap-6 px-4 pb-28 pt-4">
       {sections.map(
         (sec) =>
           sec.groups.length > 0 && (

@@ -375,7 +375,7 @@ function ExerciseSetTable({
           </p>
         ) : null}
       </div>
-      <div className="w-full min-w-0 overflow-x-hidden">
+      <div className="w-full min-w-0 overflow-x-auto">
         <table className="w-full min-w-0 table-fixed border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--gray-200)] bg-[var(--gray-50)] text-[11px] font-semibold uppercase tracking-wide text-[var(--gray-500)] dark:border-[var(--gray-100)] dark:bg-[var(--gray-100)]/50 dark:text-[var(--gray-400)]">
@@ -660,7 +660,7 @@ export function ActiveWorkout({
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-[var(--gray-200)] bg-[var(--chalk-white)]/95 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur dark:border-[var(--gray-100)] dark:bg-[var(--gray-50)]/95">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2">
           <Button
             variant="ghost"
             type="button"
@@ -680,14 +680,14 @@ export function ActiveWorkout({
             </Button>
           ) : null}
         </div>
-        <div className="mx-auto max-w-3xl px-0 pt-1">
+        <div className="px-0 pt-1">
           <p className="text-xs text-[var(--gray-500)] dark:text-[var(--gray-400)]">{split}</p>
           <h1 className="text-lg font-bold leading-snug text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
             {readOnly ? "Workout (completed)" : "Active workout"}
           </h1>
         </div>
         {!readOnly && rest != null && rest.seconds > 0 ? (
-          <div className="mx-auto mt-2 flex max-w-3xl items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900 dark:bg-emerald-950/50">
+          <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900 dark:bg-emerald-950/50">
             <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
               Rest {rest.seconds}s · {rest.label}
             </p>
@@ -704,7 +704,7 @@ export function ActiveWorkout({
       </header>
 
       {error ? (
-        <div className="mx-auto max-w-3xl px-3 pt-2 text-sm text-red-600">
+        <div className="px-3 pt-2 text-sm text-red-600">
           {error}
         </div>
       ) : null}
@@ -712,7 +712,7 @@ export function ActiveWorkout({
       {readOnly ? (
         <WorkoutSummary groups={groups} />
       ) : (
-        <div className="mx-auto flex max-w-3xl touch-manipulation flex-col gap-6 px-2 pb-28 pt-2 sm:px-3">
+        <div className="flex touch-manipulation flex-col gap-6 px-2 pb-28 pt-2 sm:px-3">
           {partitionGroupsByStretchKind(groups).map(
             (sec) =>
               sec.groups.length > 0 && (

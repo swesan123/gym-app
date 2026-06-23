@@ -625,7 +625,7 @@ export function ExerciseSettingsClient({
               name="notes"
               rows={3}
               placeholder="Machine settings, setup cues, or reminders"
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base dark:border-zinc-600 dark:bg-zinc-950"
+              className="rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 py-2 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
             />
           </label>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -684,7 +684,7 @@ export function ExerciseSettingsClient({
           });
         }}
       >
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="text-sm text-[var(--gray-600)] dark:text-[var(--gray-400)]">
           Deleting an exercise will also delete all logged sets for it. This cannot
           be undone.
         </p>
