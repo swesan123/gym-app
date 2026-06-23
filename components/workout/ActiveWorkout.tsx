@@ -316,6 +316,8 @@ function ExerciseSetTable({
   onScheduleRest,
   onAddSet,
   onRequestRemove,
+  onUpdateNote,
+  onError,
 }: {
   exerciseName: string;
   exerciseNotes?: string | null;
@@ -330,6 +332,8 @@ function ExerciseSetTable({
   onScheduleRest: (seconds: number, label: string) => void;
   onAddSet: () => void;
   onRequestRemove: (setId: string) => void;
+  onUpdateNote: (setId: string, note: string | null) => void;
+  onError: (message: string) => void;
 }) {
   const router = useRouter();
   const tt = trackingType;
@@ -345,13 +349,15 @@ function ExerciseSetTable({
     if (!noteTarget) return;
     const t = noteTarget;
     const note = t.draft.trim() ? t.draft.trim() : null;
+
+    onUpdateNote(t.setId, note);
+    setNoteTarget(null);
+
     void (async () => {
       try {
         await updateWorkoutSet({ id: t.setId, note });
-        setNoteTarget(null);
-        router.refresh();
-      } catch {
-        setNoteTarget(null);
+      } catch (err) {
+        onError(err instanceof Error ? err.message : "Failed to save note");
       }
     })();
   };
@@ -521,7 +527,24 @@ export function ActiveWorkout({
     null,
   );
 
-  const groups = useMemo(() => groupFlatSets(rows), [rows]);
+  const [localRows, setLocalRows] = useState(rows);
+  useEffect(() => setLocalRows(rows), [rows]);
+
+  const updateRowNote = useCallback((setId: string, note: string | null) => {
+    setLocalRows(prev => prev.map(row =>
+      row.id === setId ? { ...row, note } : row
+    ));
+  }, []);
+
+  const removeRow = useCallback((setId: string) => {
+    setLocalRows(prev => prev.filter(r => r.id !== setId));
+  }, []);
+
+  const restoreRow = useCallback((row: FlatSetRow) => {
+    setLocalRows(prev => [...prev, row]);
+  }, []);
+
+  const groups = useMemo(() => groupFlatSets(localRows), [localRows]);
 
   // Request notification permission on mount
   useEffect(() => {
@@ -614,13 +637,19 @@ export function ActiveWorkout({
   const onConfirmRemove = () => {
     if (!removeTarget) return;
     const id = removeTarget;
+    const removedRow = localRows.find(r => r.id === id);
+
+    removeRow(id);
+    setRemoveTarget(null);
+
     startTransition(async () => {
       try {
         await removeWorkoutSet(id, workoutId);
-        setRemoveTarget(null);
-        router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to remove set");
+        if (removedRow) {
+          restoreRow(removedRow);
+        }
       }
     });
   };
@@ -742,6 +771,8 @@ export function ActiveWorkout({
                         onScheduleRest={scheduleRest}
                         onAddSet={() => handleAddSet(g.exercise_id)}
                         onRequestRemove={requestRemoveSet}
+                        onUpdateNote={updateRowNote}
+                        onError={setError}
                       />
                     ))}
                   </div>
