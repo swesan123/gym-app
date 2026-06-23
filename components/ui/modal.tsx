@@ -57,58 +57,69 @@ export function Modal({
     };
   }, [open, closeOnEscape, onCancel]);
 
-  const backdropMayDismiss = () => {
-    const el = dialogRef.current;
-    if (el?.matches(":focus-within")) return false;
-    return true;
-  };
-
   if (!open || !mounted) return null;
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto overscroll-contain bg-black/50 sm:items-center"
-      role="presentation"
-      onPointerUp={(e) => {
-        if (!closeOnBackdrop) return;
-        if (e.target !== e.currentTarget) return;
-        if (!backdropMayDismiss()) return;
-        onCancel();
-      }}
-    >
-      <div className="w-full p-4 sm:flex sm:justify-center">
-        <div
-          ref={dialogRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-title"
-          className="w-full max-w-md max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl bg-[var(--chalk-white)] p-5 shadow-xl dark:bg-[var(--gray-50)]"
-          onPointerDown={(e) => e.stopPropagation()}
+    <>
+      {/* Backdrop — separate fixed element so dialog is never a child of it */}
+      <div
+        style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(0,0,0,0.5)" }}
+        role="presentation"
+        onPointerUp={() => {
+          if (!closeOnBackdrop) return;
+          const el = dialogRef.current;
+          if (el?.matches(":focus-within")) return;
+          onCancel();
+        }}
+      />
+      {/* Dialog — fixed directly to viewport, unaffected by any parent layout */}
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        style={{
+          position: "fixed",
+          bottom: "1rem",
+          left: "1rem",
+          right: "1rem",
+          zIndex: 9999,
+          maxHeight: "85vh",
+          overflowY: "auto",
+          overscrollBehavior: "contain",
+          borderRadius: "1rem",
+          background: "var(--background)",
+          padding: "1.25rem",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <h2
+          id="modal-title"
+          className="text-lg font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]"
         >
-          <h2 id="modal-title" className="text-lg font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
-            {title}
-          </h2>
-          {description ? (
-            <p className="mt-2 text-sm text-[var(--gray-600)] dark:text-[var(--gray-400)]">
-              {description}
-            </p>
-          ) : null}
-          {children ? <div className="mt-4">{children}</div> : null}
-          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button variant="secondary" type="button" onClick={onCancel}>
-              {cancelLabel}
-            </Button>
-            <Button
-              variant={variant === "danger" ? "danger" : "primary"}
-              type="button"
-              onClick={onConfirm}
-            >
-              {confirmLabel}
-            </Button>
-          </div>
+          {title}
+        </h2>
+        {description ? (
+          <p className="mt-2 text-sm text-[var(--gray-600)] dark:text-[var(--gray-400)]">
+            {description}
+          </p>
+        ) : null}
+        {children ? <div className="mt-4">{children}</div> : null}
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="secondary" type="button" onClick={onCancel}>
+            {cancelLabel}
+          </Button>
+          <Button
+            variant={variant === "danger" ? "danger" : "primary"}
+            type="button"
+            onClick={onConfirm}
+          >
+            {confirmLabel}
+          </Button>
         </div>
       </div>
-    </div>,
+    </>,
     document.body
   );
 }

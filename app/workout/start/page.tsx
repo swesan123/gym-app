@@ -4,7 +4,6 @@ import { createWorkoutDraftAndRedirect } from "@/app/actions/workouts";
 import { Button } from "@/components/ui/button";
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
 import { SplitsMigrationBanner } from "@/components/SplitsMigrationBanner";
-import { UNASSIGNED_SPLIT_NAME } from "@/lib/constants";
 import { fetchSplitsCatalog } from "@/lib/queries/read";
 import { hasSupabaseEnv } from "@/lib/env";
 
@@ -13,8 +12,7 @@ export default async function StartWorkoutPage() {
     return <MissingSupabaseConfig />;
   }
 
-  const { splits, splitsTableReady } = await fetchSplitsCatalog();
-  const splitsForStart = splits.filter((s) => s.name !== UNASSIGNED_SPLIT_NAME);
+  const { splits: splitsForStart, splitsTableReady } = await fetchSplitsCatalog();
 
   return (
     <div className="px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">

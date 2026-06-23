@@ -5,11 +5,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-import { createSplit, deleteSplit, reorderSplit, renameSplit, archiveSplit } from "@/app/actions/splits";
+import { createSplit, deleteSplit, reorderSplit, renameSplit, archiveSplit, restoreSplit } from "@/app/actions/splits";
 import { reorderExercise } from "@/app/actions/exercises";
 import type { WorkoutSplitRow } from "@/lib/queries/read";
 import type { StretchKind } from "@/lib/database.types";
-import { UNASSIGNED_SPLIT_NAME } from "@/lib/constants";
 import { SplitsMigrationBanner } from "@/components/SplitsMigrationBanner";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -72,10 +71,12 @@ function ExerciseSection({
 
 export function SplitSettingsClient({
   splits: initialSplits,
+  archivedSplits,
   exercises: allExercises,
   splitsTableReady,
 }: {
   splits: WorkoutSplitRow[];
+  archivedSplits: WorkoutSplitRow[];
   exercises: ExerciseWithSplits[];
   splitsTableReady: boolean;
 }) {
@@ -98,6 +99,18 @@ export function SplitSettingsClient({
         refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not reorder");
+      }
+    });
+  };
+
+  const onRestore = (id: string) => {
+    startTransition(async () => {
+      try {
+        setError(null);
+        await restoreSplit(id);
+        refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not restore");
       }
     });
   };
@@ -180,8 +193,7 @@ export function SplitSettingsClient({
             Splits
           </h1>
           <p className="mt-2 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
-            Organize exercises by split. Reorder splits with ↑ / ↓. The{" "}
-            <span className="font-medium">{UNASSIGNED_SPLIT_NAME}</span> split is for parking exercises and does not appear on Start workout. Manage exercise properties like name, muscle, and notes under{" "}
+            Organize exercises by split. Reorder splits with ↑ / ↓. Manage exercise properties under{" "}
             <Link href="/settings/exercises" className="font-medium text-[var(--gym-amber)] underline">
               Exercises
             </Link>
@@ -221,14 +233,9 @@ export function SplitSettingsClient({
 
         <div className="mt-8 flex flex-col gap-6">
           {initialSplits.map((s) => {
-            const isUnassigned = s.name === UNASSIGNED_SPLIT_NAME;
-            const movable = initialSplits.filter((x) => x.name !== UNASSIGNED_SPLIT_NAME);
-            const movableIdx = movable.findIndex((x) => x.id === s.id);
-            const canMoveUp = !isUnassigned && movableIdx > 0;
-            const canMoveDown =
-              !isUnassigned &&
-              movableIdx >= 0 &&
-              movableIdx < movable.length - 1;
+            const idx = initialSplits.findIndex((x) => x.id === s.id);
+            const canMoveUp = idx > 0;
+            const canMoveDown = idx < initialSplits.length - 1;
 
             // Get exercises for this split
             const splitExercises = allExercises
@@ -299,81 +306,75 @@ export function SplitSettingsClient({
                       </>
                     ) : (
                       <>
-                        {!isUnassigned ? (
-                          <>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              disabled={pending || !splitsTableReady || !canMoveUp}
-                              className="min-h-9 min-w-9 px-0 text-[var(--gray-500)] dark:text-[var(--gray-400)]"
-                              aria-label="Move split up"
-                              onClick={() => {
-                                startTransition(async () => {
-                                  try {
-                                    setError(null);
-                                    await reorderSplit(s.id, "up");
-                                    refresh();
-                                  } catch (err) {
-                                    setError(
-                                      err instanceof Error ? err.message : "Could not reorder",
-                                    );
-                                  }
-                                });
-                              }}
-                            >
-                              ↑
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              disabled={pending || !splitsTableReady || !canMoveDown}
-                              className="min-h-9 min-w-9 px-0 text-[var(--gray-500)] dark:text-[var(--gray-400)]"
-                              aria-label="Move split down"
-                              onClick={() => {
-                                startTransition(async () => {
-                                  try {
-                                    setError(null);
-                                    await reorderSplit(s.id, "down");
-                                    refresh();
-                                  } catch (err) {
-                                    setError(
-                                      err instanceof Error ? err.message : "Could not reorder",
-                                    );
-                                  }
-                                });
-                              }}
-                            >
-                              ↓
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              disabled={pending || !splitsTableReady}
-                              className="min-h-9 text-[var(--gray-500)] dark:text-[var(--gray-400)]"
-                              onClick={() => {
-                                setRenamingId(s.id);
-                                setRenameValue(s.name);
-                              }}
-                            >
-                              ✎
-                            </Button>
-                          </>
-                        ) : null}
-                        {!isUnassigned ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            disabled={pending || !splitsTableReady}
-                            className="min-h-9 text-[var(--gray-500)] dark:text-[var(--gray-400)]"
-                            onClick={() => setArchiveId(s.id)}
-                          >
-                            Archive
-                          </Button>
-                        ) : null}
                         <Button
                           type="button"
                           variant="ghost"
-                          disabled={pending || !splitsTableReady || isUnassigned}
+                          disabled={pending || !splitsTableReady || !canMoveUp}
+                          className="min-h-9 min-w-9 px-0 text-[var(--gray-500)] dark:text-[var(--gray-400)]"
+                          aria-label="Move split up"
+                          onClick={() => {
+                            startTransition(async () => {
+                              try {
+                                setError(null);
+                                await reorderSplit(s.id, "up");
+                                refresh();
+                              } catch (err) {
+                                setError(
+                                  err instanceof Error ? err.message : "Could not reorder",
+                                );
+                              }
+                            });
+                          }}
+                        >
+                          ↑
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={pending || !splitsTableReady || !canMoveDown}
+                          className="min-h-9 min-w-9 px-0 text-[var(--gray-500)] dark:text-[var(--gray-400)]"
+                          aria-label="Move split down"
+                          onClick={() => {
+                            startTransition(async () => {
+                              try {
+                                setError(null);
+                                await reorderSplit(s.id, "down");
+                                refresh();
+                              } catch (err) {
+                                setError(
+                                  err instanceof Error ? err.message : "Could not reorder",
+                                );
+                              }
+                            });
+                          }}
+                        >
+                          ↓
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={pending || !splitsTableReady}
+                          className="min-h-9 text-[var(--gray-500)] dark:text-[var(--gray-400)]"
+                          onClick={() => {
+                            setRenamingId(s.id);
+                            setRenameValue(s.name);
+                          }}
+                        >
+                          ✎
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={pending || !splitsTableReady}
+                          className="min-h-9 text-[var(--gray-500)] dark:text-[var(--gray-400)]"
+                          onClick={() => setArchiveId(s.id)}
+                        >
+                          Archive
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={pending || !splitsTableReady}
                           className="min-h-9 shrink-0 text-[var(--muted-red)] dark:text-red-400"
                           onClick={() => setDeleteId(s.id)}
                         >
@@ -418,6 +419,38 @@ export function SplitSettingsClient({
           </Link>
           .
         </p>
+
+        {archivedSplits.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-lg font-semibold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
+              Archived splits
+            </h2>
+            <p className="mt-1 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+              These splits are hidden from Start workout. Restore to bring them back.
+            </p>
+            <div className="mt-4 flex flex-col gap-2">
+              {archivedSplits.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] px-4 py-3 dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                >
+                  <span className="text-sm font-medium text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+                    {s.name}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={pending}
+                    className="text-sm text-[var(--gym-amber)] dark:text-orange-400"
+                    onClick={() => onRestore(s.id)}
+                  >
+                    Restore
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <Modal

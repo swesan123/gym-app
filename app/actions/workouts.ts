@@ -17,7 +17,6 @@ import {
   usesLoggedWeightColumn,
 } from "@/lib/progressiveOverload";
 import { createClient } from "@/lib/supabase/server";
-import { UNASSIGNED_SPLIT_NAME } from "@/lib/constants";
 import { formatWorkoutWeek } from "@/lib/week";
 import { computeSetVolume } from "@/lib/volume";
 
@@ -98,11 +97,6 @@ async function fetchLatestCompletedSetsByExercise(
 export async function createWorkoutDraftAndRedirect(split: string) {
   const splitName = split.trim();
   if (!splitName) throw new Error("Choose a split");
-  if (splitName === UNASSIGNED_SPLIT_NAME) {
-    throw new Error(
-      "Unassigned is only for parking exercises in settings, not for starting a workout.",
-    );
-  }
 
   const supabase = await createClient();
 

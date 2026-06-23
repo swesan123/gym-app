@@ -3,21 +3,16 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
-import { UNASSIGNED_SPLIT_NAME } from "@/lib/constants";
 
 export async function createSplit(name: string) {
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Split name is required");
-  if (trimmed.toLowerCase() === UNASSIGNED_SPLIT_NAME.toLowerCase()) {
-    throw new Error(`"${UNASSIGNED_SPLIT_NAME}" is reserved by the app.`);
-  }
 
   const supabase = await createClient();
 
   const { data: maxRow } = await supabase
     .from("workout_splits")
     .select("sort_order")
-    .neq("name", UNASSIGNED_SPLIT_NAME)
     .order("sort_order", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -53,11 +48,6 @@ export async function archiveSplit(id: string) {
   if (fErr) throw new Error(fErr.message);
   if (!row) throw new Error("Split not found");
 
-  const splitName = row.name;
-  if (splitName === UNASSIGNED_SPLIT_NAME) {
-    throw new Error(`The "${UNASSIGNED_SPLIT_NAME}" split cannot be archived.`);
-  }
-
   const { error } = await supabase
     .from("workout_splits")
     .update({ archived_at: new Date().toISOString() })
@@ -88,9 +78,6 @@ export async function restoreSplit(id: string) {
 export async function renameSplit(id: string, newName: string) {
   const trimmed = newName.trim();
   if (!trimmed) throw new Error("Split name is required");
-  if (trimmed.toLowerCase() === UNASSIGNED_SPLIT_NAME.toLowerCase()) {
-    throw new Error(`"${UNASSIGNED_SPLIT_NAME}" is reserved by the app.`);
-  }
 
   const supabase = await createClient();
 
@@ -104,9 +91,6 @@ export async function renameSplit(id: string, newName: string) {
   if (!row) throw new Error("Split not found");
 
   const oldName = row.name;
-  if (oldName === UNASSIGNED_SPLIT_NAME) {
-    throw new Error(`The "${UNASSIGNED_SPLIT_NAME}" split cannot be renamed.`);
-  }
 
   // Check if new name already exists
   const { count: existing } = await supabase
@@ -164,9 +148,6 @@ export async function deleteSplit(id: string) {
   if (!row) throw new Error("Split not found");
 
   const splitName = row.name;
-  if (splitName === UNASSIGNED_SPLIT_NAME) {
-    throw new Error(`The "${UNASSIGNED_SPLIT_NAME}" split cannot be deleted.`);
-  }
 
   const { count: exCount } = await supabase
     .from("exercises")
@@ -211,15 +192,14 @@ export async function reorderSplit(splitId: string, direction: "up" | "down") {
     throw new Error(listErr?.message ?? "Could not load splits");
   }
 
-  const movable = rows.filter((r) => r.name !== UNASSIGNED_SPLIT_NAME);
-  const idx = movable.findIndex((r) => r.id === splitId);
+  const idx = rows.findIndex((r) => r.id === splitId);
   if (idx < 0) return;
 
   const j = direction === "up" ? idx - 1 : idx + 1;
-  if (j < 0 || j >= movable.length) return;
+  if (j < 0 || j >= rows.length) return;
 
-  const a = movable[idx];
-  const b = movable[j];
+  const a = rows[idx];
+  const b = rows[j];
   const orderA = Number(a.sort_order);
   const orderB = Number(b.sort_order);
 

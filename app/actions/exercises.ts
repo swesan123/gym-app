@@ -169,10 +169,35 @@ export async function reorderExercise(
   const j = direction === "up" ? idx - 1 : idx + 1;
   if (idx < 0 || j < 0 || j >= sameSection.length) return;
 
+  // Normalize sort_orders for ALL exercises across all sections first,
+  // assigning sequential values (100, 101, 102...) per section to avoid collisions.
+  // This fixes the case where all exercises have sort_order=0.
+  const sections = ["dynamic", "none", "static"];
+  for (const sectionKind of sections) {
+    const sectionRows = allRows.filter((r) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const kind = ((r.exercises as any)?.[0]?.stretch_kind ?? (r.exercises as any)?.stretch_kind) ?? "none";
+      return kind === sectionKind;
+    });
+    for (let i = 0; i < sectionRows.length; i++) {
+      const newOrder = sections.indexOf(sectionKind) * 1000 + i;
+      if (Number(sectionRows[i].sort_order) !== newOrder) {
+        await supabase
+          .from("exercise_splits")
+          .update({ sort_order: newOrder })
+          .eq("exercise_id", sectionRows[i].exercise_id)
+          .eq("split_name", splitName);
+      }
+    }
+  }
+
+  // Now do the actual swap using the normalized values
+  const sectionBase = sections.indexOf(targetKind) * 1000;
+  const orderA = sectionBase + idx;
+  const orderB = sectionBase + j;
+
   const a = sameSection[idx];
   const b = sameSection[j];
-  const orderA = Number(a.sort_order);
-  const orderB = Number(b.sort_order);
 
   const { error: u1 } = await supabase
     .from("exercise_splits")
