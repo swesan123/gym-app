@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
@@ -36,8 +36,7 @@ export function Modal({
   onCancel,
 }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const isClient = useSyncExternalStore(() => () => {}, () => true, () => false);
 
   useEffect(() => {
     if (!open) return;
@@ -57,7 +56,7 @@ export function Modal({
     };
   }, [open, closeOnEscape, onCancel]);
 
-  if (!open || !mounted) return null;
+  if (!open || !isClient) return null;
 
   return createPortal(
     <>
