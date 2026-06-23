@@ -124,10 +124,6 @@ function SetTableRow({
             rir: parseOptionalNumber(rir),
             duration_seconds: parseOptionalNumber(duration),
           });
-          // Auto-trigger rest timer after successful set save
-          if (onSetSaved && restSeconds && restSeconds > 0 && exerciseName) {
-            onSetSaved(restSeconds, exerciseName);
-          }
         } catch {
           // Error handling is done at the parent level
         }

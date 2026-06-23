@@ -55,7 +55,7 @@ function parseOverloadIncrement(raw: FormDataEntryValue | null): number | null {
   const value = String(raw ?? "").trim();
   if (!value) return null;
   const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0 || n > 1000) return null;
+  if (!Number.isFinite(n) || n < 0.25 || n > 1000) return null;
   return n;
 }
 
@@ -399,9 +399,9 @@ export function ExerciseSettingsClient({
               <input
                 name="progressive_overload_increment"
                 type="number"
-                min={0}
+                min={0.25}
                 max={1000}
-                step={0.5}
+                step="any"
                 inputMode="decimal"
                 placeholder="Fixed weight increase per set"
                 defaultValue={
@@ -571,9 +571,9 @@ export function ExerciseSettingsClient({
             <input
               name="progressive_overload_increment"
               type="number"
-              min={0}
+              min={0.25}
               max={1000}
-              step={0.5}
+              step="any"
               inputMode="decimal"
               placeholder="Fixed weight increase per set"
               className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
@@ -586,7 +586,7 @@ export function ExerciseSettingsClient({
               type="number"
               min={0}
               max={3600}
-              step={5}
+              step="any"
               placeholder="Optional timer after logging a set"
               className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
             />
