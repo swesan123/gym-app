@@ -238,7 +238,8 @@ export async function fetchPreviousWeightsForWorkout(
     ...new Set((currentSets ?? []).map((s) => s.exercise_id).filter(Boolean)),
   ];
 
-  return fetchPreviousWeightsBeforeDate(workout.date, exerciseIds, workout.split);
+  // No split filter — show last weight for each exercise regardless of which split it was done in.
+  return fetchPreviousWeightsBeforeDate(workout.date, exerciseIds);
 }
 
 export type WorkoutSplitRow = { id: string; name: string };

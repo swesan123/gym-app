@@ -161,11 +161,13 @@ export async function createWorkoutDraftAndRedirect(split: string) {
     profile?.body_weight == null ? null : Number(profile.body_weight);
 
   const exerciseIds = exercises.map((e) => e.id);
+  // No split filter here — use the last weight from ANY split for this exercise.
+  // This ensures pre-fill works even when splits are reorganised.
   const previousByKey = await fetchPreviousWeightsBeforeDate(
     dateStr,
     exerciseIds,
-    splitName,
   );
+  // Split-scoped: progression direction is based on performance in THIS split.
   const latestPerfByExercise = await fetchLatestCompletedSetsByExercise(
     dateStr,
     exerciseIds,
@@ -360,9 +362,8 @@ export async function addWorkoutSet(workoutId: string, exerciseId: string) {
   const bodyWeight =
     profile?.body_weight == null ? null : Number(profile.body_weight);
 
-  const previousByKey = await fetchPreviousWeightsBeforeDate(workout.date, [
-    exerciseId,
-  ], workout.split);
+  // No split filter — use last weight from any split for pre-filling.
+  const previousByKey = await fetchPreviousWeightsBeforeDate(workout.date, [exerciseId]);
   const lastW = previousByKey[`${exerciseId}:${next}`] ?? null;
   const reps =
     exercise.default_reps != null ? Number(exercise.default_reps) : null;
