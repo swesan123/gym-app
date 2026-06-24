@@ -11,8 +11,8 @@ export default async function ProgressPage() {
   const supabase = await createClient();
 
   const [weeklyRes, monthlyRes] = await Promise.all([
-    supabase.from("weekly_volume_by_split").select("*"),
-    supabase.from("monthly_volume_by_split").select("*"),
+    supabase.from("weekly_volume_by_exercise").select("*"),
+    supabase.from("monthly_volume_by_exercise").select("*"),
   ]);
 
   if (weeklyRes.error) {
@@ -24,7 +24,6 @@ export default async function ProgressPage() {
 
   const rows = [...(weeklyRes.data ?? [])].sort(
     (a, b) =>
-      String(a.split).localeCompare(String(b.split)) ||
       b.week.localeCompare(a.week) ||
       String(a.exercise).localeCompare(String(b.exercise)),
   );
@@ -36,7 +35,7 @@ export default async function ProgressPage() {
           Progress
         </h1>
         <p className="mt-2 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
-          Volume trends by split, exercise, and muscle group.
+          Volume trends by exercise and muscle group across all splits.
         </p>
       </div>
 
@@ -53,7 +52,7 @@ export default async function ProgressPage() {
         </h2>
         {rows.map((r, i) => (
           <div
-            key={`${r.week}-${r.split}-${r.exercise}-${r.muscle}-${i}`}
+            key={`${r.week}-${r.exercise}-${r.muscle}-${i}`}
             className="rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] p-3 text-sm transition hover:border-[var(--gym-amber)]/30 dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)] dark:hover:border-[var(--gym-amber)]/40"
           >
             <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -62,7 +61,7 @@ export default async function ProgressPage() {
                   {r.exercise}
                 </p>
                 <p className="text-xs text-[var(--gray-500)] dark:text-[var(--gray-400)]">
-                  {r.split} · {r.week} · {r.muscle}
+                  {r.week} · {r.muscle}
                 </p>
               </div>
               <dl className="font-data grid grid-cols-3 gap-x-4 gap-y-1 text-right text-xs tabular-nums sm:text-sm">

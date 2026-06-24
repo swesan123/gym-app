@@ -259,6 +259,28 @@ export type Database = {
           total_volume: number | null;
         };
       };
+      weekly_volume_by_exercise: {
+        Row: {
+          week: string;
+          exercise_id: string;
+          exercise: string;
+          muscle: string;
+          total_sets: number;
+          total_reps: number | null;
+          total_volume: number | null;
+        };
+      };
+      monthly_volume_by_exercise: {
+        Row: {
+          month_start: string;
+          exercise_id: string;
+          exercise: string;
+          muscle: string;
+          total_sets: number;
+          total_reps: number | null;
+          total_volume: number | null;
+        };
+      };
     };
     Functions: Record<string, never>;
     Enums: Record<string, never>;

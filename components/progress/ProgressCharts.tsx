@@ -13,74 +13,55 @@ import {
 
 import type { Database } from "@/lib/database.types";
 
-export type WeeklyVolumeBySplitRow =
-  Database["public"]["Views"]["weekly_volume_by_split"]["Row"];
+export type WeeklyVolumeByExerciseRow =
+  Database["public"]["Views"]["weekly_volume_by_exercise"]["Row"];
 
-export type MonthlyVolumeBySplitRow =
-  Database["public"]["Views"]["monthly_volume_by_split"]["Row"];
+export type MonthlyVolumeByExerciseRow =
+  Database["public"]["Views"]["monthly_volume_by_exercise"]["Row"];
 
 type Props = {
-  weeklyRows: WeeklyVolumeBySplitRow[];
-  monthlyRows: MonthlyVolumeBySplitRow[];
+  weeklyRows: WeeklyVolumeByExerciseRow[];
+  monthlyRows: MonthlyVolumeByExerciseRow[];
 };
 
 export function ProgressCharts({ weeklyRows, monthlyRows }: Props) {
-  const splits = useMemo(
-    () =>
-      [...new Set(weeklyRows.map((r) => String(r.split)).filter(Boolean))].sort(
-        (a, b) => a.localeCompare(b),
-      ),
-    [weeklyRows],
-  );
-
-  const [split, setSplit] = useState<string>("");
   const [exercise, setExercise] = useState<string>("");
   const [muscle, setMuscle] = useState<string>("");
 
-  const selectedSplit = split || splits[0] || "";
-
-  const filteredWeekly = useMemo(
-    () =>
-      selectedSplit
-        ? weeklyRows.filter((r) => r.split === selectedSplit)
-        : weeklyRows,
-    [weeklyRows, selectedSplit],
-  );
-
   const exercises = useMemo(() => {
     const names = new Set<string>();
-    for (const r of filteredWeekly) {
+    for (const r of weeklyRows) {
       if (r.exercise) names.add(String(r.exercise));
     }
     return [...names].sort((a, b) => a.localeCompare(b));
-  }, [filteredWeekly]);
+  }, [weeklyRows]);
 
   const muscles = useMemo(() => {
     const names = new Set<string>();
-    for (const r of filteredWeekly) {
+    for (const r of weeklyRows) {
       if (r.muscle) names.add(String(r.muscle));
     }
     return [...names].sort((a, b) => a.localeCompare(b));
-  }, [filteredWeekly]);
+  }, [weeklyRows]);
 
   const selectedExercise = exercise || exercises[0] || "";
   const selectedMuscle = muscle || muscles[0] || "";
 
   const exerciseSeries = useMemo(() => {
-    if (!selectedExercise || !selectedSplit) return [];
-    return filteredWeekly
+    if (!selectedExercise) return [];
+    return weeklyRows
       .filter((r) => r.exercise === selectedExercise)
       .sort((a, b) => a.week.localeCompare(b.week))
       .map((r) => ({
         week: r.week,
         volume: r.total_volume == null ? 0 : Number(r.total_volume),
       }));
-  }, [filteredWeekly, selectedExercise, selectedSplit]);
+  }, [weeklyRows, selectedExercise]);
 
   const muscleSeries = useMemo(() => {
-    if (!selectedMuscle || !selectedSplit) return [];
+    if (!selectedMuscle) return [];
     const acc = new Map<string, number>();
-    for (const row of filteredWeekly) {
+    for (const row of weeklyRows) {
       if (row.muscle !== selectedMuscle) continue;
       acc.set(
         row.week,
@@ -91,12 +72,10 @@ export function ProgressCharts({ weeklyRows, monthlyRows }: Props) {
     return [...acc.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([week, volume]) => ({ week, volume }));
-  }, [filteredWeekly, selectedMuscle, selectedSplit]);
+  }, [weeklyRows, selectedMuscle]);
 
   const momDisplay = useMemo(() => {
-    if (!selectedSplit) return null;
     const rows = monthlyRows
-      .filter((r) => r.split === selectedSplit)
       .map((r) => ({
         month: String(r.month_start),
         vol: r.total_volume == null ? 0 : Number(r.total_volume),
@@ -113,36 +92,18 @@ export function ProgressCharts({ weeklyRows, monthlyRows }: Props) {
       kind: "pct" as const,
       value: ((curr.vol - prev.vol) / prev.vol) * 100,
     };
-  }, [monthlyRows, selectedSplit]);
+  }, [monthlyRows]);
 
   return (
     <div className="mt-6 grid gap-4">
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex flex-wrap items-end gap-3">
-          <h2 className="text-base font-semibold">Split & trends</h2>
-          <label className="text-sm">
-            <span className="mr-2 text-zinc-600 dark:text-zinc-400">Split</span>
-            <select
-              value={selectedSplit}
-              onChange={(e) => {
-                setSplit(e.target.value);
-                setExercise("");
-                setMuscle("");
-              }}
-              className="min-h-10 max-w-[14rem] rounded-lg border border-zinc-300 bg-white px-2 text-sm dark:border-zinc-600 dark:bg-zinc-950"
-            >
-              {splits.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
+          <h2 className="text-base font-semibold">Overall trends</h2>
         </div>
 
         {momDisplay?.kind === "pct" ? (
           <p className="mt-3 text-sm text-zinc-700 dark:text-zinc-300">
-            Month-over-month volume (latest vs prior calendar month):{" "}
+            Month-over-month total volume (latest vs prior calendar month):{" "}
             <span className="font-semibold tabular-nums">
               {momDisplay.value >= 0 ? "+" : ""}
               {momDisplay.value.toFixed(1)}%
@@ -153,11 +114,11 @@ export function ProgressCharts({ weeklyRows, monthlyRows }: Props) {
             Month-over-month: prior month had no logged volume; current month is
             your new baseline.
           </p>
-        ) : selectedSplit ? (
+        ) : (
           <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-            Need two completed months with volume on this split to show MoM %.
+            Need two completed months with volume to show month-over-month trend.
           </p>
-        ) : null}
+        )}
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
