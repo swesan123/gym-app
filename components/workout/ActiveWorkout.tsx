@@ -754,12 +754,12 @@ export function ActiveWorkout({
                         key={g.exercise_id}
                         exerciseName={g.exercise_name}
                         exerciseNotes={
-                          rows.find((r) => r.exercise_id === g.exercise_id)
+                          localRows.find((r) => r.exercise_id === g.exercise_id)
                             ?.exercise_notes
                         }
                         trackingType={g.tracking_type}
                         sets={g.sets}
-                        rows={rows}
+                        rows={localRows}
                         weightPresets={
                           exerciseWeightPresets.get(g.exercise_id) ??
                           weightPresets
