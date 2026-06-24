@@ -88,17 +88,39 @@ export function ExerciseSettingsClient({
   const [adding, setAdding] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSplit, setSelectedSplit] = useState<string>("");
+
+  const availableSplits = useMemo(() => {
+    const splits = new Set<string>();
+    exercises.forEach((ex) => {
+      ex.exercise_splits.forEach((es) => {
+        splits.add(es.split_name);
+      });
+    });
+    return Array.from(splits).sort((a, b) => a.localeCompare(b));
+  }, [exercises]);
 
   const filteredExercises = useMemo(() => {
-    if (!searchQuery.trim()) return exercises;
-    const q = searchQuery.toLowerCase();
-    return exercises.filter(
-      (ex) =>
-        ex.name.toLowerCase().includes(q) ||
-        ex.muscle.toLowerCase().includes(q) ||
-        (ex.notes?.toLowerCase().includes(q) ?? false)
-    );
-  }, [exercises, searchQuery]);
+    let result = exercises;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (ex) =>
+          ex.name.toLowerCase().includes(q) ||
+          ex.muscle.toLowerCase().includes(q) ||
+          (ex.notes?.toLowerCase().includes(q) ?? false)
+      );
+    }
+
+    if (selectedSplit) {
+      result = result.filter((ex) =>
+        ex.exercise_splits.some((es) => es.split_name === selectedSplit)
+      );
+    }
+
+    return result;
+  }, [exercises, searchQuery, selectedSplit]);
 
   const groupedByCategory = useMemo(() => {
     return {
@@ -243,13 +265,27 @@ export function ExerciseSettingsClient({
             </Button>
           </div>
 
-          <input
-            type="text"
-            placeholder="Search by name, muscle, or notes…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-4 py-2 text-sm text-[var(--steel-gray)] placeholder-[var(--gray-500)] focus:border-[var(--gym-amber)] focus:outline-none focus:ring-2 focus:ring-[var(--gym-amber)]/20 dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)] dark:text-[var(--chalk-white)] dark:placeholder-[var(--gray-400)]"
-          />
+          <div className="flex gap-3">
+            <input
+              type="text"
+              placeholder="Search by name, muscle, or notes…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-4 py-2 text-sm text-[var(--steel-gray)] placeholder-[var(--gray-500)] focus:border-[var(--gym-amber)] focus:outline-none focus:ring-2 focus:ring-[var(--gym-amber)]/20 dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)] dark:text-[var(--chalk-white)] dark:placeholder-[var(--gray-400)]"
+            />
+            <select
+              value={selectedSplit}
+              onChange={(e) => setSelectedSplit(e.target.value)}
+              className="rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-4 py-2 text-sm text-[var(--steel-gray)] focus:border-[var(--gym-amber)] focus:outline-none focus:ring-2 focus:ring-[var(--gym-amber)]/20 dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)] dark:text-[var(--chalk-white)]"
+            >
+              <option value="">All splits</option>
+              {availableSplits.map((split) => (
+                <option key={split} value={split}>
+                  {split}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {error ? (
