@@ -527,8 +527,7 @@ export function ActiveWorkout({
     null,
   );
 
-  const [localRows, setLocalRows] = useState(rows);
-  useEffect(() => setLocalRows(rows), [rows]);
+  const [localRows, setLocalRows] = useState(() => rows);
 
   const updateRowNote = useCallback((setId: string, note: string | null) => {
     setLocalRows(prev => prev.map(row =>
