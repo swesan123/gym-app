@@ -10,10 +10,12 @@ import {
   deleteExercise,
   updateExercise,
 } from "@/app/actions/exercises";
+import { SplitsMigrationBanner } from "@/components/SplitsMigrationBanner";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { MUSCLES } from "@/lib/constants";
 import type { Database, StretchKind, TrackingType } from "@/lib/database.types";
+import type { WorkoutSplitRow } from "@/lib/queries/read";
 
 type ExerciseRow = Database["public"]["Tables"]["exercises"]["Row"];
 
@@ -74,11 +76,18 @@ function parseStretchKind(raw: FormDataEntryValue | null): StretchKind {
   return "none";
 }
 
+function getExerciseSplits(ex: ExerciseWithSplits): string[] {
+  return (ex.exercise_splits ?? []).map((es) => es.split_name).sort();
+}
 
 export function ExerciseSettingsClient({
   exercises,
+  splits,
+  splitsTableReady,
 }: {
   exercises: ExerciseWithSplits[];
+  splits: WorkoutSplitRow[];
+  splitsTableReady: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -87,18 +96,17 @@ export function ExerciseSettingsClient({
   const [editing, setEditing] = useState<ExerciseWithSplits | null>(null);
   const [adding, setAdding] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingSplits, setEditingSplits] = useState<Set<string>>(new Set());
+  const [addingSplits, setAddingSplits] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSplit, setSelectedSplit] = useState<string>("");
 
-  const availableSplits = useMemo(() => {
-    const splits = new Set<string>();
-    exercises.forEach((ex) => {
-      ex.exercise_splits.forEach((es) => {
-        splits.add(es.split_name);
-      });
-    });
-    return Array.from(splits).sort((a, b) => a.localeCompare(b));
-  }, [exercises]);
+  const sortedSplits = useMemo(() => [...splits], [splits]);
+
+  const availableSplits = useMemo(
+    () => sortedSplits.map((s) => s.name),
+    [sortedSplits],
+  );
 
   const filteredExercises = useMemo(() => {
     let result = exercises;
@@ -154,11 +162,12 @@ export function ExerciseSettingsClient({
     startTransition(async () => {
       try {
         setError(null);
+        const splitsArr = Array.from(editingSplits);
         await updateExercise({
           id: editing.id,
           name,
           muscle,
-          splits: (editing.exercise_splits ?? []).map((es) => es.split_name),
+          splits: splitsArr.length > 0 ? splitsArr : [sortedSplits[0]?.name ?? "Unassigned"],
           default_sets: Number.isFinite(default_sets) ? default_sets : 3,
           tracking_type,
           notes,
@@ -171,6 +180,7 @@ export function ExerciseSettingsClient({
           stretch_kind,
         });
         setEditing(null);
+        setEditingSplits(new Set());
         refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Update failed");
@@ -199,10 +209,11 @@ export function ExerciseSettingsClient({
     startTransition(async () => {
       try {
         setError(null);
+        const splitsArr = Array.from(addingSplits);
         await createExercise({
           name,
           muscle,
-          splits: [],
+          splits: splitsArr.length > 0 ? splitsArr : [sortedSplits[0]?.name ?? "Unassigned"],
           default_sets: Number.isFinite(default_sets) ? default_sets : 3,
           tracking_type,
           notes,
@@ -215,6 +226,7 @@ export function ExerciseSettingsClient({
           stretch_kind,
         });
         setAdding(false);
+        setAddingSplits(new Set());
         refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Create failed");
@@ -232,7 +244,7 @@ export function ExerciseSettingsClient({
                 Exercises
               </h1>
               <p className="mt-2 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
-                Manage exercise properties. Assign exercises to splits under{" "}
+                Edit exercise properties and assign splits. Reorder exercises within a split under{" "}
                 <Link
                   href="/settings/splits"
                   className="font-medium text-[var(--gym-amber)] underline"
@@ -259,7 +271,12 @@ export function ExerciseSettingsClient({
             <Button
               type="button"
               disabled={pending}
-              onClick={() => setAdding(true)}
+              onClick={() => {
+                setAdding(true);
+                setAddingSplits(
+                  sortedSplits[0]?.name ? new Set([sortedSplits[0].name]) : new Set()
+                );
+              }}
             >
               Add
             </Button>
@@ -287,6 +304,8 @@ export function ExerciseSettingsClient({
             </select>
           </div>
         </div>
+
+        {!splitsTableReady ? <SplitsMigrationBanner className="mt-2" /> : null}
 
         {error ? (
           <p className="mt-4 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-100">
@@ -343,7 +362,10 @@ export function ExerciseSettingsClient({
                             variant="secondary"
                             disabled={pending}
                             className="min-h-10 px-3 py-2 text-sm"
-                            onClick={() => setEditing(ex)}
+                            onClick={() => {
+                              setEditing(ex);
+                              setEditingSplits(new Set(getExerciseSplits(ex)));
+                            }}
                           >
                             Edit
                           </Button>
@@ -372,7 +394,7 @@ export function ExerciseSettingsClient({
         title="Edit exercise"
         cancelLabel="Close"
         confirmLabel="Save"
-        onCancel={() => setEditing(null)}
+        onCancel={() => { setEditing(null); setEditingSplits(new Set()); }}
         onConfirm={() => {
           const form = document.getElementById(
             "edit-exercise-form",
@@ -406,6 +428,53 @@ export function ExerciseSettingsClient({
                 ))}
               </select>
             </label>
+            <fieldset className="flex flex-col gap-2">
+              <legend className="text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">Splits</legend>
+              {editingSplits.size > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {Array.from(editingSplits).map((splitName) => (
+                    <button
+                      key={splitName}
+                      type="button"
+                      disabled={!splitsTableReady || pending}
+                      onClick={() =>
+                        setEditingSplits((prev) => {
+                          const next = new Set(prev);
+                          next.delete(splitName);
+                          return next;
+                        })
+                      }
+                      className="inline-flex items-center gap-1 rounded-full bg-[var(--gym-amber)]/15 px-3 py-1 text-xs font-medium text-[var(--gym-amber)] hover:bg-[var(--gym-amber)]/25 disabled:opacity-50"
+                    >
+                      {splitName}
+                      <span aria-hidden>✕</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="max-h-40 overflow-y-auto rounded-lg border border-[var(--gray-300)] dark:border-[var(--gray-200)]">
+                <div className="flex flex-wrap gap-2 p-3">
+                  {sortedSplits
+                    .filter((s) => !editingSplits.has(s.name))
+                    .map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        disabled={!splitsTableReady || pending}
+                        onClick={() =>
+                          setEditingSplits((prev) => new Set([...prev, s.name]))
+                        }
+                        className="rounded-full border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 py-1 text-xs font-medium text-[var(--steel-gray)] hover:bg-[var(--gray-100)] disabled:opacity-50 dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)] dark:text-[var(--chalk-white)] dark:hover:bg-[var(--gray-100)]"
+                      >
+                        + {s.name}
+                      </button>
+                    ))}
+                  {sortedSplits.length === 0 && (
+                    <p className="text-xs text-[var(--gray-500)] dark:text-[var(--gray-400)]">No splits defined yet</p>
+                  )}
+                </div>
+              </div>
+            </fieldset>
             <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
               Default sets
               <input
@@ -547,7 +616,7 @@ export function ExerciseSettingsClient({
         title="Add exercise"
         cancelLabel="Cancel"
         confirmLabel="Create"
-        onCancel={() => setAdding(false)}
+        onCancel={() => { setAdding(false); setAddingSplits(new Set()); }}
         onConfirm={() => {
           const form = document.getElementById(
             "add-exercise-form",
@@ -579,6 +648,53 @@ export function ExerciseSettingsClient({
               ))}
             </select>
           </label>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">Splits</legend>
+            {addingSplits.size > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {Array.from(addingSplits).map((splitName) => (
+                  <button
+                    key={splitName}
+                    type="button"
+                    disabled={!splitsTableReady || pending}
+                    onClick={() =>
+                      setAddingSplits((prev) => {
+                        const next = new Set(prev);
+                        next.delete(splitName);
+                        return next;
+                      })
+                    }
+                    className="inline-flex items-center gap-1 rounded-full bg-[var(--gym-amber)]/15 px-3 py-1 text-xs font-medium text-[var(--gym-amber)] hover:bg-[var(--gym-amber)]/25 disabled:opacity-50"
+                  >
+                    {splitName}
+                    <span aria-hidden>✕</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-[var(--gray-300)] dark:border-[var(--gray-200)]">
+              <div className="flex flex-wrap gap-2 p-3">
+                {sortedSplits
+                  .filter((s) => !addingSplits.has(s.name))
+                  .map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      disabled={!splitsTableReady || pending}
+                      onClick={() =>
+                        setAddingSplits((prev) => new Set([...prev, s.name]))
+                      }
+                      className="rounded-full border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 py-1 text-xs font-medium text-[var(--steel-gray)] hover:bg-[var(--gray-100)] disabled:opacity-50 dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)] dark:text-[var(--chalk-white)] dark:hover:bg-[var(--gray-100)]"
+                    >
+                      + {s.name}
+                    </button>
+                  ))}
+                {sortedSplits.length === 0 && (
+                  <p className="text-xs text-[var(--gray-500)] dark:text-[var(--gray-400)]">No splits defined yet</p>
+                )}
+              </div>
+            </div>
+          </fieldset>
           <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
             Default sets
             <input
