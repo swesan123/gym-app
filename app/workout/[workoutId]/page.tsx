@@ -32,7 +32,7 @@ export default async function WorkoutSessionPage({ params }: Props) {
   }
 
   const [rows, weightPresets, bodyWeight] = await Promise.all([
-    fetchSetsForWorkout(workoutId),
+    fetchSetsForWorkout(workoutId, workout.split),
     fetchGlobalWeightPresets(),
     fetchBodyWeight(),
   ]);

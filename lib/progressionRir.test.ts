@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   progressionOverloadPctToApply,
+  resolveProgressionDirection,
   rirOverloadMultiplier,
   SMART_PROGRESSION_RIR_TARGET,
 } from "./progressionRir";
@@ -23,6 +24,81 @@ describe("rirOverloadMultiplier", () => {
 
   it("orders RIR 4 above RIR 3 for same exercise base", () => {
     expect(rirOverloadMultiplier(4)).toBeGreaterThan(rirOverloadMultiplier(3));
+  });
+});
+
+describe("resolveProgressionDirection", () => {
+  const base = { defaultSets: 3, defaultReps: 10 };
+
+  it("returns increase when all sets pass reps and RIR gate", () => {
+    const sets = [
+      { reps: 10, rir: 3 },
+      { reps: 12, rir: 4 },
+      { reps: 11, rir: 3 },
+    ];
+    expect(resolveProgressionDirection({ latestSets: sets, ...base })).toBe("increase");
+  });
+
+  it("returns decrease when any set has reps < default AND rir <= 1", () => {
+    const sets = [
+      { reps: 8, rir: 1 },
+      { reps: 10, rir: 3 },
+    ];
+    expect(resolveProgressionDirection({ latestSets: sets, ...base })).toBe("decrease");
+  });
+
+  it("returns none when reps are low but RIR is high (form break, not fatigue)", () => {
+    const sets = [
+      { reps: 8, rir: 3 },
+      { reps: 10, rir: 3 },
+    ];
+    expect(resolveProgressionDirection({ latestSets: sets, ...base })).toBe("none");
+  });
+
+  it("returns none when sets are insufficient for increase even if all pass", () => {
+    const sets = [
+      { reps: 12, rir: 3 },
+      { reps: 12, rir: 3 },
+    ];
+    // Only 2 sets but defaultSets is 3
+    expect(resolveProgressionDirection({ latestSets: sets, ...base })).toBe("none");
+  });
+
+  it("returns none for empty set list", () => {
+    expect(resolveProgressionDirection({ latestSets: [], ...base })).toBe("none");
+  });
+
+  it("null RIR counts as 0 — blocks increase", () => {
+    const sets = [
+      { reps: 12, rir: null },
+      { reps: 12, rir: null },
+      { reps: 12, rir: null },
+    ];
+    expect(resolveProgressionDirection({ latestSets: sets, ...base })).toBe("none");
+  });
+
+  it("null RIR counts as 0 — triggers decrease when reps also fail", () => {
+    const sets = [
+      { reps: 8, rir: null },
+      { reps: 10, rir: 3 },
+    ];
+    expect(resolveProgressionDirection({ latestSets: sets, ...base })).toBe("decrease");
+  });
+
+  it("defaultReps null treated as 0 — increase fires when rir gate passes", () => {
+    const sets = [{ reps: 10, rir: 3 }];
+    // defaultReps null → 0; reps (10) >= 0 ✓; rir (3) > 2 ✓ → increase
+    expect(
+      resolveProgressionDirection({ latestSets: sets, defaultSets: 1, defaultReps: null }),
+    ).toBe("increase");
+  });
+
+  it("defaultReps null treated as 0 — decrease never fires (reps can't be < 0)", () => {
+    const sets = [{ reps: 0, rir: 0 }];
+    // reps (0) < defaultReps (0) is false → cannot trigger decrease
+    expect(
+      resolveProgressionDirection({ latestSets: sets, defaultSets: 1, defaultReps: null }),
+    ).toBe("none");
   });
 });
 

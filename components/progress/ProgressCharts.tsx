@@ -19,49 +19,73 @@ export type WeeklyVolumeByExerciseRow =
 export type MonthlyVolumeByExerciseRow =
   Database["public"]["Views"]["monthly_volume_by_exercise"]["Row"];
 
+export type WeeklyVolumeBySplitRow =
+  Database["public"]["Views"]["weekly_volume_by_split"]["Row"];
+
 type Props = {
   weeklyRows: WeeklyVolumeByExerciseRow[];
   monthlyRows: MonthlyVolumeByExerciseRow[];
+  splitWeeklyRows: WeeklyVolumeBySplitRow[];
+  splitNames: string[];
 };
 
-export function ProgressCharts({ weeklyRows, monthlyRows }: Props) {
+export function ProgressCharts({ weeklyRows, monthlyRows, splitWeeklyRows, splitNames }: Props) {
+  const [split, setSplit] = useState<string>("");
   const [exercise, setExercise] = useState<string>("");
   const [muscle, setMuscle] = useState<string>("");
 
+  // When a split is selected, use split-scoped data; otherwise fall back to the
+  // per-exercise aggregated view that covers all splits.
+  const activeRows: Array<{ week: string; exercise: string | null; muscle: string | null; total_volume: number | null }> = useMemo(() => {
+    if (split) {
+      return splitWeeklyRows.filter((r) => r.split === split);
+    }
+    return weeklyRows;
+  }, [split, splitWeeklyRows, weeklyRows]);
+
+  // Build exercise → muscle mapping for auto-linking (#62)
+  const exerciseToMuscle = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of activeRows) {
+      if (r.exercise && r.muscle) map.set(String(r.exercise), String(r.muscle));
+    }
+    return map;
+  }, [activeRows]);
+
   const exercises = useMemo(() => {
     const names = new Set<string>();
-    for (const r of weeklyRows) {
+    for (const r of activeRows) {
       if (r.exercise) names.add(String(r.exercise));
     }
     return [...names].sort((a, b) => a.localeCompare(b));
-  }, [weeklyRows]);
+  }, [activeRows]);
 
   const muscles = useMemo(() => {
     const names = new Set<string>();
-    for (const r of weeklyRows) {
+    for (const r of activeRows) {
       if (r.muscle) names.add(String(r.muscle));
     }
     return [...names].sort((a, b) => a.localeCompare(b));
-  }, [weeklyRows]);
+  }, [activeRows]);
 
   const selectedExercise = exercise || exercises[0] || "";
   const selectedMuscle = muscle || muscles[0] || "";
 
   const exerciseSeries = useMemo(() => {
     if (!selectedExercise) return [];
-    return weeklyRows
+    return activeRows
       .filter((r) => r.exercise === selectedExercise)
       .sort((a, b) => a.week.localeCompare(b.week))
       .map((r) => ({
         week: r.week,
         volume: r.total_volume == null ? 0 : Number(r.total_volume),
       }));
-  }, [weeklyRows, selectedExercise]);
+  }, [activeRows, selectedExercise]);
 
   const muscleSeries = useMemo(() => {
     if (!selectedMuscle) return [];
     const acc = new Map<string, number>();
-    for (const row of weeklyRows) {
+    for (const row of activeRows) {
       if (row.muscle !== selectedMuscle) continue;
       acc.set(
         row.week,
@@ -72,7 +96,7 @@ export function ProgressCharts({ weeklyRows, monthlyRows }: Props) {
     return [...acc.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([week, volume]) => ({ week, volume }));
-  }, [weeklyRows, selectedMuscle]);
+  }, [activeRows, selectedMuscle]);
 
   const momDisplay = useMemo(() => {
     const rows = monthlyRows
@@ -96,6 +120,30 @@ export function ProgressCharts({ weeklyRows, monthlyRows }: Props) {
 
   return (
     <div className="mt-6 grid gap-4">
+      {splitNames.length > 0 && (
+        <div className="flex items-center gap-3">
+          <label className="text-sm text-[var(--gray-600)] dark:text-[var(--gray-400)]">
+            Split
+          </label>
+          <select
+            value={split}
+            onChange={(e) => {
+              setSplit(e.target.value);
+              setExercise("");
+              setMuscle("");
+            }}
+            className="min-h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-600 dark:bg-zinc-950"
+          >
+            <option value="">All splits</option>
+            {splitNames.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex flex-wrap items-end gap-3">
           <h2 className="text-base font-semibold">Overall trends</h2>
@@ -130,7 +178,13 @@ export function ProgressCharts({ weeklyRows, monthlyRows }: Props) {
             </span>
             <select
               value={selectedExercise}
-              onChange={(e) => setExercise(e.target.value)}
+              onChange={(e) => {
+                const name = e.target.value;
+                setExercise(name);
+                // Auto-sync muscle chart to the selected exercise (#62)
+                const mapped = exerciseToMuscle.get(name);
+                if (mapped) setMuscle(mapped);
+              }}
               disabled={exercises.length === 0}
               className="min-h-10 max-w-[min(100%,14rem)] rounded-lg border border-zinc-300 bg-white px-2 text-sm dark:border-zinc-600 dark:bg-zinc-950"
             >

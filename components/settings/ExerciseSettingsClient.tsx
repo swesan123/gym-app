@@ -485,6 +485,7 @@ export function ExerciseSettingsClient({
                 required
                 defaultValue={editing.default_sets}
                 className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                onWheel={(e) => (e.target as HTMLInputElement).blur()}
               />
             </label>
             <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
@@ -497,6 +498,7 @@ export function ExerciseSettingsClient({
                 placeholder="Prefill new sets"
                 defaultValue={editing.default_reps ?? ""}
                 className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                onWheel={(e) => (e.target as HTMLInputElement).blur()}
               />
             </label>
             <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
@@ -515,6 +517,7 @@ export function ExerciseSettingsClient({
                     : ""
                 }
                 className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                onWheel={(e) => (e.target as HTMLInputElement).blur()}
               />
             </label>
             <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
@@ -532,6 +535,7 @@ export function ExerciseSettingsClient({
                     : ""
                 }
                 className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                onWheel={(e) => (e.target as HTMLInputElement).blur()}
               />
             </label>
             <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
@@ -582,6 +586,7 @@ export function ExerciseSettingsClient({
                   step="any"
                   defaultValue={editing.machine_start_weight ?? ""}
                   className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                  onWheel={(e) => (e.target as HTMLInputElement).blur()}
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
@@ -593,6 +598,7 @@ export function ExerciseSettingsClient({
                   step="any"
                   defaultValue={editing.machine_end_weight ?? ""}
                   className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                  onWheel={(e) => (e.target as HTMLInputElement).blur()}
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
@@ -604,6 +610,7 @@ export function ExerciseSettingsClient({
                   step="any"
                   defaultValue={editing.machine_increment ?? ""}
                   className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                  onWheel={(e) => (e.target as HTMLInputElement).blur()}
                 />
               </label>
             </div>
@@ -705,6 +712,7 @@ export function ExerciseSettingsClient({
               required
               defaultValue={3}
               className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+              onWheel={(e) => (e.target as HTMLInputElement).blur()}
             />
           </label>
           <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
@@ -716,6 +724,7 @@ export function ExerciseSettingsClient({
               max={50}
               placeholder="Prefill new sets"
               className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+              onWheel={(e) => (e.target as HTMLInputElement).blur()}
             />
           </label>
           <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
@@ -729,6 +738,7 @@ export function ExerciseSettingsClient({
               inputMode="decimal"
               placeholder="Fixed weight increase per set"
               className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+              onWheel={(e) => (e.target as HTMLInputElement).blur()}
             />
           </label>
           <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
@@ -741,6 +751,7 @@ export function ExerciseSettingsClient({
               step="any"
               placeholder="Optional timer after logging a set"
               className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+              onWheel={(e) => (e.target as HTMLInputElement).blur()}
             />
           </label>
           <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
@@ -789,6 +800,7 @@ export function ExerciseSettingsClient({
                 inputMode="decimal"
                 step="any"
                 className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                onWheel={(e) => (e.target as HTMLInputElement).blur()}
               />
             </label>
             <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
@@ -799,6 +811,7 @@ export function ExerciseSettingsClient({
                 inputMode="decimal"
                 step="any"
                 className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                onWheel={(e) => (e.target as HTMLInputElement).blur()}
               />
             </label>
             <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
@@ -809,6 +822,7 @@ export function ExerciseSettingsClient({
                 inputMode="decimal"
                 step="any"
                 className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                onWheel={(e) => (e.target as HTMLInputElement).blur()}
               />
             </label>
           </div>

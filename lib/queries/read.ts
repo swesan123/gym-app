@@ -4,39 +4,53 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function fetchSetsForWorkout(
   workoutId: string,
+  workoutSplit?: string,
 ): Promise<FlatSetRow[]> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("workout_sets")
-    .select(
-      `
-      id,
-      exercise_id,
-      set_number,
-      reps,
-      weight,
-      rir,
-      duration_seconds,
-      volume,
-      note,
-      set_type,
-      exercises (
-        name,
-        tracking_type,
-        notes,
-        machine_start_weight,
-        machine_end_weight,
-        machine_increment,
-        stretch_kind,
-        sort_order,
-        rest_seconds
+  const [{ data, error }, splitOrderData] = await Promise.all([
+    supabase
+      .from("workout_sets")
+      .select(
+        `
+        id,
+        exercise_id,
+        set_number,
+        reps,
+        weight,
+        rir,
+        duration_seconds,
+        volume,
+        note,
+        set_type,
+        exercises (
+          name,
+          tracking_type,
+          notes,
+          machine_start_weight,
+          machine_end_weight,
+          machine_increment,
+          stretch_kind,
+          sort_order,
+          rest_seconds
+        )
+      `,
       )
-    `,
-    )
-    .eq("workout_id", workoutId);
+      .eq("workout_id", workoutId),
+    workoutSplit
+      ? supabase
+          .from("exercise_splits")
+          .select("exercise_id, sort_order")
+          .eq("split_name", workoutSplit)
+      : Promise.resolve({ data: null, error: null }),
+  ]);
 
   if (error) throw new Error(error.message);
+
+  // Build a map of exercise_id → per-split sort_order for correct workout ordering
+  const splitSortOrderMap = new Map<string, number>(
+    (splitOrderData.data ?? []).map((r) => [r.exercise_id, r.sort_order]),
+  );
 
   const rows: FlatSetRow[] = (data ?? []).map((row) => {
     const ex = row.exercises as unknown as {
@@ -73,7 +87,7 @@ export async function fetchSetsForWorkout(
       machine_end_weight: ex?.machine_end_weight ?? null,
       machine_increment: ex?.machine_increment ?? null,
       stretch_kind,
-      sort_order: ex?.sort_order ?? 0,
+      sort_order: splitSortOrderMap.get(row.exercise_id) ?? ex?.sort_order ?? 0,
       rest_seconds:
         ex?.rest_seconds == null ? null : Number(ex.rest_seconds),
     };

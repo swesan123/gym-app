@@ -5,8 +5,26 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
 import { createSplit, deleteSplit, reorderSplit, renameSplit, archiveSplit, restoreSplit } from "@/app/actions/splits";
-import { reorderExercise } from "@/app/actions/exercises";
+import { setExerciseOrder } from "@/app/actions/exercises";
 import type { WorkoutSplitRow } from "@/lib/queries/read";
 import type { StretchKind } from "@/lib/database.types";
 import { SplitsMigrationBanner } from "@/components/SplitsMigrationBanner";
@@ -20,51 +38,97 @@ type ExerciseWithSplits = {
   exercise_splits: Array<{ split_name: string; sort_order: number }>;
 };
 
+function SortableExerciseItem({
+  exercise,
+  pending,
+}: {
+  exercise: ExerciseWithSplits;
+  pending: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: exercise.id });
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+      }}
+      className="flex items-center justify-between gap-2 rounded-lg bg-[var(--gray-50)] px-3 py-2 dark:bg-[var(--gray-100)]/50"
+    >
+      <span className="text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
+        {exercise.name}
+      </span>
+      <button
+        type="button"
+        disabled={pending}
+        className="touch-none select-none cursor-grab active:cursor-grabbing rounded p-1 text-[var(--gray-400)] hover:text-[var(--gray-600)] disabled:opacity-40 dark:text-[var(--gray-500)] dark:hover:text-[var(--gray-300)]"
+        aria-label="Drag to reorder"
+        {...attributes}
+        {...listeners}
+      >
+        ⠿
+      </button>
+    </li>
+  );
+}
+
 function ExerciseSection({
   title,
-  exercises,
+  exercises: initialExercises,
   splitName,
   pending,
-  onReorder,
+  onReorderSection,
 }: {
   title: string;
   exercises: ExerciseWithSplits[];
   splitName: string;
   pending: boolean;
-  onReorder: (exerciseId: string, splitName: string, direction: "up" | "down") => void;
+  onReorderSection: (splitName: string, orderedIds: string[]) => void;
 }) {
+  const [exercises, setExercises] = useState(initialExercises);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    setExercises((items) => {
+      const oldIdx = items.findIndex((e) => e.id === active.id);
+      const newIdx = items.findIndex((e) => e.id === over.id);
+      const reordered = arrayMove(items, oldIdx, newIdx);
+      onReorderSection(splitName, reordered.map((e) => e.id));
+      return reordered;
+    });
+  };
+
   return (
     <div className="px-4 py-3">
       <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--gray-500)] dark:text-[var(--gray-400)]">
         {title}
       </h4>
-      <ul className="mt-2 space-y-2">
-        {exercises.map((ex, idx) => (
-          <li key={ex.id} className="flex items-center justify-between gap-2 rounded-lg bg-[var(--gray-50)] px-3 py-2 dark:bg-[var(--gray-100)]/50">
-            <span className="text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">{ex.name}</span>
-            <div className="flex shrink-0 items-center gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                className="min-h-8 min-w-8 px-0 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]"
-                disabled={pending || idx === 0}
-                onClick={() => onReorder(ex.id, splitName, "up")}
-              >
-                ↑
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="min-h-8 min-w-8 px-0 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]"
-                disabled={pending || idx === exercises.length - 1}
-                onClick={() => onReorder(ex.id, splitName, "down")}
-              >
-                ↓
-              </Button>
-            </div>
-          </li>
-        ))}
-      </ul>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={exercises.map((e) => e.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <ul className="mt-2 space-y-2">
+            {exercises.map((ex) => (
+              <SortableExerciseItem key={ex.id} exercise={ex} pending={pending} />
+            ))}
+          </ul>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }
@@ -91,11 +155,11 @@ export function SplitSettingsClient({
 
   const refresh = () => router.refresh();
 
-  const onReorderExercise = (exerciseId: string, splitName: string, direction: "up" | "down") => {
+  const onReorderSection = (splitName: string, orderedIds: string[]) => {
     startTransition(async () => {
       try {
         setError(null);
-        await reorderExercise(exerciseId, splitName, direction);
+        await setExerciseOrder(splitName, orderedIds);
         refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not reorder");
@@ -391,13 +455,34 @@ export function SplitSettingsClient({
                 ) : (
                   <div className="divide-y divide-[var(--gray-100)] dark:divide-[var(--gray-800)]">
                     {groupedExercises.dynamic.length > 0 && (
-                      <ExerciseSection title="Dynamic stretches" exercises={groupedExercises.dynamic} splitName={s.name} pending={pending} onReorder={onReorderExercise} />
+                      <ExerciseSection
+                        key={groupedExercises.dynamic.map((e) => e.id).join(",")}
+                        title="Dynamic stretches"
+                        exercises={groupedExercises.dynamic}
+                        splitName={s.name}
+                        pending={pending}
+                        onReorderSection={onReorderSection}
+                      />
                     )}
                     {groupedExercises.main.length > 0 && (
-                      <ExerciseSection title="Exercises" exercises={groupedExercises.main} splitName={s.name} pending={pending} onReorder={onReorderExercise} />
+                      <ExerciseSection
+                        key={groupedExercises.main.map((e) => e.id).join(",")}
+                        title="Exercises"
+                        exercises={groupedExercises.main}
+                        splitName={s.name}
+                        pending={pending}
+                        onReorderSection={onReorderSection}
+                      />
                     )}
                     {groupedExercises.static.length > 0 && (
-                      <ExerciseSection title="Static stretches" exercises={groupedExercises.static} splitName={s.name} pending={pending} onReorder={onReorderExercise} />
+                      <ExerciseSection
+                        key={groupedExercises.static.map((e) => e.id).join(",")}
+                        title="Static stretches"
+                        exercises={groupedExercises.static}
+                        splitName={s.name}
+                        pending={pending}
+                        onReorderSection={onReorderSection}
+                      />
                     )}
                   </div>
                 )}

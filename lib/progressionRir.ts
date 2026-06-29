@@ -42,9 +42,16 @@ export type ProgressionDirection = "increase" | "decrease" | "none";
 /**
  * Resolve progression direction based on exercise and set performance.
  *
- * Increase: all sets must have reps >= defaultReps AND rir > rirTarget
- * Decrease: any set has reps < defaultReps AND rir <= 1
- * Otherwise: none
+ * **Increase**: ALL sets must satisfy `reps >= defaultReps AND rir > rirTarget (default 2)`,
+ *   AND `latestSets.length >= defaultSets`.
+ * **Decrease**: ANY set satisfies `reps < defaultReps AND rir <= 1`.
+ * **None**: all other cases.
+ *
+ * `null` RIR is treated as 0 — it counts as ≤ 1 (can trigger decrease) and
+ * fails the increase gate. Stretches should be excluded from this call.
+ *
+ * Evaluated at draft-workout creation and when adding sets from the last completed
+ * session, not on workout finish.
  */
 export function resolveProgressionDirection(input: {
   latestSets: SetPerformance[];

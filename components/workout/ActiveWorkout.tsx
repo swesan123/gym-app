@@ -15,7 +15,7 @@ import { partitionGroupsByStretchKind } from "@/components/workout/partitionGrou
 import { WorkoutSummary } from "@/components/workout/WorkoutSummary";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
-import type { SetType, TrackingType } from "@/lib/database.types";
+import type { SetType, StretchKind, TrackingType } from "@/lib/database.types";
 import { parseOptionalNumber } from "@/lib/parse";
 import { computeSetVolume } from "@/lib/volume";
 
@@ -100,6 +100,8 @@ function SetTableRow({
   );
 
   const skipSave = useRef(true);
+  // Track the last committed RIR value so we can detect a genuine change
+  const lastSavedRir = useRef(row.rir?.toString() ?? "");
 
   const volumeLocal = computeSetVolume(row.tracking_type, {
     reps: parseOptionalNumber(reps),
@@ -114,6 +116,9 @@ function SetTableRow({
       skipSave.current = false;
       return;
     }
+    // Capture values at scheduling time for the async closure
+    const capturedRir = rir;
+    const capturedLastSavedRir = lastSavedRir.current;
     const t = setTimeout(() => {
       void (async () => {
         try {
@@ -121,9 +126,20 @@ function SetTableRow({
             id: row.id,
             reps: parseOptionalNumber(reps),
             weight: parseOptionalNumber(weight),
-            rir: parseOptionalNumber(rir),
+            rir: parseOptionalNumber(capturedRir),
             duration_seconds: parseOptionalNumber(duration),
           });
+          // Auto-start rest timer when RIR is filled in or changed
+          if (
+            capturedRir !== "" &&
+            capturedRir !== capturedLastSavedRir &&
+            restSeconds != null &&
+            restSeconds > 0 &&
+            onSetSaved
+          ) {
+            onSetSaved(restSeconds, exerciseName ?? "");
+          }
+          lastSavedRir.current = capturedRir;
         } catch {
           // Error handling is done at the parent level
         }
@@ -221,31 +237,35 @@ function SetTableRow({
           </select>
         </td>
       )}
-      <td className="py-1 pr-1">
-        <select
-          disabled={readOnly}
-          value={rir}
-          onChange={(e) => setRir(e.target.value)}
-          className={cellInput}
-          aria-label="RIR"
-        >
-          <option value="">—</option>
-          {rirOptions.map((v) => (
-            <option key={`rir-${row.id}-${v}`} value={v}>
-              {v}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="min-w-[4.75rem] py-1 pl-2 pr-1">
-        <input
-          value={volumeLocal == null ? "—" : Math.round(volumeLocal).toLocaleString()}
-          readOnly
-          tabIndex={-1}
-          aria-label="Set volume"
-          className={readOnlyCellInput}
-        />
-      </td>
+      {row.stretch_kind === "none" && (
+        <td className="py-1 pr-1">
+          <select
+            disabled={readOnly}
+            value={rir}
+            onChange={(e) => setRir(e.target.value)}
+            className={cellInput}
+            aria-label="RIR"
+          >
+            <option value="">—</option>
+            {rirOptions.map((v) => (
+              <option key={`rir-${row.id}-${v}`} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </td>
+      )}
+      {readOnly && (
+        <td className="min-w-[4.75rem] py-1 pl-2 pr-1">
+          <input
+            value={volumeLocal == null ? "—" : Math.round(volumeLocal).toLocaleString()}
+            readOnly
+            tabIndex={-1}
+            aria-label="Set volume"
+            className={readOnlyCellInput}
+          />
+        </td>
+      )}
       <td className="max-w-[7rem] min-w-0 py-1 pl-2 pr-1 sm:max-w-[10rem]">
         {readOnly ? (
           <span className="block max-h-10 overflow-hidden break-words px-1.5 text-left text-sm leading-snug text-[var(--gray-600)] line-clamp-2 dark:text-[var(--gray-400)]">
@@ -306,6 +326,7 @@ function ExerciseSetTable({
   exerciseName,
   exerciseNotes,
   trackingType,
+  stretchKind,
   sets,
   rows,
   weightPresets,
@@ -322,6 +343,7 @@ function ExerciseSetTable({
   exerciseName: string;
   exerciseNotes?: string | null;
   trackingType: TrackingType;
+  stretchKind: StretchKind;
   sets: { id: string; set_number: number }[];
   rows: FlatSetRow[];
   weightPresets: number[];
@@ -395,8 +417,12 @@ function ExerciseSetTable({
                   {weightHeader(tt)}
                 </th>
               ) : null}
-              <th className="min-w-[4.5rem] py-2 pr-1">RIR</th>
-              <th className="min-w-[4.75rem] py-2 pl-2 pr-1 text-right">Vol</th>
+              {stretchKind === "none" && (
+                <th className="min-w-[4.5rem] py-2 pr-1">RIR</th>
+              )}
+              {readOnly && (
+                <th className="min-w-[4.75rem] py-2 pl-2 pr-1 text-right">Vol</th>
+              )}
               <th className="min-w-[7.5rem] py-2 pl-2 pr-1">Note</th>
               {!readOnly ? (
                 <>
@@ -414,7 +440,7 @@ function ExerciseSetTable({
               if (!flat) return null;
               return (
                 <SetTableRow
-                  key={`${s.id}-${flat.reps ?? ""}-${flat.weight ?? ""}-${flat.rir ?? ""}-${flat.duration_seconds ?? ""}-${flat.note ?? ""}`}
+                  key={s.id}
                   row={flat}
                   weightPresets={weightPresets}
                   showWeightCol={showWeightCol}
@@ -710,21 +736,6 @@ export function ActiveWorkout({
             {readOnly ? "Workout (completed)" : "Active workout"}
           </h1>
         </div>
-        {!readOnly && rest != null && rest.seconds > 0 ? (
-          <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900 dark:bg-emerald-950/50">
-            <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
-              Rest {rest.seconds}s · {rest.label}
-            </p>
-            <Button
-              type="button"
-              variant="ghost"
-              className="min-h-9 shrink-0 text-sm"
-              onClick={() => setRest(null)}
-            >
-              Skip
-            </Button>
-          </div>
-        ) : null}
       </header>
 
       {error ? (
@@ -757,6 +768,7 @@ export function ActiveWorkout({
                             ?.exercise_notes
                         }
                         trackingType={g.tracking_type}
+                        stretchKind={g.stretch_kind}
                         sets={g.sets}
                         rows={localRows}
                         weightPresets={
@@ -802,6 +814,26 @@ export function ActiveWorkout({
           onFinish();
         }}
       />
+
+      {!readOnly && rest != null && rest.seconds > 0 ? (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm">
+          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
+            Rest timer
+          </p>
+          <p className="mt-2 font-data text-[5rem] font-bold leading-none tabular-nums text-white">
+            {rest.seconds}s
+          </p>
+          <p className="mt-3 text-base text-white/60">{rest.label}</p>
+          <Button
+            type="button"
+            variant="ghost"
+            className="mt-10 min-h-12 rounded-2xl border border-white/25 px-10 text-base text-white hover:bg-white/10"
+            onClick={() => setRest(null)}
+          >
+            Skip rest
+          </Button>
+        </div>
+      ) : null}
     </>
   );
 }

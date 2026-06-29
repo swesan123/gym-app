@@ -42,7 +42,32 @@ export async function updateExercise(input: {
 
   if (error) throw new Error(error.message);
 
-  // Delete existing splits and re-insert selected ones
+  // Fetch existing sort_orders before deleting so we can preserve them
+  const { data: existingSplitRows } = await supabase
+    .from("exercise_splits")
+    .select("split_name, sort_order")
+    .eq("exercise_id", input.id);
+
+  const existingSortOrders = new Map(
+    (existingSplitRows ?? []).map((es) => [es.split_name, es.sort_order]),
+  );
+
+  // For newly added splits, find the current max sort_order in each split
+  const newSplitNames = input.splits
+    .map((s) => s.trim())
+    .filter((s) => !existingSortOrders.has(s));
+
+  const newSplitMaxOrders = new Map<string, number>();
+  for (const splitName of newSplitNames) {
+    const { data: maxRows } = await supabase
+      .from("exercise_splits")
+      .select("sort_order")
+      .eq("split_name", splitName)
+      .order("sort_order", { ascending: false })
+      .limit(1);
+    newSplitMaxOrders.set(splitName, (maxRows?.[0]?.sort_order ?? -1) + 1);
+  }
+
   const { error: deleteErr } = await supabase
     .from("exercise_splits")
     .delete()
@@ -50,11 +75,14 @@ export async function updateExercise(input: {
 
   if (deleteErr) throw new Error(deleteErr.message);
 
-  const splitsToInsert = input.splits.map((splitName, idx) => ({
-    exercise_id: input.id,
-    split_name: splitName.trim(),
-    sort_order: idx,
-  }));
+  const splitsToInsert = input.splits.map((splitName) => {
+    const trimmed = splitName.trim();
+    return {
+      exercise_id: input.id,
+      split_name: trimmed,
+      sort_order: existingSortOrders.get(trimmed) ?? newSplitMaxOrders.get(trimmed) ?? 0,
+    };
+  });
 
   if (splitsToInsert.length > 0) {
     const { error: insertErr } = await supabase
@@ -264,4 +292,31 @@ export async function deleteExercise(id: string) {
   revalidatePath("/workout/start");
   revalidatePath("/progress");
   revalidatePath("/history");
+}
+
+/**
+ * Batch-update sort_order for a list of exercises within a split section.
+ * Exercises are assigned sort_order 0, 1, 2, … in the given order.
+ * Sections (dynamic / main / static) are isolated by stretch_kind at query
+ * time, so overlapping sort_orders between sections are fine.
+ */
+export async function setExerciseOrder(
+  splitName: string,
+  orderedIds: string[],
+): Promise<void> {
+  if (orderedIds.length === 0) return;
+  const supabase = await createClient();
+
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      supabase
+        .from("exercise_splits")
+        .update({ sort_order: index })
+        .eq("exercise_id", id)
+        .eq("split_name", splitName),
+    ),
+  );
+
+  revalidatePath("/settings/splits");
+  revalidatePath("/workout/start");
 }
