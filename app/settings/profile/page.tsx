@@ -51,6 +51,18 @@ export default async function ProfileSettingsPage() {
           Save profile
         </Button>
       </form>
+
+      <div className="mt-10 border-t border-[var(--gray-200)] pt-6 dark:border-[var(--gray-100)]">
+        <p className="text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+          Want to export or back up your data?{" "}
+          <Link
+            href="/settings/backup"
+            className="text-[var(--gym-amber)] underline hover:text-orange-600"
+          >
+            Backup your data →
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

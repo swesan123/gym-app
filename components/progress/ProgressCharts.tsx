@@ -34,69 +34,70 @@ export function ProgressCharts({ weeklyRows, monthlyRows, splitWeeklyRows, split
   const [exercise, setExercise] = useState<string>("");
   const [muscle, setMuscle] = useState<string>("");
 
-  // When a split is selected, use split-scoped data; otherwise fall back to the
-  // per-exercise aggregated view that covers all splits.
-  const activeRows: Array<{ week: string; exercise: string | null; muscle: string | null; total_volume: number | null }> = useMemo(() => {
+  // Rows used only for populating dropdowns — scoped to selected split when one is chosen.
+  const navigationRows: Array<{ week: string; exercise: string | null; muscle: string | null; total_volume: number | null }> = useMemo(() => {
     if (split) {
       return splitWeeklyRows.filter((r) => r.split === split);
     }
     return weeklyRows;
   }, [split, splitWeeklyRows, weeklyRows]);
 
-  // Build exercise → muscle mapping for auto-linking (#62)
+  // Build exercise → muscle mapping from navigation rows for auto-linking (#62)
   const exerciseToMuscle = useMemo(() => {
     const map = new Map<string, string>();
-    for (const r of activeRows) {
+    for (const r of navigationRows) {
       if (r.exercise && r.muscle) map.set(String(r.exercise), String(r.muscle));
     }
     return map;
-  }, [activeRows]);
+  }, [navigationRows]);
 
+  // Dropdown options — scoped to the selected split
   const exercises = useMemo(() => {
     const names = new Set<string>();
-    for (const r of activeRows) {
+    for (const r of navigationRows) {
       if (r.exercise) names.add(String(r.exercise));
     }
     return [...names].sort((a, b) => a.localeCompare(b));
-  }, [activeRows]);
+  }, [navigationRows]);
 
   const muscles = useMemo(() => {
     const names = new Set<string>();
-    for (const r of activeRows) {
+    for (const r of navigationRows) {
       if (r.muscle) names.add(String(r.muscle));
     }
     return [...names].sort((a, b) => a.localeCompare(b));
-  }, [activeRows]);
+  }, [navigationRows]);
 
   const selectedExercise = exercise || exercises[0] || "";
   const selectedMuscle = muscle || muscles[0] || "";
 
+  // Chart series always use weeklyRows (all-splits totals) regardless of split filter.
   const exerciseSeries = useMemo(() => {
     if (!selectedExercise) return [];
-    return activeRows
+    return weeklyRows
       .filter((r) => r.exercise === selectedExercise)
-      .sort((a, b) => a.week.localeCompare(b.week))
+      .sort((a, b) => String(a.week).localeCompare(String(b.week)))
       .map((r) => ({
         week: r.week,
         volume: r.total_volume == null ? 0 : Number(r.total_volume),
       }));
-  }, [activeRows, selectedExercise]);
+  }, [weeklyRows, selectedExercise]);
 
   const muscleSeries = useMemo(() => {
     if (!selectedMuscle) return [];
     const acc = new Map<string, number>();
-    for (const row of activeRows) {
+    for (const row of weeklyRows) {
       if (row.muscle !== selectedMuscle) continue;
       acc.set(
-        row.week,
-        (acc.get(row.week) ?? 0) +
+        String(row.week),
+        (acc.get(String(row.week)) ?? 0) +
           (row.total_volume == null ? 0 : Number(row.total_volume)),
       );
     }
     return [...acc.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([week, volume]) => ({ week, volume }));
-  }, [activeRows, selectedMuscle]);
+  }, [weeklyRows, selectedMuscle]);
 
   const momDisplay = useMemo(() => {
     const rows = monthlyRows
@@ -123,7 +124,7 @@ export function ProgressCharts({ weeklyRows, monthlyRows, splitWeeklyRows, split
       {splitNames.length > 0 && (
         <div className="flex items-center gap-3">
           <label className="text-sm text-[var(--gray-600)] dark:text-[var(--gray-400)]">
-            Split
+            Filter exercises by split
           </label>
           <select
             value={split}

@@ -75,7 +75,7 @@ function SetTableRow({
   readOnly,
   onRequestRemove,
   onOpenNote,
-  onSetSaved,
+  onRirSelected,
   restSeconds,
   exerciseName,
   onSetTypeChange,
@@ -87,7 +87,8 @@ function SetTableRow({
   readOnly?: boolean;
   onRequestRemove: (setId: string) => void;
   onOpenNote: (setId: string, initial: string) => void;
-  onSetSaved?: (restSeconds: number, exerciseName: string) => void;
+  /** Called immediately when the user picks a non-empty RIR (before DB save). */
+  onRirSelected?: (restSeconds: number, exerciseName: string) => void;
   restSeconds?: number | null;
   exerciseName?: string;
   onSetTypeChange?: (setId: string, setType: SetType) => void;
@@ -100,8 +101,6 @@ function SetTableRow({
   );
 
   const skipSave = useRef(true);
-  // Track the last committed RIR value so we can detect a genuine change
-  const lastSavedRir = useRef(row.rir?.toString() ?? "");
 
   const volumeLocal = computeSetVolume(row.tracking_type, {
     reps: parseOptionalNumber(reps),
@@ -110,43 +109,26 @@ function SetTableRow({
     bodyWeight,
   });
 
+  // Debounced DB save — only persists values, no timer logic here.
   useEffect(() => {
     if (readOnly) return;
     if (skipSave.current) {
       skipSave.current = false;
       return;
     }
-    // Capture values at scheduling time for the async closure
-    const capturedRir = rir;
-    const capturedLastSavedRir = lastSavedRir.current;
     const t = setTimeout(() => {
-      void (async () => {
-        try {
-          await updateWorkoutSet({
-            id: row.id,
-            reps: parseOptionalNumber(reps),
-            weight: parseOptionalNumber(weight),
-            rir: parseOptionalNumber(capturedRir),
-            duration_seconds: parseOptionalNumber(duration),
-          });
-          // Auto-start rest timer when RIR is filled in or changed
-          if (
-            capturedRir !== "" &&
-            capturedRir !== capturedLastSavedRir &&
-            restSeconds != null &&
-            restSeconds > 0 &&
-            onSetSaved
-          ) {
-            onSetSaved(restSeconds, exerciseName ?? "");
-          }
-          lastSavedRir.current = capturedRir;
-        } catch {
-          // Error handling is done at the parent level
-        }
-      })();
+      void updateWorkoutSet({
+        id: row.id,
+        reps: parseOptionalNumber(reps),
+        weight: parseOptionalNumber(weight),
+        rir: parseOptionalNumber(rir),
+        duration_seconds: parseOptionalNumber(duration),
+      }).catch(() => {
+        // Error handling is done at the parent level
+      });
     }, 500);
     return () => clearTimeout(t);
-  }, [readOnly, row.id, reps, weight, rir, duration, onSetSaved, restSeconds, exerciseName]);
+  }, [readOnly, row.id, reps, weight, rir, duration]);
 
   const savedNote = row.note ?? "";
   const notePreview =
@@ -242,7 +224,14 @@ function SetTableRow({
           <select
             disabled={readOnly}
             value={rir}
-            onChange={(e) => setRir(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setRir(val);
+              // Start rest timer immediately on RIR selection (before DB save)
+              if (val !== "" && restSeconds != null && restSeconds > 0 && onRirSelected) {
+                onRirSelected(restSeconds, exerciseName ?? "");
+              }
+            }}
             className={cellInput}
             aria-label="RIR"
           >
@@ -450,7 +439,7 @@ function ExerciseSetTable({
                   onOpenNote={(setId, initial) =>
                     setNoteTarget({ setId, draft: initial })
                   }
-                  onSetSaved={onScheduleRest}
+                  onRirSelected={onScheduleRest}
                   restSeconds={restSeconds}
                   exerciseName={exerciseName}
                   onSetTypeChange={(setId, setType) => {
@@ -552,6 +541,10 @@ export function ActiveWorkout({
   const [rest, setRest] = useState<{ seconds: number; label: string } | null>(
     null,
   );
+  // Stable interval ref — avoids re-creating useEffect on every tick
+  const restIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Ref for current rest label (used in notifications without capturing stale state)
+  const restLabelRef = useRef<string>("");
 
   const [localRows, setLocalRows] = useState(() => rows);
 
@@ -578,9 +571,8 @@ export function ActiveWorkout({
     }
   }, []);
 
-  /** Play audio/haptic feedback for rest timer */
+  /** Play audio/haptic feedback — stable (no deps on changing state). */
   const playRestAlert = useCallback((event: "start" | "end") => {
-    // Web Audio API beep for rest end
     if (event === "end") {
       try {
         const AudioContextConstructor = window.AudioContext || ((window as unknown as Record<string, unknown>).webkitAudioContext as typeof window.AudioContext);
@@ -599,40 +591,60 @@ export function ActiveWorkout({
         // Audio context not available
       }
 
-      // Haptic feedback for Android PWA
       if (navigator.vibrate) {
         navigator.vibrate(200);
       }
 
-      // Native notification
       if ("Notification" in window && Notification.permission === "granted") {
         new Notification("Rest complete", {
-          body: rest?.label || "Time to lift",
+          body: restLabelRef.current || "Time to lift",
           tag: "rest-timer",
         });
       }
     }
-  }, [rest]);
+  }, []); // stable — reads restLabelRef instead of rest state
 
-  const scheduleRest = useCallback((seconds: number, label: string) => {
+  /** Stop any running rest interval and clear UI. */
+  const stopRestTimer = useCallback(() => {
+    if (restIntervalRef.current != null) {
+      clearInterval(restIntervalRef.current);
+      restIntervalRef.current = null;
+    }
+    setRest(null);
+  }, []);
+
+  /** Start (or restart) rest timer, cancelling any previous countdown. */
+  const startRestTimer = useCallback((seconds: number, label: string) => {
     if (status === "completed" || seconds <= 0) return;
+    // Clear any existing countdown first so restart is instant
+    if (restIntervalRef.current != null) {
+      clearInterval(restIntervalRef.current);
+      restIntervalRef.current = null;
+    }
+    restLabelRef.current = label;
     setRest({ seconds, label });
     playRestAlert("start");
-  }, [status, playRestAlert]);
-
-  useEffect(() => {
-    if (rest == null || rest.seconds <= 0) return;
-    const id = window.setInterval(() => {
+    restIntervalRef.current = setInterval(() => {
       setRest((r) => {
         if (r == null || r.seconds <= 1) {
+          clearInterval(restIntervalRef.current!);
+          restIntervalRef.current = null;
           playRestAlert("end");
           return null;
         }
         return { ...r, seconds: r.seconds - 1 };
       });
     }, 1000);
-    return () => window.clearInterval(id);
-  }, [rest, playRestAlert]);
+  }, [status, playRestAlert]);
+
+  // Clean up interval on unmount
+  useEffect(() => () => {
+    if (restIntervalRef.current != null) clearInterval(restIntervalRef.current);
+  }, []);
+
+  const scheduleRest = useCallback((seconds: number, label: string) => {
+    startRestTimer(seconds, label);
+  }, [startRestTimer]);
 
   const exerciseWeightPresets = useMemo(() => {
     const map = new Map<string, number[]>();
@@ -828,7 +840,7 @@ export function ActiveWorkout({
             type="button"
             variant="ghost"
             className="mt-10 min-h-12 rounded-2xl border border-white/25 px-10 text-base text-white hover:bg-white/10"
-            onClick={() => setRest(null)}
+            onClick={stopRestTimer}
           >
             Skip rest
           </Button>
