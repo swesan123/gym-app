@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   backup:
@@ -23,15 +24,20 @@ jobs:
       - name: Validate required secrets
         env:
           SUPABASE_MIGRATION_DB_URL: ${{ secrets.SUPABASE_MIGRATION_DB_URL }}
-          GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
         run: |
           if [ -z "$SUPABASE_MIGRATION_DB_URL" ]; then
             echo "Missing secret: SUPABASE_MIGRATION_DB_URL"
             exit 1
           fi
-          if [ -z "$GOOGLE_DRIVE_CREDENTIALS_JSON" ]; then
-            echo "Missing secret: GOOGLE_DRIVE_CREDENTIALS_JSON"
+          if [ -z "$GCP_WORKLOAD_IDENTITY_PROVIDER" ]; then
+            echo "Missing secret: GCP_WORKLOAD_IDENTITY_PROVIDER"
+            exit 1
+          fi
+          if [ -z "$GCP_SERVICE_ACCOUNT" ]; then
+            echo "Missing secret: GCP_SERVICE_ACCOUNT"
             exit 1
           fi
           if [ -z "$GOOGLE_DRIVE_FOLDER_ID" ]; then
@@ -48,25 +54,31 @@ jobs:
           pg_dump "$SUPABASE_MIGRATION_DB_URL" --no-owner --no-privileges | gzip > "$backup_file"
           echo "BACKUP_FILE=$backup_file" >> "$GITHUB_ENV"
 
-      - name: Configure rclone for Google Drive
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Upload backup to Google Drive
         env:
-          GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
         run: |
-          credentials_file="$RUNNER_TEMP/gdrive-service-account.json"
-          printf '%s' "$GOOGLE_DRIVE_CREDENTIALS_JSON" > "$credentials_file"
+          access_token="$(gcloud auth print-access-token --scopes=https://www.googleapis.com/auth/drive)"
+          token_json="$(ACCESS_TOKEN="$access_token" python3 -c 'import json, os; print(json.dumps({"access_token": os.environ["ACCESS_TOKEN"], "token_type": "Bearer"}))')"
           mkdir -p "$RUNNER_TEMP/rclone"
           cat > "$RUNNER_TEMP/rclone/rclone.conf" <<EOF
           [gdrive]
           type = drive
           scope = drive
-          service_account_file = $credentials_file
-          root_folder_id = $GOOGLE_DRIVE_FOLDER_ID
+          token = ${token_json}
+          root_folder_id = ${GOOGLE_DRIVE_FOLDER_ID}
           EOF
-          echo "RCLONE_CONFIG=$RUNNER_TEMP/rclone/rclone.conf" >> "$GITHUB_ENV"
-
-      - name: Upload backup to Google Drive
-        run: rclone copy "$BACKUP_FILE" "gdrive:"
+          export RCLONE_CONFIG="$RUNNER_TEMP/rclone/rclone.conf"
+          rclone copy "$BACKUP_FILE" "gdrive:"
 
       - name: Upload backup artifact (optional)
         uses: actions/upload-artifact@v4

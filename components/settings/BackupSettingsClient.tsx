@@ -10,8 +10,14 @@ const REQUIRED_SECRETS = [
     description: "Direct Postgres connection string from Supabase → Settings → Database → Connection string (URI mode).",
   },
   {
-    name: "GOOGLE_DRIVE_CREDENTIALS_JSON",
-    description: "JSON key file for a Google Cloud service account with Drive API access. Paste the full file contents.",
+    name: "GCP_WORKLOAD_IDENTITY_PROVIDER",
+    description:
+      "Full Workload Identity Provider resource name, e.g. projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github.",
+  },
+  {
+    name: "GCP_SERVICE_ACCOUNT",
+    description:
+      "Service account email (no JSON key). The Drive backup folder must be shared with this account as Editor.",
   },
   {
     name: "GOOGLE_DRIVE_FOLDER_ID",
@@ -152,11 +158,17 @@ export default function BackupSettingsClient() {
           </h3>
           <ol className="mt-2 space-y-1.5 text-sm text-[var(--gray-600)] dark:text-[var(--gray-400)]">
             <li>1. Create a Google Cloud project and enable the Google Drive API.</li>
-            <li>2. Create a service account and download the JSON key file.</li>
-            <li>3. Share the target Drive folder with the service account email.</li>
-            <li>4. Add all three secrets listed above to the repository.</li>
+            <li>2. Create a service account (no JSON key) and share the backup Drive folder with it.</li>
             <li>
-              5. Trigger a manual run via{" "}
+              3. Set up Workload Identity Federation: OIDC provider for GitHub Actions, scoped to this
+              repository.
+            </li>
+            <li>
+              4. Grant the GitHub principal <strong>Workload Identity User</strong> on the service account.
+            </li>
+            <li>5. Add all four secrets listed above to the repository.</li>
+            <li>
+              6. Trigger a manual run via{" "}
               <a
                 href="https://github.com/swesan123/gym-app/actions/workflows/backup-database.yml"
                 target="_blank"

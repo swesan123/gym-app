@@ -50,8 +50,11 @@ This repo includes a scheduled workflow at [`.github/workflows/backup-database.y
 Required repository secrets:
 
 - `SUPABASE_MIGRATION_DB_URL` (Postgres connection string used for migrations/backups)
-- `GOOGLE_DRIVE_CREDENTIALS_JSON` (full service-account JSON credentials)
+- `GCP_WORKLOAD_IDENTITY_PROVIDER` (Workload Identity Federation provider for GitHub Actions)
+- `GCP_SERVICE_ACCOUNT` (service account email — no JSON key; share the Drive folder with this account)
 - `GOOGLE_DRIVE_FOLDER_ID` (target Drive folder ID shared with that service account)
+
+Authentication uses [Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation) instead of a downloaded service account key.
 
 Restore example:
 
