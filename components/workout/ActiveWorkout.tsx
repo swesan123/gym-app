@@ -28,6 +28,7 @@ import { WorkoutSummary } from "@/components/workout/WorkoutSummary";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import type { SetType, StretchKind, TrackingType } from "@/lib/database.types";
+import { formatUndoneSetsMessage } from "@/lib/setCompletion";
 import { useCountdown } from "@/lib/useCountdown";
 
 const NOTE_PREVIEW_MAX = 36;
@@ -537,6 +538,10 @@ export function ActiveWorkout({
   const [restLabel, setRestLabel] = useState<string>("");
   const restLabelRef = useRef<string>("");
   const restRemaining = useCountdown(restEndAt);
+  // Tracks whether the countdown has actually ticked with time remaining —
+  // guards against treating the very first render (before useCountdown's
+  // effect has run) as "timer finished".
+  const restWasActiveRef = useRef(false);
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window === "undefined") return "list";
@@ -642,10 +647,17 @@ export function ActiveWorkout({
 
   // Fire the alert and clear storage once the countdown naturally reaches zero.
   useEffect(() => {
-    if (restEndAt == null) return;
-    if (restRemaining > 0) return;
+    if (restEndAt == null) {
+      restWasActiveRef.current = false;
+      return;
+    }
+    if (restRemaining > 0) {
+      restWasActiveRef.current = true;
+      return;
+    }
+    if (!restWasActiveRef.current) return;
+    restWasActiveRef.current = false;
     playRestAlert();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRestEndAt(null);
     window.sessionStorage.removeItem(restStorageKey);
   }, [restRemaining, restEndAt, playRestAlert, restStorageKey]);
@@ -701,6 +713,17 @@ export function ActiveWorkout({
   };
 
   const onFinish = () => {
+    // Validate against the client's own view of completion first so an
+    // incomplete set surfaces as a specific, friendly message rather than a
+    // generic Server Components error from finishWorkout's DB-side check.
+    const undoneMessage = formatUndoneSetsMessage(localRows);
+    if (undoneMessage) {
+      setError(undoneMessage);
+      // Switch to List view so the named sets are easy to find and mark Done.
+      setViewModePersisted("list");
+      return;
+    }
+
     startTransition(async () => {
       try {
         await finishWorkout(workoutId);
@@ -737,14 +760,12 @@ export function ActiveWorkout({
     ? groups.find((g) => g.exercise_id === focusStep.exerciseId) ?? null
     : null;
 
+  // Done in Focus mode only starts rest — it does not advance to the next
+  // set or open the Finish modal. The user navigates with Next/Back and
+  // finishes with the header Finish button.
   const focusOnDoneRest = () => {
     if (!focusStep || !focusGroup) return;
     handleDoneRest(focusGroup.rest_seconds, focusGroup.exercise_name, focusStep.isLastSetOfExercise);
-    if (focusStep.isLastStepOfWorkout) {
-      setFinishOpen(true);
-    } else {
-      setFocusIndex((i) => Math.min(i + 1, focusSteps.length - 1));
-    }
   };
 
   return (

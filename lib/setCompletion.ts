@@ -42,3 +42,28 @@ export function incompleteSets<T extends SetCompletionInput & { set_type?: strin
     (s) => s.set_type !== "warmup" && !isSetReadyToComplete(s),
   );
 }
+
+export type UndoneSetRow = {
+  exercise_name: string;
+  set_number: number;
+  set_type?: string | null;
+  completed_at: string | null;
+};
+
+/**
+ * Builds a specific, human-readable message naming every exercise/set that
+ * still needs a Done tap before the workout can be finished, instead of
+ * letting an incomplete-sets error surface as a generic server error.
+ */
+export function formatUndoneSetsMessage(rows: UndoneSetRow[]): string | null {
+  const undone = rows.filter(
+    (r) => r.set_type !== "warmup" && r.completed_at == null,
+  );
+  if (undone.length === 0) return null;
+
+  const labels = undone.map((r) => `${r.exercise_name} set ${r.set_number}`);
+  if (labels.length === 1) {
+    return `Mark Done on ${labels[0]} before finishing.`;
+  }
+  return `Mark Done on these sets before finishing: ${labels.join(", ")}.`;
+}

@@ -63,8 +63,12 @@ export function useSetEditor({
   const [markDoneError, setMarkDoneError] = useState<string | null>(null);
   const [timerEndAt, setTimerEndAt] = useState<number | null>(null);
   const timerSecondsRef = useRef<number>(0);
+  // Guards the timer-completion effect below against treating the first
+  // render after starting a countdown (before it has ticked) as "finished".
+  const timerWasActiveRef = useRef(false);
 
   const skipSave = useRef(true);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isDone = localCompletedAt != null;
 
@@ -101,15 +105,35 @@ export function useSetEditor({
     };
     onSetFieldsChange?.(row.id, parsed);
     const t = setTimeout(() => {
+      saveTimeoutRef.current = null;
       void updateWorkoutSet({ id: row.id, ...parsed }).catch(() => {
         // Error handling is done at the parent level
       });
     }, 500);
+    saveTimeoutRef.current = t;
     return () => clearTimeout(t);
   }, [readOnly, row.id, reps, weight, rir, duration, onSetFieldsChange]);
 
   const handleMarkDone = () => {
     setMarkDoneError(null);
+    // Start rest immediately, synchronously — don't let anything below (a
+    // slow flush, a failed completion write) hold up the rest timer.
+    onDoneRest?.();
+
+    // Mark done optimistically so Focus and List views agree on state right
+    // away, instead of waiting for both server calls below to resolve.
+    const optimisticTs = new Date().toISOString();
+    setLocalCompletedAt(optimisticTs);
+    onSetCompleted?.(row.id, optimisticTs);
+
+    // A queued debounced field save could otherwise land after markSetDone
+    // and, per updateWorkoutSet's "tracked field changed" logic, clear the
+    // completed_at we're about to set.
+    if (saveTimeoutRef.current != null) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+
     startMarkDone(async () => {
       try {
         // Flush the latest field values before validating/marking done — the
@@ -122,14 +146,15 @@ export function useSetEditor({
           rir: parseOptionalNumber(rir),
           duration_seconds: parseOptionalNumber(duration),
         });
-        // Start rest immediately — don't let a slow/failed completion write
-        // hold up the rest timer.
-        onDoneRest?.();
         const result = await markSetDone(row.id);
-        const ts = result?.completedAt ?? new Date().toISOString();
+        const ts = result?.completedAt ?? optimisticTs;
         setLocalCompletedAt(ts);
         onSetCompleted?.(row.id, ts);
       } catch (err) {
+        // Roll back the optimistic completion so Focus/List/finish
+        // validation don't think this set is done when it isn't.
+        setLocalCompletedAt(null);
+        onSetCompleted?.(row.id, null);
         setMarkDoneError(
           err instanceof Error ? err.message : "Could not mark set done",
         );
@@ -162,10 +187,20 @@ export function useSetEditor({
   const timerRemaining = useCountdown(timerEndAt);
 
   // When the countdown reaches zero, auto-fill duration with the target
-  // time (can't be derived during render, so this runs in an effect).
+  // time (can't be derived during render, so this runs in an effect). Guard
+  // against treating the render right after startTimer (before any tick) as
+  // "already finished" — only complete once we've observed remaining > 0.
   useEffect(() => {
-    if (timerEndAt == null) return;
-    if (timerRemaining > 0) return;
+    if (timerEndAt == null) {
+      timerWasActiveRef.current = false;
+      return;
+    }
+    if (timerRemaining > 0) {
+      timerWasActiveRef.current = true;
+      return;
+    }
+    if (!timerWasActiveRef.current) return;
+    timerWasActiveRef.current = false;
     setDuration(String(timerSecondsRef.current));
     setTimerEndAt(null);
   }, [timerRemaining, timerEndAt]);

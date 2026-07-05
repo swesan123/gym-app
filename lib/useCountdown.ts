@@ -10,17 +10,18 @@ function secondsUntil(endAt: number | null): number {
  * (#67): remaining time is always recomputed from an absolute `endAt`
  * epoch rather than decremented tick-by-tick, so drift or a suspended
  * `setInterval` while the tab is hidden cannot desync the displayed time.
+ *
+ * The returned value is derived synchronously from `endAt` on every render
+ * (not read from state) so that the very first render after `endAt` flips
+ * from `null` to a future timestamp already reflects the correct remaining
+ * time — state updates only exist to force re-renders as time passes.
  */
 export function useCountdown(endAt: number | null): number {
-  const [remaining, setRemaining] = useState(() => secondsUntil(endAt));
+  const [, bump] = useState(0);
 
   useEffect(() => {
-    const tick = () => setRemaining(secondsUntil(endAt));
-    // Resync immediately when `endAt` changes — the previous render's value
-    // is for the old target and must not be shown even for one frame.
-    tick();
     if (endAt == null) return;
-
+    const tick = () => bump((n) => n + 1);
     const id = window.setInterval(tick, 250);
     document.addEventListener("visibilitychange", tick);
     return () => {
@@ -29,5 +30,5 @@ export function useCountdown(endAt: number | null): number {
     };
   }, [endAt]);
 
-  return endAt == null ? 0 : remaining;
+  return secondsUntil(endAt);
 }
