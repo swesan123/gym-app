@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import { markSetDone, updateWorkoutSet } from "@/app/actions/workouts";
+import { clearSetDone, markSetDone, updateWorkoutSet } from "@/app/actions/workouts";
 import type { FlatSetRow } from "@/components/workout/groupSets";
 import { isSetReadyToComplete } from "@/lib/setCompletion";
 import { parseOptionalNumber } from "@/lib/parse";
@@ -17,12 +17,15 @@ export function useSetEditor({
   bodyWeight,
   readOnly,
   onDoneRest,
+  onSetCompleted,
 }: {
   row: FlatSetRow;
   bodyWeight: number | null;
   readOnly?: boolean;
   /** Called right when a set is successfully marked Done, so the parent can start rest. */
   onDoneRest?: () => void;
+  /** Called so the parent can optimistically update localRows with the completion timestamp. */
+  onSetCompleted?: (setId: string, completedAt: string | null) => void;
 }) {
   const [reps, setReps] = useState(() => row.reps?.toString() ?? "");
   const [weight, setWeight] = useState(() => row.weight?.toString() ?? "");
@@ -31,14 +34,27 @@ export function useSetEditor({
     () => row.duration_seconds?.toString() ?? "",
   );
 
+  // Track completion optimistically so the UI updates immediately without
+  // waiting for a full server revalidation cycle.
+  const [localCompletedAt, setLocalCompletedAt] = useState<string | null>(
+    () => row.completed_at,
+  );
+
+  // If the server reconciles a different completed_at value (e.g. after router.refresh),
+  // adopt it. The eslint rule discourages this pattern but here it is a deliberate
+  // one-time sync whenever the prop changes identity, not a cascading update.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setLocalCompletedAt(row.completed_at); }, [row.completed_at]);
+
   const [markDonePending, startMarkDone] = useTransition();
+  const [clearDonePending, startClearDone] = useTransition();
   const [markDoneError, setMarkDoneError] = useState<string | null>(null);
   const [timerEndAt, setTimerEndAt] = useState<number | null>(null);
   const timerSecondsRef = useRef<number>(0);
 
   const skipSave = useRef(true);
 
-  const isDone = row.completed_at != null;
+  const isDone = localCompletedAt != null;
 
   const volumeLocal = computeSetVolume(row.tracking_type, {
     reps: parseOptionalNumber(reps),
@@ -49,6 +65,7 @@ export function useSetEditor({
 
   const readyToComplete = isSetReadyToComplete({
     tracking_type: row.tracking_type,
+    stretch_kind: row.stretch_kind,
     reps: parseOptionalNumber(reps),
     weight: parseOptionalNumber(weight),
     rir: parseOptionalNumber(rir),
@@ -80,11 +97,29 @@ export function useSetEditor({
     setMarkDoneError(null);
     startMarkDone(async () => {
       try {
-        await markSetDone(row.id);
+        const result = await markSetDone(row.id);
+        const ts = result?.completedAt ?? new Date().toISOString();
+        setLocalCompletedAt(ts);
+        onSetCompleted?.(row.id, ts);
         onDoneRest?.();
       } catch (err) {
         setMarkDoneError(
           err instanceof Error ? err.message : "Could not mark set done",
+        );
+      }
+    });
+  };
+
+  const handleClearDone = () => {
+    setMarkDoneError(null);
+    startClearDone(async () => {
+      try {
+        await clearSetDone(row.id);
+        setLocalCompletedAt(null);
+        onSetCompleted?.(row.id, null);
+      } catch (err) {
+        setMarkDoneError(
+          err instanceof Error ? err.message : "Could not clear done state",
         );
       }
     });
@@ -121,8 +156,10 @@ export function useSetEditor({
     isDone,
     readyToComplete,
     markDonePending,
+    clearDonePending,
     markDoneError,
     handleMarkDone,
+    handleClearDone,
     timerEndAt,
     setTimerEndAt,
     timerRemaining,

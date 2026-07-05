@@ -19,7 +19,6 @@ export function FocusSetCard({
   showWeightCol,
   showRirCol,
   bodyWeight,
-  restSeconds,
   totalSetsForExercise,
   setPositionInExercise,
   stepIndex,
@@ -28,6 +27,7 @@ export function FocusSetCard({
   onNext,
   onDoneRest,
   onOpenNote,
+  onSetCompleted,
 }: {
   row: FlatSetRow;
   exerciseName: string;
@@ -35,7 +35,6 @@ export function FocusSetCard({
   showWeightCol: boolean;
   showRirCol: boolean;
   bodyWeight: number | null;
-  restSeconds: number | null;
   totalSetsForExercise: number;
   setPositionInExercise: number;
   stepIndex: number;
@@ -44,6 +43,7 @@ export function FocusSetCard({
   onNext: () => void;
   onDoneRest: () => void;
   onOpenNote: () => void;
+  onSetCompleted?: (setId: string, completedAt: string | null) => void;
 }) {
   const {
     reps,
@@ -58,12 +58,14 @@ export function FocusSetCard({
     isDone,
     readyToComplete,
     markDonePending,
+    clearDonePending,
     markDoneError,
     handleMarkDone,
+    handleClearDone,
     timerEndAt,
     timerRemaining,
     startTimer,
-  } = useSetEditor({ row, bodyWeight, onDoneRest });
+  } = useSetEditor({ row, bodyWeight, onDoneRest, onSetCompleted });
 
   const tt = row.tracking_type;
   const repsOptions = mergeNumberOptions(REPS_PRESETS, reps);
@@ -73,6 +75,10 @@ export function FocusSetCard({
 
   const fieldClass =
     "box-border h-12 min-h-12 w-full min-w-0 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-2 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]";
+
+  const cardBg = isDone
+    ? "bg-emerald-50/80 dark:bg-emerald-900/20"
+    : "bg-[var(--chalk-white)] dark:bg-[var(--gray-50)]";
 
   const savedNote = row.note ?? "";
 
@@ -87,14 +93,14 @@ export function FocusSetCard({
         </span>
       </div>
 
-      <div className="rounded-2xl border border-[var(--gray-200)] bg-[var(--chalk-white)] p-5 dark:border-[var(--gray-100)] dark:bg-[var(--gray-50)]">
+      <div className={`rounded-2xl border border-[var(--gray-200)] p-5 transition-colors dark:border-[var(--gray-100)] ${cardBg}`}>
         <div className="flex items-start justify-between gap-2">
           <h2 className="text-2xl font-bold leading-tight text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
             {exerciseName}
           </h2>
           {isDone ? (
             <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-              Done
+              ✓ Done
             </span>
           ) : null}
         </div>
@@ -111,6 +117,7 @@ export function FocusSetCard({
                   onChange={(e) => setDuration(e.target.value)}
                   className={fieldClass}
                   aria-label="Seconds"
+                  disabled={isDone}
                 >
                   <option value="">—</option>
                   {durationOptions.map((v) => (
@@ -128,7 +135,7 @@ export function FocusSetCard({
                     type="button"
                     variant="secondary"
                     className="min-h-12 shrink-0 px-3"
-                    disabled={!duration}
+                    disabled={!duration || isDone}
                     onClick={() => startTimer(Number(duration))}
                   >
                     ▶
@@ -146,6 +153,7 @@ export function FocusSetCard({
                 onChange={(e) => setReps(e.target.value)}
                 className={fieldClass}
                 aria-label="Reps"
+                disabled={isDone}
               >
                 <option value="">—</option>
                 {repsOptions.map((v) => (
@@ -170,6 +178,7 @@ export function FocusSetCard({
                 onChange={(e) => setWeight(e.target.value)}
                 className={fieldClass}
                 aria-label={weightHeader(tt)}
+                disabled={isDone}
               >
                 <option value="">—</option>
                 {weightOptions.map((v) => (
@@ -191,6 +200,7 @@ export function FocusSetCard({
                 onChange={(e) => setRir(e.target.value)}
                 className={fieldClass}
                 aria-label="RIR"
+                disabled={isDone}
               >
                 <option value="">—</option>
                 {rirOptions.map((v) => (
@@ -218,25 +228,26 @@ export function FocusSetCard({
           <p className="mt-3 text-sm text-red-600">{markDoneError}</p>
         ) : null}
 
-        <Button
-          type="button"
-          className="mt-4 w-full py-3 text-base"
-          disabled={!readyToComplete || markDonePending || isDone}
-          onClick={handleMarkDone}
-        >
-          {isDone ? "Done ✓" : markDonePending ? "Saving…" : "Done"}
-        </Button>
-
-        {restSeconds != null && restSeconds > 0 ? (
+        {isDone ? (
           <Button
             type="button"
-            variant="ghost"
-            className="mt-2 w-full border border-[var(--gray-300)] py-2 text-sm dark:border-[var(--gray-200)]"
-            onClick={onDoneRest}
+            variant="secondary"
+            className="mt-4 w-full py-3 text-base"
+            disabled={clearDonePending}
+            onClick={handleClearDone}
           >
-            Start rest
+            {clearDonePending ? "Clearing…" : "Edit"}
           </Button>
-        ) : null}
+        ) : (
+          <Button
+            type="button"
+            className="mt-4 w-full py-3 text-base"
+            disabled={!readyToComplete || markDonePending}
+            onClick={handleMarkDone}
+          >
+            {markDonePending ? "Saving…" : "Done"}
+          </Button>
+        )}
       </div>
 
       <div className="flex gap-2">

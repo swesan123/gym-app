@@ -341,7 +341,7 @@ export async function markSetDone(setId: string) {
 
   const { data: row, error: fetchErr } = await supabase
     .from("workout_sets")
-    .select("exercise_id, reps, weight, rir, duration_seconds")
+    .select("workout_id, exercise_id, reps, weight, rir, duration_seconds")
     .eq("id", setId)
     .single();
 
@@ -351,15 +351,17 @@ export async function markSetDone(setId: string) {
 
   const { data: exercise } = await supabase
     .from("exercises")
-    .select("tracking_type")
+    .select("tracking_type, stretch_kind")
     .eq("id", row.exercise_id)
     .single();
 
   const trackingType = (exercise?.tracking_type ?? "weighted") as TrackingType;
+  const stretchKind = exercise?.stretch_kind ?? null;
 
   if (
     !isSetReadyToComplete({
       tracking_type: trackingType,
+      stretch_kind: stretchKind,
       reps: row.reps,
       weight: row.weight,
       rir: row.rir,
@@ -367,20 +369,49 @@ export async function markSetDone(setId: string) {
     })
   ) {
     throw new Error(
-      "Fill in reps/time, weight, and RIR before marking this set done.",
+      "Fill in reps/time and weight (if applicable) before marking this set done.",
     );
   }
 
+  const completedAt = new Date().toISOString();
   const { error } = await supabase
     .from("workout_sets")
-    .update({ completed_at: new Date().toISOString() })
+    .update({ completed_at: completedAt })
     .eq("id", setId);
 
   if (error) throw new Error(error.message);
 
+  revalidatePath(`/workout/${row.workout_id}`);
   revalidatePath("/");
   revalidatePath("/history");
   revalidatePath("/progress");
+
+  return { completedAt };
+}
+
+/** Clear the Done state for a set so the user can re-edit it. */
+export async function clearSetDone(setId: string) {
+  const supabase = await createClient();
+
+  const { data: row, error: fetchErr } = await supabase
+    .from("workout_sets")
+    .select("workout_id")
+    .eq("id", setId)
+    .single();
+
+  if (fetchErr || !row) {
+    throw new Error(fetchErr?.message ?? "Set not found");
+  }
+
+  const { error } = await supabase
+    .from("workout_sets")
+    .update({ completed_at: null })
+    .eq("id", setId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/workout/${row.workout_id}`);
+  revalidatePath("/");
 }
 
 /** Mark every working set of an exercise as Done in one shot, failing if any set is incomplete. */
@@ -397,17 +428,19 @@ export async function markExerciseDone(workoutId: string, exerciseId: string) {
 
   const { data: exercise } = await supabase
     .from("exercises")
-    .select("tracking_type")
+    .select("tracking_type, stretch_kind")
     .eq("id", exerciseId)
     .single();
 
   const trackingType = (exercise?.tracking_type ?? "weighted") as TrackingType;
+  const stretchKind = exercise?.stretch_kind ?? null;
 
   const workingRows = (rows ?? []).filter((r) => r.set_type !== "warmup");
   const notReady = workingRows.filter(
     (r) =>
       !isSetReadyToComplete({
         tracking_type: trackingType,
+        stretch_kind: stretchKind,
         reps: r.reps,
         weight: r.weight,
         rir: r.rir,
@@ -417,7 +450,7 @@ export async function markExerciseDone(workoutId: string, exerciseId: string) {
 
   if (notReady.length > 0) {
     throw new Error(
-      "Fill in reps/time, weight, and RIR for every set before marking this exercise done.",
+      "Fill in reps/time and weight (if applicable) for every set before marking this exercise done.",
     );
   }
 

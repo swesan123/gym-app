@@ -3,4 +3,4 @@
 -- because its fields are filled in — this catches forgotten RIR before
 -- the workout is finished.
 ALTER TABLE workout_sets
-ADD COLUMN completed_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;

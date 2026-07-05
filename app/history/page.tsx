@@ -38,9 +38,10 @@ function compareWorkoutsInWeek(
   b: WorkoutRow,
   splitsOrder: string[],
 ): number {
-  const dc = a.date.localeCompare(b.date);
+  // Newest date first within a week
+  const dc = b.date.localeCompare(a.date);
   if (dc !== 0) return dc;
-  const tc = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  const tc = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   if (tc !== 0) return tc;
   const ra = splitsOrder.indexOf(a.split);
   const rb = splitsOrder.indexOf(b.split);

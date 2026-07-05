@@ -47,6 +47,7 @@ function SetTableRow({
   onOpenNote,
   onSetTypeChange,
   onDoneRest,
+  onSetCompleted,
 }: {
   row: FlatSetRow;
   weightPresets: number[];
@@ -57,6 +58,7 @@ function SetTableRow({
   onOpenNote: (setId: string, initial: string) => void;
   onSetTypeChange?: (setId: string, setType: SetType) => void;
   onDoneRest?: () => void;
+  onSetCompleted?: (setId: string, completedAt: string | null) => void;
 }) {
   const {
     reps,
@@ -71,12 +73,14 @@ function SetTableRow({
     isDone,
     readyToComplete,
     markDonePending,
+    clearDonePending,
     markDoneError,
     handleMarkDone,
+    handleClearDone,
     timerEndAt,
     timerRemaining,
     startTimer,
-  } = useSetEditor({ row, bodyWeight, readOnly, onDoneRest });
+  } = useSetEditor({ row, bodyWeight, readOnly, onDoneRest, onSetCompleted });
 
   const savedNote = row.note ?? "";
   const notePreview =
@@ -97,9 +101,13 @@ function SetTableRow({
   const readOnlyCellInput =
     "box-border h-10 min-h-10 w-full min-w-0 rounded border border-[var(--gray-300)] bg-[var(--gray-50)] px-1.5 text-sm text-right tabular-nums text-[var(--steel-gray)] cursor-default dark:border-[var(--gray-200)] dark:bg-[var(--gray-100)] dark:text-[var(--gray-300)]";
 
+  const rowBg = isDone
+    ? "bg-emerald-50/70 dark:bg-emerald-900/20"
+    : "";
+
   return (
-    <tr className="border-b border-[var(--gray-100)] dark:border-[var(--gray-100)]">
-      <td className="sticky left-0 z-10 bg-[var(--chalk-white)] py-1 pr-1 text-center text-xs font-semibold tabular-nums dark:bg-[var(--gray-50)]">
+    <tr className={`border-b border-[var(--gray-100)] transition-colors dark:border-[var(--gray-100)] ${rowBg}`}>
+      <td className={`sticky left-0 z-10 py-1 pr-1 text-center text-xs font-semibold tabular-nums ${isDone ? "bg-emerald-50/70 dark:bg-emerald-900/20" : "bg-[var(--chalk-white)] dark:bg-[var(--gray-50)]"}`}>
         {row.set_number}
       </td>
       {tt === "timed" ? (
@@ -203,7 +211,7 @@ function SetTableRow({
           />
         </td>
       )}
-      <td className="max-w-[7rem] min-w-0 py-1 pl-2 pr-1 sm:max-w-[10rem]">
+      <td className="min-w-0 max-w-[5rem] py-1 pl-2 pr-1 sm:max-w-[8rem]">
         {readOnly ? (
           <span className="block max-h-10 overflow-hidden break-words px-1.5 text-left text-sm leading-snug text-[var(--gray-600)] line-clamp-2 dark:text-[var(--gray-400)]">
             {notePreview ?? "—"}
@@ -227,40 +235,57 @@ function SetTableRow({
         <td className="py-1 pl-1 pr-1">
           <div className="flex items-center justify-end gap-1">
             {markDoneError ? (
-              <span className="text-[10px] leading-tight text-red-600" title={markDoneError}>
+              <span
+                className="max-w-[5rem] truncate text-[10px] leading-tight text-red-600"
+                title={markDoneError}
+              >
                 !
               </span>
             ) : null}
-            <button
-              type="button"
-              onClick={() => {
-                onSetTypeChange?.(row.id, row.set_type === "warmup" ? "working" : "warmup");
-              }}
-              className={`shrink-0 rounded px-1.5 py-1 text-xs font-semibold transition ${
-                row.set_type === "warmup"
-                  ? "bg-[var(--gray-200)] text-[var(--gray-600)] dark:bg-[var(--gray-200)] dark:text-[var(--gray-300)]"
-                  : "text-[var(--gray-500)] hover:bg-[var(--gray-100)] dark:text-[var(--gray-400)] dark:hover:bg-[var(--gray-100)]"
-              }`}
-              aria-label={`Toggle set type: ${row.set_type}`}
-              title={row.set_type === "warmup" ? "Warmup set - excluded from volume" : "Working set"}
-            >
-              {row.set_type === "warmup" ? "W" : "○"}
-            </button>
-            <button
-              type="button"
-              disabled={!readyToComplete || markDonePending || isDone}
-              onClick={handleMarkDone}
-              className={`shrink-0 rounded px-2 py-1 text-xs font-semibold transition disabled:opacity-40 ${
-                isDone
-                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                  : "bg-[var(--gym-amber)] text-[var(--chalk-white)] hover:bg-orange-600"
-              }`}
-              aria-label={
-                isDone ? `Set ${row.set_number} done` : `Mark set ${row.set_number} done`
-              }
-            >
-              {isDone ? "✓" : markDonePending ? "…" : "Done"}
-            </button>
+            {/* Only show warmup badge when set is actually warmup — working sets get no badge */}
+            {row.set_type === "warmup" ? (
+              <button
+                type="button"
+                onClick={() => onSetTypeChange?.(row.id, "working")}
+                className="shrink-0 rounded bg-[var(--gray-200)] px-1.5 py-1 text-xs font-semibold text-[var(--gray-600)] transition hover:bg-[var(--gray-300)] dark:bg-[var(--gray-200)] dark:text-[var(--gray-300)]"
+                aria-label="Warmup set — tap to make working"
+                title="Warmup set – excluded from volume. Tap to make working."
+              >
+                W
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onSetTypeChange?.(row.id, "warmup")}
+                className="shrink-0 rounded px-1.5 py-1 text-[10px] font-semibold text-[var(--gray-400)] transition hover:bg-[var(--gray-100)] hover:text-[var(--gray-600)] dark:text-[var(--gray-500)] dark:hover:bg-[var(--gray-100)]"
+                aria-label="Working set — tap to make warmup"
+                title="Working set. Tap to mark as warmup."
+              >
+                W?
+              </button>
+            )}
+            {isDone ? (
+              <button
+                type="button"
+                disabled={clearDonePending}
+                onClick={handleClearDone}
+                className="shrink-0 rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-200 disabled:opacity-50 dark:bg-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
+                aria-label={`Edit set ${row.set_number}`}
+                title="Tap to edit this set"
+              >
+                {clearDonePending ? "…" : "Edit"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={!readyToComplete || markDonePending}
+                onClick={handleMarkDone}
+                className="shrink-0 rounded bg-[var(--gym-amber)] px-2 py-1 text-xs font-semibold text-[var(--chalk-white)] transition hover:bg-orange-600 disabled:opacity-40"
+                aria-label={`Mark set ${row.set_number} done`}
+              >
+                {markDonePending ? "…" : "Done"}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onRequestRemove(row.id)}
@@ -295,6 +320,7 @@ function ExerciseSetTable({
   onUpdateNote,
   onError,
   onDoneRest,
+  onSetCompleted,
 }: {
   exerciseName: string;
   exerciseNotes?: string | null;
@@ -312,6 +338,7 @@ function ExerciseSetTable({
   onUpdateNote: (setId: string, note: string | null) => void;
   onError: (message: string) => void;
   onDoneRest: (restSeconds: number | null, exerciseName: string, isLastSetOfExercise: boolean) => void;
+  onSetCompleted: (setId: string, completedAt: string | null) => void;
 }) {
   const router = useRouter();
   const tt = trackingType;
@@ -379,8 +406,8 @@ function ExerciseSetTable({
               {readOnly && (
                 <th className="min-w-[4.75rem] py-2 pl-2 pr-1 text-right">Vol</th>
               )}
-              <th className="min-w-[7.5rem] py-2 pl-2 pr-1">Note</th>
-              {!readOnly ? <th className="min-w-[7rem] py-2 pr-1" /> : null}
+              <th className="min-w-[5rem] py-2 pl-2 pr-1">Note</th>
+              {!readOnly ? <th className="w-[5.5rem] py-2 pr-1" /> : null}
             </tr>
           </thead>
           <tbody>
@@ -403,6 +430,7 @@ function ExerciseSetTable({
                   onDoneRest={() =>
                     onDoneRest(restSeconds, exerciseName, isLastSetOfExercise)
                   }
+                  onSetCompleted={onSetCompleted}
                   onSetTypeChange={(setId, setType) => {
                     void (async () => {
                       try {
@@ -522,6 +550,12 @@ export function ActiveWorkout({
   const updateRowNote = useCallback((setId: string, note: string | null) => {
     setLocalRows(prev => prev.map(row =>
       row.id === setId ? { ...row, note } : row
+    ));
+  }, []);
+
+  const updateRowCompletion = useCallback((setId: string, completedAt: string | null) => {
+    setLocalRows(prev => prev.map(row =>
+      row.id === setId ? { ...row, completed_at: completedAt } : row
     ));
   }, []);
 
@@ -783,7 +817,6 @@ export function ActiveWorkout({
             }
             showRirCol={focusGroup.stretch_kind === "none"}
             bodyWeight={bodyWeight}
-            restSeconds={focusGroup.rest_seconds}
             totalSetsForExercise={focusGroup.sets.length}
             setPositionInExercise={focusStep.setIndexInExercise}
             stepIndex={clampedFocusIndex}
@@ -794,6 +827,7 @@ export function ActiveWorkout({
             onOpenNote={() =>
               setFocusNoteTarget({ setId: focusRow.id, draft: focusRow.note ?? "" })
             }
+            onSetCompleted={updateRowCompletion}
           />
         ) : (
           <p className="px-4 py-8 text-center text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
@@ -838,6 +872,7 @@ export function ActiveWorkout({
                         onUpdateNote={updateRowNote}
                         onError={setError}
                         onDoneRest={handleDoneRest}
+                        onSetCompleted={updateRowCompletion}
                       />
                     ))}
                   </div>

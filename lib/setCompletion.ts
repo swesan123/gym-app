@@ -2,17 +2,22 @@ import { usesLoggedWeightColumn } from "@/lib/progressiveOverload";
 
 export type SetCompletionInput = {
   tracking_type: string;
+  stretch_kind?: string | null;
   reps: number | null;
   weight: number | null;
   rir: number | null;
   duration_seconds: number | null;
 };
 
+function isStretch(set: SetCompletionInput): boolean {
+  return set.stretch_kind === "dynamic" || set.stretch_kind === "static";
+}
+
 /**
  * A set is "ready to complete" once all fields required for its tracking
  * type are filled in: reps (or duration for timed exercises), weight when
- * the exercise logs it, and RIR. This is the gate for the per-set "Done"
- * button and for finishing a workout (#73).
+ * the exercise logs it, and RIR. Stretch exercises (dynamic/static) do not
+ * show the RIR column so RIR is not required for them.
  */
 export function isSetReadyToComplete(set: SetCompletionInput): boolean {
   const hasRepsOrDuration =
@@ -25,7 +30,7 @@ export function isSetReadyToComplete(set: SetCompletionInput): boolean {
     return false;
   }
 
-  if (set.rir == null) return false;
+  if (!isStretch(set) && set.rir == null) return false;
 
   return true;
 }

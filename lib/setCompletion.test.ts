@@ -86,6 +86,71 @@ describe("isSetReadyToComplete", () => {
       }),
     ).toBe(false);
   });
+
+  it("dynamic stretch (timed) does not require RIR", () => {
+    expect(
+      isSetReadyToComplete({
+        tracking_type: "timed",
+        stretch_kind: "dynamic",
+        reps: null,
+        weight: null,
+        rir: null,
+        duration_seconds: 30,
+      }),
+    ).toBe(true);
+  });
+
+  it("static stretch (bodyweight, with extra weight filled) does not require RIR", () => {
+    expect(
+      isSetReadyToComplete({
+        tracking_type: "bodyweight",
+        stretch_kind: "static",
+        reps: 10,
+        weight: 0,
+        rir: null,
+        duration_seconds: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("static stretch still requires reps", () => {
+    expect(
+      isSetReadyToComplete({
+        tracking_type: "timed",
+        stretch_kind: "static",
+        reps: null,
+        weight: null,
+        rir: null,
+        duration_seconds: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("non-stretch (stretch_kind none) still requires RIR", () => {
+    expect(
+      isSetReadyToComplete({
+        tracking_type: "weighted",
+        stretch_kind: "none",
+        reps: 10,
+        weight: 50,
+        rir: null,
+        duration_seconds: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("timed dynamic stretch requires duration but not RIR", () => {
+    expect(
+      isSetReadyToComplete({
+        tracking_type: "timed",
+        stretch_kind: "dynamic",
+        reps: null,
+        weight: null,
+        rir: null,
+        duration_seconds: 30,
+      }),
+    ).toBe(true);
+  });
 });
 
 describe("incompleteSets", () => {
