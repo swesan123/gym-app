@@ -16,6 +16,7 @@ import {
   applyFixedIncrement,
   usesLoggedWeightColumn,
 } from "@/lib/progressiveOverload";
+import { isSetReadyToComplete } from "@/lib/setCompletion";
 import { createClient } from "@/lib/supabase/server";
 import { formatWorkoutWeek } from "@/lib/week";
 import { computeSetVolume } from "@/lib/volume";
@@ -121,23 +122,28 @@ export async function createWorkoutDraftAndRedirect(split: string) {
   const dateStr = today.toISOString().slice(0, 10);
   const week = formatWorkoutWeek(today);
 
-  const { data: workout, error: wErr } = await supabase
-    .from("workouts")
-    .insert({ date: dateStr, week, split: splitName, status: "draft" })
-    .select("id")
-    .single();
+  // Parallelize the workout insert with the exercise lookup — these are
+  // independent writes/reads, so there's no need to wait on one before
+  // starting the other (#71).
+  const [{ data: workout, error: wErr }, { data: exercises, error: eErr }] =
+    await Promise.all([
+      supabase
+        .from("workouts")
+        .insert({ date: dateStr, week, split: splitName, status: "draft" })
+        .select("id")
+        .single(),
+      supabase
+        .from("exercises")
+        .select(
+          "id, default_sets, default_reps, progressive_overload_increment, tracking_type, machine_start_weight, machine_end_weight, machine_increment, name, exercise_splits!inner(sort_order)",
+        )
+        .eq("exercise_splits.split_name", splitName)
+        .order("name", { ascending: true }),
+    ]);
 
   if (wErr || !workout) {
     throw new Error(wErr?.message ?? "Failed to create workout");
   }
-
-  const { data: exercises, error: eErr } = await supabase
-    .from("exercises")
-    .select(
-      "id, default_sets, default_reps, progressive_overload_increment, tracking_type, machine_start_weight, machine_end_weight, machine_increment, name, exercise_splits!inner(sort_order)",
-    )
-    .eq("exercise_splits.split_name", splitName)
-    .order("name", { ascending: true });
 
   if (!eErr && exercises) {
     exercises.sort((a, b) => {
@@ -152,27 +158,23 @@ export async function createWorkoutDraftAndRedirect(split: string) {
     throw new Error(eErr?.message ?? "No exercises for this split");
   }
 
-  const { data: profile } = await supabase
-    .from("user_training_profile")
-    .select("body_weight")
-    .eq("singleton", true)
-    .maybeSingle();
+  const exerciseIds = exercises.map((e) => e.id);
+
+  const [{ data: profile }, previousByKey, latestPerfByExercise] =
+    await Promise.all([
+      supabase
+        .from("user_training_profile")
+        .select("body_weight")
+        .eq("singleton", true)
+        .maybeSingle(),
+      // No split filter here — use the last weight from ANY split for this
+      // exercise. This ensures pre-fill works even when splits are reorganised.
+      fetchPreviousWeightsBeforeDate(dateStr, exerciseIds),
+      // Split-scoped: progression direction is based on performance in THIS split.
+      fetchLatestCompletedSetsByExercise(dateStr, exerciseIds, splitName),
+    ]);
   const bodyWeight =
     profile?.body_weight == null ? null : Number(profile.body_weight);
-
-  const exerciseIds = exercises.map((e) => e.id);
-  // No split filter here — use the last weight from ANY split for this exercise.
-  // This ensures pre-fill works even when splits are reorganised.
-  const previousByKey = await fetchPreviousWeightsBeforeDate(
-    dateStr,
-    exerciseIds,
-  );
-  // Split-scoped: progression direction is based on performance in THIS split.
-  const latestPerfByExercise = await fetchLatestCompletedSetsByExercise(
-    dateStr,
-    exerciseIds,
-    splitName,
-  );
 
   const rows = exercises.flatMap((ex) => {
     const tt = (ex.tracking_type ?? "weighted") as TrackingType;
@@ -267,7 +269,9 @@ export async function updateWorkoutSet(input: {
 
   const { data: row, error: fetchErr } = await supabase
     .from("workout_sets")
-    .select("exercise_id, reps, weight, rir, duration_seconds, note, set_type")
+    .select(
+      "exercise_id, reps, weight, rir, duration_seconds, note, set_type, completed_at",
+    )
     .eq("id", input.id)
     .single();
 
@@ -285,11 +289,23 @@ export async function updateWorkoutSet(input: {
 
   const reps = input.reps !== undefined ? input.reps : row.reps;
   const weight = input.weight !== undefined ? input.weight : row.weight;
+  const rir = input.rir !== undefined ? input.rir : row.rir;
   const durationSeconds =
     input.duration_seconds !== undefined
       ? input.duration_seconds
       : row.duration_seconds;
   const setType = input.set_type !== undefined ? input.set_type : row.set_type;
+
+  // Editing a tracked field after the set was marked Done invalidates the
+  // completion — the user must re-confirm with Done (#73).
+  const trackedFieldChanged =
+    (input.reps !== undefined && input.reps !== row.reps) ||
+    (input.weight !== undefined && input.weight !== row.weight) ||
+    (input.rir !== undefined && input.rir !== row.rir) ||
+    (input.duration_seconds !== undefined &&
+      input.duration_seconds !== row.duration_seconds);
+  const completedAt =
+    trackedFieldChanged && row.completed_at != null ? null : row.completed_at;
 
   const volume = computeSetVolume(trackingType, {
     reps,
@@ -303,11 +319,12 @@ export async function updateWorkoutSet(input: {
     .update({
       reps,
       weight,
-      rir: input.rir !== undefined ? input.rir : row.rir,
+      rir,
       duration_seconds: durationSeconds,
       note: input.note !== undefined ? input.note : row.note,
       set_type: setType,
       volume,
+      completed_at: completedAt,
     })
     .eq("id", input.id);
 
@@ -316,6 +333,106 @@ export async function updateWorkoutSet(input: {
   revalidatePath("/");
   revalidatePath("/history");
   revalidatePath("/progress");
+}
+
+/** Mark a single set as explicitly Done after validating it's fully filled in (#73). */
+export async function markSetDone(setId: string) {
+  const supabase = await createClient();
+
+  const { data: row, error: fetchErr } = await supabase
+    .from("workout_sets")
+    .select("exercise_id, reps, weight, rir, duration_seconds")
+    .eq("id", setId)
+    .single();
+
+  if (fetchErr || !row) {
+    throw new Error(fetchErr?.message ?? "Set not found");
+  }
+
+  const { data: exercise } = await supabase
+    .from("exercises")
+    .select("tracking_type")
+    .eq("id", row.exercise_id)
+    .single();
+
+  const trackingType = (exercise?.tracking_type ?? "weighted") as TrackingType;
+
+  if (
+    !isSetReadyToComplete({
+      tracking_type: trackingType,
+      reps: row.reps,
+      weight: row.weight,
+      rir: row.rir,
+      duration_seconds: row.duration_seconds,
+    })
+  ) {
+    throw new Error(
+      "Fill in reps/time, weight, and RIR before marking this set done.",
+    );
+  }
+
+  const { error } = await supabase
+    .from("workout_sets")
+    .update({ completed_at: new Date().toISOString() })
+    .eq("id", setId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/");
+  revalidatePath("/history");
+  revalidatePath("/progress");
+}
+
+/** Mark every working set of an exercise as Done in one shot, failing if any set is incomplete. */
+export async function markExerciseDone(workoutId: string, exerciseId: string) {
+  const supabase = await createClient();
+
+  const { data: rows, error: fetchErr } = await supabase
+    .from("workout_sets")
+    .select("id, reps, weight, rir, duration_seconds, set_type")
+    .eq("workout_id", workoutId)
+    .eq("exercise_id", exerciseId);
+
+  if (fetchErr) throw new Error(fetchErr.message);
+
+  const { data: exercise } = await supabase
+    .from("exercises")
+    .select("tracking_type")
+    .eq("id", exerciseId)
+    .single();
+
+  const trackingType = (exercise?.tracking_type ?? "weighted") as TrackingType;
+
+  const workingRows = (rows ?? []).filter((r) => r.set_type !== "warmup");
+  const notReady = workingRows.filter(
+    (r) =>
+      !isSetReadyToComplete({
+        tracking_type: trackingType,
+        reps: r.reps,
+        weight: r.weight,
+        rir: r.rir,
+        duration_seconds: r.duration_seconds,
+      }),
+  );
+
+  if (notReady.length > 0) {
+    throw new Error(
+      "Fill in reps/time, weight, and RIR for every set before marking this exercise done.",
+    );
+  }
+
+  const ids = workingRows.map((r) => r.id);
+  if (ids.length === 0) return;
+
+  const { error } = await supabase
+    .from("workout_sets")
+    .update({ completed_at: new Date().toISOString() })
+    .in("id", ids);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/workout/${workoutId}`);
+  revalidatePath("/");
 }
 
 export async function addWorkoutSet(workoutId: string, exerciseId: string) {
@@ -437,6 +554,22 @@ export async function removeWorkoutSet(setId: string, workoutId: string) {
 
 export async function finishWorkout(workoutId: string) {
   const supabase = await createClient();
+
+  const { data: setRows, error: setsErr } = await supabase
+    .from("workout_sets")
+    .select("id, set_type, completed_at")
+    .eq("workout_id", workoutId);
+  if (setsErr) throw new Error(setsErr.message);
+
+  const undoneWorkingSets = (setRows ?? []).filter(
+    (s) => s.set_type !== "warmup" && s.completed_at == null,
+  );
+  if (undoneWorkingSets.length > 0) {
+    throw new Error(
+      `${undoneWorkingSets.length} set${undoneWorkingSets.length === 1 ? "" : "s"} not marked Done yet. Finish logging every set before completing the workout.`,
+    );
+  }
+
   const completedAt = new Date().toISOString();
   const { error } = await supabase
     .from("workouts")

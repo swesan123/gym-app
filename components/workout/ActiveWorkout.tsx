@@ -9,63 +9,33 @@ import {
   removeWorkoutSet,
   updateWorkoutSet,
 } from "@/app/actions/workouts";
+import { FocusSetCard } from "@/components/workout/FocusSetCard";
+import { buildFocusSteps } from "@/components/workout/focusSteps";
 import type { FlatSetRow } from "@/components/workout/groupSets";
 import { groupFlatSets } from "@/components/workout/groupSets";
 import { partitionGroupsByStretchKind } from "@/components/workout/partitionGroupsByStretchKind";
+import {
+  DURATION_PRESETS,
+  REPS_PRESETS,
+  RIR_PRESETS,
+  buildMachineWeightPresets,
+  mergeNumberOptions,
+  weightColumnTitle,
+  weightHeader,
+} from "@/components/workout/setFieldPresets";
+import { useSetEditor } from "@/components/workout/useSetEditor";
 import { WorkoutSummary } from "@/components/workout/WorkoutSummary";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import type { SetType, StretchKind, TrackingType } from "@/lib/database.types";
-import { parseOptionalNumber } from "@/lib/parse";
-import { computeSetVolume } from "@/lib/volume";
-
-function weightHeader(tt: TrackingType) {
-  if (tt === "assisted") return "Assist";
-  if (tt === "bodyweight") return "Extra wt";
-  return "Wt";
-}
-
-function weightColumnTitle(tt: TrackingType): string | undefined {
-  if (tt === "assisted") {
-    return "Assistance / counterweight taken off your body, not effective load. Volume uses body weight from your profile.";
-  }
-  return undefined;
-}
-
-const REPS_PRESETS = Array.from({ length: 20 }, (_, i) => i + 1);
-const RIR_PRESETS = [0, 1, 2, 3, 4];
-const DURATION_PRESETS = [15, 20, 30, 45, 60, 90, 120];
-
-function buildMachineWeightPresets({
-  machineStartWeight,
-  machineEndWeight,
-  machineIncrement,
-}: {
-  machineStartWeight?: number | null;
-  machineEndWeight?: number | null;
-  machineIncrement?: number | null;
-}): number[] {
-  if (
-    machineStartWeight == null ||
-    machineEndWeight == null ||
-    machineIncrement == null ||
-    machineIncrement <= 0 ||
-    machineEndWeight < machineStartWeight
-  ) {
-    return [];
-  }
-
-  const values: number[] = [];
-  const maxSteps = 100;
-  for (let i = 0; i < maxSteps; i += 1) {
-    const value = machineStartWeight + i * machineIncrement;
-    if (value > machineEndWeight + 1e-9) break;
-    values.push(Number(value.toFixed(4)));
-  }
-  return values;
-}
+import { useCountdown } from "@/lib/useCountdown";
 
 const NOTE_PREVIEW_MAX = 36;
+
+const REST_STORAGE_PREFIX = "gym-app:rest:";
+const VIEW_MODE_STORAGE_PREFIX = "gym-app:viewMode:";
+
+type ViewMode = "list" | "focus";
 
 function SetTableRow({
   row,
@@ -75,10 +45,8 @@ function SetTableRow({
   readOnly,
   onRequestRemove,
   onOpenNote,
-  onRirSelected,
-  restSeconds,
-  exerciseName,
   onSetTypeChange,
+  onDoneRest,
 }: {
   row: FlatSetRow;
   weightPresets: number[];
@@ -87,48 +55,28 @@ function SetTableRow({
   readOnly?: boolean;
   onRequestRemove: (setId: string) => void;
   onOpenNote: (setId: string, initial: string) => void;
-  /** Called immediately when the user picks a non-empty RIR (before DB save). */
-  onRirSelected?: (restSeconds: number, exerciseName: string) => void;
-  restSeconds?: number | null;
-  exerciseName?: string;
   onSetTypeChange?: (setId: string, setType: SetType) => void;
+  onDoneRest?: () => void;
 }) {
-  const [reps, setReps] = useState(() => row.reps?.toString() ?? "");
-  const [weight, setWeight] = useState(() => row.weight?.toString() ?? "");
-  const [rir, setRir] = useState(() => row.rir?.toString() ?? "");
-  const [duration, setDuration] = useState(
-    () => row.duration_seconds?.toString() ?? "",
-  );
-
-  const skipSave = useRef(true);
-
-  const volumeLocal = computeSetVolume(row.tracking_type, {
-    reps: parseOptionalNumber(reps),
-    weight: parseOptionalNumber(weight),
-    durationSeconds: parseOptionalNumber(duration),
-    bodyWeight,
-  });
-
-  // Debounced DB save — only persists values, no timer logic here.
-  useEffect(() => {
-    if (readOnly) return;
-    if (skipSave.current) {
-      skipSave.current = false;
-      return;
-    }
-    const t = setTimeout(() => {
-      void updateWorkoutSet({
-        id: row.id,
-        reps: parseOptionalNumber(reps),
-        weight: parseOptionalNumber(weight),
-        rir: parseOptionalNumber(rir),
-        duration_seconds: parseOptionalNumber(duration),
-      }).catch(() => {
-        // Error handling is done at the parent level
-      });
-    }, 500);
-    return () => clearTimeout(t);
-  }, [readOnly, row.id, reps, weight, rir, duration]);
+  const {
+    reps,
+    setReps,
+    weight,
+    setWeight,
+    rir,
+    setRir,
+    duration,
+    setDuration,
+    volumeLocal,
+    isDone,
+    readyToComplete,
+    markDonePending,
+    markDoneError,
+    handleMarkDone,
+    timerEndAt,
+    timerRemaining,
+    startTimer,
+  } = useSetEditor({ row, bodyWeight, readOnly, onDoneRest });
 
   const savedNote = row.note ?? "";
   const notePreview =
@@ -139,22 +87,10 @@ function SetTableRow({
       : null;
 
   const tt = row.tracking_type;
-  const repsOptions = [...new Set([...REPS_PRESETS, parseOptionalNumber(reps) ?? NaN])]
-    .filter((v) => Number.isFinite(v))
-    .sort((a, b) => a - b);
-  const weightOptions = [
-    ...new Set([...weightPresets, parseOptionalNumber(weight) ?? NaN]),
-  ]
-    .filter((v) => Number.isFinite(v))
-    .sort((a, b) => a - b);
-  const rirOptions = [...new Set([...RIR_PRESETS, parseOptionalNumber(rir) ?? NaN])]
-    .filter((v) => Number.isFinite(v))
-    .sort((a, b) => a - b);
-  const durationOptions = [
-    ...new Set([...DURATION_PRESETS, parseOptionalNumber(duration) ?? NaN]),
-  ]
-    .filter((v) => Number.isFinite(v))
-    .sort((a, b) => a - b);
+  const repsOptions = mergeNumberOptions(REPS_PRESETS, reps);
+  const weightOptions = mergeNumberOptions(weightPresets, weight);
+  const rirOptions = mergeNumberOptions(RIR_PRESETS, rir);
+  const durationOptions = mergeNumberOptions(DURATION_PRESETS, duration);
 
   const cellInput =
     "box-border h-10 min-h-10 w-full min-w-0 rounded border border-[var(--gray-300)] bg-[var(--chalk-white)] px-1.5 text-sm dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]";
@@ -168,20 +104,39 @@ function SetTableRow({
       </td>
       {tt === "timed" ? (
         <td className="py-1 pr-1">
-          <select
-            disabled={readOnly}
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-            className={cellInput}
-            aria-label="Seconds"
-          >
-            <option value="">—</option>
-            {durationOptions.map((v) => (
-              <option key={`duration-${row.id}-${v}`} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-1">
+            <select
+              disabled={readOnly}
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              className={cellInput}
+              aria-label="Seconds"
+            >
+              <option value="">—</option>
+              {durationOptions.map((v) => (
+                <option key={`duration-${row.id}-${v}`} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            {!readOnly ? (
+              timerEndAt != null ? (
+                <span className="font-data w-10 shrink-0 text-center text-sm font-bold tabular-nums text-[var(--gym-amber)]">
+                  {timerRemaining}s
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  disabled={!duration}
+                  onClick={() => startTimer(Number(duration))}
+                  className="shrink-0 rounded px-1.5 py-1 text-xs font-semibold text-[var(--gym-amber)] hover:bg-[var(--gray-100)] disabled:opacity-40 dark:hover:bg-[var(--gray-100)]"
+                  aria-label="Start countdown"
+                >
+                  ▶
+                </button>
+              )
+            ) : null}
+          </div>
         </td>
       ) : (
         <td className="py-1 pr-1">
@@ -224,14 +179,7 @@ function SetTableRow({
           <select
             disabled={readOnly}
             value={rir}
-            onChange={(e) => {
-              const val = e.target.value;
-              setRir(val);
-              // Start rest timer immediately on RIR selection (before DB save)
-              if (val !== "" && restSeconds != null && restSeconds > 0 && onRirSelected) {
-                onRirSelected(restSeconds, exerciseName ?? "");
-              }
-            }}
+            onChange={(e) => setRir(e.target.value)}
             className={cellInput}
             aria-label="RIR"
           >
@@ -276,14 +224,19 @@ function SetTableRow({
         )}
       </td>
       {!readOnly ? (
-        <>
-          <td className="py-1 text-center">
+        <td className="py-1 pl-1 pr-1">
+          <div className="flex items-center justify-end gap-1">
+            {markDoneError ? (
+              <span className="text-[10px] leading-tight text-red-600" title={markDoneError}>
+                !
+              </span>
+            ) : null}
             <button
               type="button"
               onClick={() => {
                 onSetTypeChange?.(row.id, row.set_type === "warmup" ? "working" : "warmup");
               }}
-              className={`text-xs font-semibold rounded px-2 py-1 transition ${
+              className={`shrink-0 rounded px-1.5 py-1 text-xs font-semibold transition ${
                 row.set_type === "warmup"
                   ? "bg-[var(--gray-200)] text-[var(--gray-600)] dark:bg-[var(--gray-200)] dark:text-[var(--gray-300)]"
                   : "text-[var(--gray-500)] hover:bg-[var(--gray-100)] dark:text-[var(--gray-400)] dark:hover:bg-[var(--gray-100)]"
@@ -293,17 +246,31 @@ function SetTableRow({
             >
               {row.set_type === "warmup" ? "W" : "○"}
             </button>
-          </td>
-          <td className="py-1 text-center">
+            <button
+              type="button"
+              disabled={!readyToComplete || markDonePending || isDone}
+              onClick={handleMarkDone}
+              className={`shrink-0 rounded px-2 py-1 text-xs font-semibold transition disabled:opacity-40 ${
+                isDone
+                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                  : "bg-[var(--gym-amber)] text-[var(--chalk-white)] hover:bg-orange-600"
+              }`}
+              aria-label={
+                isDone ? `Set ${row.set_number} done` : `Mark set ${row.set_number} done`
+              }
+            >
+              {isDone ? "✓" : markDonePending ? "…" : "Done"}
+            </button>
             <button
               type="button"
               onClick={() => onRequestRemove(row.id)}
-              className="rounded px-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+              className="shrink-0 rounded px-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+              aria-label={`Remove set ${row.set_number}`}
             >
               ×
             </button>
-          </td>
-        </>
+          </div>
+        </td>
       ) : (
         <td className="py-1" />
       )}
@@ -323,11 +290,11 @@ function ExerciseSetTable({
   readOnly,
   pending,
   restSeconds,
-  onScheduleRest,
   onAddSet,
   onRequestRemove,
   onUpdateNote,
   onError,
+  onDoneRest,
 }: {
   exerciseName: string;
   exerciseNotes?: string | null;
@@ -340,11 +307,11 @@ function ExerciseSetTable({
   readOnly?: boolean;
   pending: boolean;
   restSeconds: number | null;
-  onScheduleRest: (seconds: number, label: string) => void;
   onAddSet: () => void;
   onRequestRemove: (setId: string) => void;
   onUpdateNote: (setId: string, note: string | null) => void;
   onError: (message: string) => void;
+  onDoneRest: (restSeconds: number | null, exerciseName: string, isLastSetOfExercise: boolean) => void;
 }) {
   const router = useRouter();
   const tt = trackingType;
@@ -413,20 +380,14 @@ function ExerciseSetTable({
                 <th className="min-w-[4.75rem] py-2 pl-2 pr-1 text-right">Vol</th>
               )}
               <th className="min-w-[7.5rem] py-2 pl-2 pr-1">Note</th>
-              {!readOnly ? (
-                <>
-                  <th className="w-8 py-2 text-center" title="Warmup/Working">
-                    Type
-                  </th>
-                  <th className="w-8 py-2 text-center" />
-                </>
-              ) : null}
+              {!readOnly ? <th className="min-w-[7rem] py-2 pr-1" /> : null}
             </tr>
           </thead>
           <tbody>
-            {sets.map((s) => {
+            {sets.map((s, idx) => {
               const flat = rows.find((r) => r.id === s.id);
               if (!flat) return null;
+              const isLastSetOfExercise = idx === sets.length - 1;
               return (
                 <SetTableRow
                   key={s.id}
@@ -439,9 +400,9 @@ function ExerciseSetTable({
                   onOpenNote={(setId, initial) =>
                     setNoteTarget({ setId, draft: initial })
                   }
-                  onRirSelected={onScheduleRest}
-                  restSeconds={restSeconds}
-                  exerciseName={exerciseName}
+                  onDoneRest={() =>
+                    onDoneRest(restSeconds, exerciseName, isLastSetOfExercise)
+                  }
                   onSetTypeChange={(setId, setType) => {
                     void (async () => {
                       try {
@@ -460,17 +421,6 @@ function ExerciseSetTable({
       </div>
       {!readOnly ? (
         <div className="flex flex-col gap-2 border-t border-[var(--gray-100)] px-2 py-2 dark:border-[var(--gray-100)] sm:flex-row">
-          {restSeconds != null && restSeconds > 0 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="min-h-10 w-full shrink-0 border border-[var(--gray-300)] py-2 text-sm dark:border-[var(--gray-200)] sm:w-auto sm:min-w-[8rem]"
-              disabled={pending}
-              onClick={() => onScheduleRest(restSeconds, exerciseName)}
-            >
-              Start rest
-            </Button>
-          ) : null}
           <Button
             variant="secondary"
             type="button"
@@ -538,13 +488,34 @@ export function ActiveWorkout({
 
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
   const [finishOpen, setFinishOpen] = useState(false);
-  const [rest, setRest] = useState<{ seconds: number; label: string } | null>(
-    null,
-  );
-  // Stable interval ref — avoids re-creating useEffect on every tick
-  const restIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Ref for current rest label (used in notifications without capturing stale state)
+
+  const readOnly = status === "completed";
+  const restStorageKey = `${REST_STORAGE_PREFIX}${workoutId}`;
+  const viewModeStorageKey = `${VIEW_MODE_STORAGE_PREFIX}${workoutId}`;
+
+  // Rest timer persisted as an absolute epoch so it survives tab
+  // backgrounding, throttling, and page refresh (#67).
+  const [restEndAt, setRestEndAt] = useState<number | null>(() => {
+    if (typeof window === "undefined" || readOnly) return null;
+    const raw = window.sessionStorage.getItem(restStorageKey);
+    if (!raw) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > Date.now() ? parsed : null;
+  });
+  const [restLabel, setRestLabel] = useState<string>("");
   const restLabelRef = useRef<string>("");
+  const restRemaining = useCountdown(restEndAt);
+
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window === "undefined") return "list";
+    const raw = window.sessionStorage.getItem(viewModeStorageKey);
+    return raw === "focus" ? "focus" : "list";
+  });
+  const [focusIndex, setFocusIndex] = useState(0);
+  const [focusNoteTarget, setFocusNoteTarget] = useState<{
+    setId: string;
+    draft: string;
+  } | null>(null);
 
   const [localRows, setLocalRows] = useState(() => rows);
 
@@ -563,6 +534,12 @@ export function ActiveWorkout({
   }, []);
 
   const groups = useMemo(() => groupFlatSets(localRows), [localRows]);
+  const focusSteps = useMemo(() => buildFocusSteps(groups), [groups]);
+
+  const setViewModePersisted = (mode: ViewMode) => {
+    setViewMode(mode);
+    window.sessionStorage.setItem(viewModeStorageKey, mode);
+  };
 
   // Request notification permission on mount
   useEffect(() => {
@@ -571,80 +548,60 @@ export function ActiveWorkout({
     }
   }, []);
 
-  /** Play audio/haptic feedback — stable (no deps on changing state). */
-  const playRestAlert = useCallback((event: "start" | "end") => {
-    if (event === "end") {
-      try {
-        const AudioContextConstructor = window.AudioContext || ((window as unknown as Record<string, unknown>).webkitAudioContext as typeof window.AudioContext);
-        const audioContext = new AudioContextConstructor();
-        const osc = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        osc.connect(gain);
-        gain.connect(audioContext.destination);
-        osc.frequency.value = 800;
-        osc.type = "sine";
-        gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-        osc.start(audioContext.currentTime);
-        osc.stop(audioContext.currentTime + 0.1);
-      } catch {
-        // Audio context not available
-      }
-
-      if (navigator.vibrate) {
-        navigator.vibrate(200);
-      }
-
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("Rest complete", {
-          body: restLabelRef.current || "Time to lift",
-          tag: "rest-timer",
-        });
-      }
+  /** Play audio/haptic feedback for rest completion. */
+  const playRestAlert = useCallback(() => {
+    try {
+      const AudioContextConstructor = window.AudioContext || ((window as unknown as Record<string, unknown>).webkitAudioContext as typeof window.AudioContext);
+      const audioContext = new AudioContextConstructor();
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.frequency.value = 800;
+      osc.type = "sine";
+      gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+      osc.start(audioContext.currentTime);
+      osc.stop(audioContext.currentTime + 0.1);
+    } catch {
+      // Audio context not available
     }
-  }, []); // stable — reads restLabelRef instead of rest state
 
-  /** Stop any running rest interval and clear UI. */
-  const stopRestTimer = useCallback(() => {
-    if (restIntervalRef.current != null) {
-      clearInterval(restIntervalRef.current);
-      restIntervalRef.current = null;
+    if (navigator.vibrate) {
+      navigator.vibrate(200);
     }
-    setRest(null);
-  }, []);
 
-  /** Start (or restart) rest timer, cancelling any previous countdown. */
-  const startRestTimer = useCallback((seconds: number, label: string) => {
-    if (status === "completed" || seconds <= 0) return;
-    // Clear any existing countdown first so restart is instant
-    if (restIntervalRef.current != null) {
-      clearInterval(restIntervalRef.current);
-      restIntervalRef.current = null;
-    }
-    restLabelRef.current = label;
-    setRest({ seconds, label });
-    playRestAlert("start");
-    restIntervalRef.current = setInterval(() => {
-      setRest((r) => {
-        if (r == null || r.seconds <= 1) {
-          clearInterval(restIntervalRef.current!);
-          restIntervalRef.current = null;
-          playRestAlert("end");
-          return null;
-        }
-        return { ...r, seconds: r.seconds - 1 };
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Rest complete", {
+        body: restLabelRef.current || "Time to lift",
+        tag: "rest-timer",
       });
-    }, 1000);
-  }, [status, playRestAlert]);
-
-  // Clean up interval on unmount
-  useEffect(() => () => {
-    if (restIntervalRef.current != null) clearInterval(restIntervalRef.current);
+    }
   }, []);
 
-  const scheduleRest = useCallback((seconds: number, label: string) => {
-    startRestTimer(seconds, label);
-  }, [startRestTimer]);
+  const stopRestTimer = useCallback(() => {
+    setRestEndAt(null);
+    window.sessionStorage.removeItem(restStorageKey);
+  }, [restStorageKey]);
+
+  const startRestTimer = useCallback((seconds: number, label: string) => {
+    if (readOnly || seconds <= 0) return;
+    const endAt = Date.now() + seconds * 1000;
+    restLabelRef.current = label;
+    setRestLabel(label);
+    setRestEndAt(endAt);
+    window.sessionStorage.setItem(restStorageKey, String(endAt));
+  }, [readOnly, restStorageKey]);
+
+  // Fire the alert and clear storage once the countdown naturally reaches zero.
+  useEffect(() => {
+    if (restEndAt == null) return;
+    if (restRemaining > 0) return;
+    playRestAlert();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRestEndAt(null);
+    window.sessionStorage.removeItem(restStorageKey);
+  }, [restRemaining, restEndAt, playRestAlert, restStorageKey]);
 
   const exerciseWeightPresets = useMemo(() => {
     const map = new Map<string, number[]>();
@@ -706,8 +663,6 @@ export function ActiveWorkout({
     });
   };
 
-  const readOnly = status === "completed";
-
   const handleAddSet = (exerciseId: string) => {
     startTransition(async () => {
       try {
@@ -717,6 +672,32 @@ export function ActiveWorkout({
         setError(e instanceof Error ? e.message : "Could not add set");
       }
     });
+  };
+
+  /** Start rest after Done is tapped — skips automatically on the last set of the exercise (#66, #67). */
+  const handleDoneRest = (restSeconds: number | null, exerciseName: string, isLastSetOfExercise: boolean) => {
+    if (isLastSetOfExercise || restSeconds == null || restSeconds <= 0) return;
+    startRestTimer(restSeconds, exerciseName);
+  };
+
+  const clampedFocusIndex =
+    focusSteps.length > 0 ? Math.min(focusIndex, focusSteps.length - 1) : 0;
+  const focusStep = focusSteps[clampedFocusIndex] ?? null;
+  const focusRow = focusStep
+    ? localRows.find((r) => r.id === focusStep.setId) ?? null
+    : null;
+  const focusGroup = focusStep
+    ? groups.find((g) => g.exercise_id === focusStep.exerciseId) ?? null
+    : null;
+
+  const focusOnDoneRest = () => {
+    if (!focusStep || !focusGroup) return;
+    handleDoneRest(focusGroup.rest_seconds, focusGroup.exercise_name, focusStep.isLastSetOfExercise);
+    if (focusStep.isLastStepOfWorkout) {
+      setFinishOpen(true);
+    } else {
+      setFocusIndex((i) => Math.min(i + 1, focusSteps.length - 1));
+    }
   };
 
   return (
@@ -742,11 +723,39 @@ export function ActiveWorkout({
             </Button>
           ) : null}
         </div>
-        <div className="px-0 pt-1">
-          <p className="text-xs text-[var(--gray-500)] dark:text-[var(--gray-400)]">{split}</p>
-          <h1 className="text-lg font-bold leading-snug text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
-            {readOnly ? "Workout (completed)" : "Active workout"}
-          </h1>
+        <div className="flex items-center justify-between gap-2 px-0 pt-1">
+          <div>
+            <p className="text-xs text-[var(--gray-500)] dark:text-[var(--gray-400)]">{split}</p>
+            <h1 className="text-lg font-bold leading-snug text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
+              {readOnly ? "Workout (completed)" : "Active workout"}
+            </h1>
+          </div>
+          {!readOnly ? (
+            <div className="flex shrink-0 rounded-lg border border-[var(--gray-300)] p-0.5 dark:border-[var(--gray-200)]">
+              <button
+                type="button"
+                onClick={() => setViewModePersisted("list")}
+                className={`min-h-8 rounded px-3 text-xs font-semibold transition ${
+                  viewMode === "list"
+                    ? "bg-[var(--gym-amber)] text-[var(--chalk-white)]"
+                    : "text-[var(--gray-500)] dark:text-[var(--gray-400)]"
+                }`}
+              >
+                List
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewModePersisted("focus")}
+                className={`min-h-8 rounded px-3 text-xs font-semibold transition ${
+                  viewMode === "focus"
+                    ? "bg-[var(--gym-amber)] text-[var(--chalk-white)]"
+                    : "text-[var(--gray-500)] dark:text-[var(--gray-400)]"
+                }`}
+              >
+                Focus
+              </button>
+            </div>
+          ) : null}
         </div>
       </header>
 
@@ -758,6 +767,39 @@ export function ActiveWorkout({
 
       {readOnly ? (
         <WorkoutSummary groups={groups} />
+      ) : viewMode === "focus" ? (
+        focusStep && focusRow && focusGroup ? (
+          <FocusSetCard
+            key={focusStep.setId}
+            row={focusRow}
+            exerciseName={focusStep.exerciseName}
+            weightPresets={
+              exerciseWeightPresets.get(focusStep.exerciseId) ?? weightPresets
+            }
+            showWeightCol={
+              focusGroup.tracking_type === "weighted" ||
+              focusGroup.tracking_type === "assisted" ||
+              focusGroup.tracking_type === "bodyweight"
+            }
+            showRirCol={focusGroup.stretch_kind === "none"}
+            bodyWeight={bodyWeight}
+            restSeconds={focusGroup.rest_seconds}
+            totalSetsForExercise={focusGroup.sets.length}
+            setPositionInExercise={focusStep.setIndexInExercise}
+            stepIndex={clampedFocusIndex}
+            totalSteps={focusSteps.length}
+            onBack={() => setFocusIndex((i) => Math.max(0, i - 1))}
+            onNext={() => setFocusIndex((i) => Math.min(i + 1, focusSteps.length - 1))}
+            onDoneRest={focusOnDoneRest}
+            onOpenNote={() =>
+              setFocusNoteTarget({ setId: focusRow.id, draft: focusRow.note ?? "" })
+            }
+          />
+        ) : (
+          <p className="px-4 py-8 text-center text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+            No sets to focus on yet.
+          </p>
+        )
       ) : (
         <div className="flex touch-manipulation flex-col gap-6 px-2 pb-28 pt-2 sm:px-3">
           {partitionGroupsByStretchKind(groups).map(
@@ -791,11 +833,11 @@ export function ActiveWorkout({
                         readOnly={readOnly}
                         pending={pending}
                         restSeconds={g.rest_seconds}
-                        onScheduleRest={scheduleRest}
                         onAddSet={() => handleAddSet(g.exercise_id)}
                         onRequestRemove={requestRemoveSet}
                         onUpdateNote={updateRowNote}
                         onError={setError}
+                        onDoneRest={handleDoneRest}
                       />
                     ))}
                   </div>
@@ -827,15 +869,50 @@ export function ActiveWorkout({
         }}
       />
 
-      {!readOnly && rest != null && rest.seconds > 0 ? (
+      {!readOnly && viewMode === "focus" ? (
+        <Modal
+          open={!!focusNoteTarget}
+          title="Set note"
+          description="Edit your note here. Use Done or Cancel to close."
+          confirmLabel="Done"
+          cancelLabel="Cancel"
+          closeOnBackdrop={false}
+          closeOnEscape={false}
+          onCancel={() => setFocusNoteTarget(null)}
+          onConfirm={() => {
+            if (!focusNoteTarget) return;
+            const t = focusNoteTarget;
+            const note = t.draft.trim() ? t.draft.trim() : null;
+            updateRowNote(t.setId, note);
+            setFocusNoteTarget(null);
+            void updateWorkoutSet({ id: t.setId, note }).catch((err) => {
+              setError(err instanceof Error ? err.message : "Failed to save note");
+            });
+          }}
+        >
+          <textarea
+            value={focusNoteTarget?.draft ?? ""}
+            onChange={(e) =>
+              setFocusNoteTarget((n) => (n ? { ...n, draft: e.target.value } : n))
+            }
+            rows={6}
+            autoFocus
+            autoComplete="off"
+            className="min-h-[8rem] w-full resize-y rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] p-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+            aria-label="Note text"
+          />
+        </Modal>
+      ) : null}
+
+      {!readOnly && restEndAt != null && restRemaining > 0 ? (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm">
           <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
             Rest timer
           </p>
           <p className="mt-2 font-data text-[5rem] font-bold leading-none tabular-nums text-white">
-            {rest.seconds}s
+            {restRemaining}s
           </p>
-          <p className="mt-3 text-base text-white/60">{rest.label}</p>
+          <p className="mt-3 text-base text-white/60">{restLabel}</p>
           <Button
             type="button"
             variant="ghost"

@@ -23,6 +23,7 @@ export async function fetchSetsForWorkout(
         volume,
         note,
         set_type,
+        completed_at,
         exercises (
           name,
           tracking_type,
@@ -80,6 +81,7 @@ export async function fetchSetsForWorkout(
       volume: row.volume,
       note: row.note,
       set_type: row.set_type ?? "working",
+      completed_at: row.completed_at,
       exercise_name: ex?.name ?? "Unknown",
       tracking_type: (ex?.tracking_type ?? "weighted") as TrackingType,
       exercise_notes: ex?.notes ?? null,

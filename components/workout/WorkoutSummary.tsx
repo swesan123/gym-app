@@ -12,6 +12,7 @@ export type SummarySet = {
   volume: number | null;
   note: string | null;
   set_type: SetType;
+  completed_at: string | null;
 };
 
 export type SummaryExercise = {

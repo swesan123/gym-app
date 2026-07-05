@@ -4,6 +4,7 @@ import { createWorkoutDraftAndRedirect } from "@/app/actions/workouts";
 import { Button } from "@/components/ui/button";
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
 import { SplitsMigrationBanner } from "@/components/SplitsMigrationBanner";
+import { StartSplitButton } from "@/components/workout/StartSplitButton";
 import { fetchSplitsCatalog } from "@/lib/queries/read";
 import { hasSupabaseEnv } from "@/lib/env";
 
@@ -55,9 +56,7 @@ export default async function StartWorkoutPage() {
               key={s.id}
               action={createWorkoutDraftAndRedirect.bind(null, s.name)}
             >
-              <Button type="submit" className="w-full py-4 text-lg">
-                {s.name}
-              </Button>
+              <StartSplitButton label={s.name} />
             </form>
           ))}
         </div>

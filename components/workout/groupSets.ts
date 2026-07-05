@@ -49,6 +49,7 @@ export function groupFlatSets(rows: FlatSetRow[]): SummaryExercise[] {
       note,
       rest_seconds,
       set_type,
+      completed_at,
     } = r;
 
     const existing = map.get(exercise_id);
@@ -62,6 +63,7 @@ export function groupFlatSets(rows: FlatSetRow[]): SummaryExercise[] {
       volume,
       note,
       set_type,
+      completed_at,
     };
 
     if (!existing) {

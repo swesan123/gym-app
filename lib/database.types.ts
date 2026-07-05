@@ -173,6 +173,7 @@ export type Database = {
           volume: number | null;
           note: string | null;
           set_type: SetType;
+          completed_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -187,6 +188,7 @@ export type Database = {
           volume?: number | null;
           note?: string | null;
           set_type?: SetType;
+          completed_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -201,6 +203,7 @@ export type Database = {
           volume?: number | null;
           note?: string | null;
           set_type?: SetType;
+          completed_at?: string | null;
           created_at?: string;
         };
       };
