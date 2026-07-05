@@ -76,12 +76,39 @@ export function resolveProgressionDirection(input: {
     const allPass = input.latestSets.every((set) => {
       const setReps = set.reps == null ? 0 : Number(set.reps);
       const setRir = set.rir == null ? 0 : Number(set.rir);
-      return setReps >= defaultReps && setRir > rirTarget;
+      return setReps >= defaultReps && setRir >= rirTarget;
     });
     if (allPass) {
       return "increase";
     }
   }
 
+  return "none";
+}
+
+/**
+ * Resolve progression direction for a single set, independent of how other
+ * sets in the same exercise performed. Null RIR is coerced to 0 (same as the
+ * stored-data fallback used elsewhere) rather than treated as "unknown" —
+ * forgotten RIR should be caught before finishing a workout (see #73),
+ * not silently ignored here.
+ *
+ * Increase: reps >= defaultReps AND rir >= rirTarget
+ * Decrease: reps < defaultReps AND rir <= 1
+ * Otherwise: none
+ */
+export function resolveSetProgressionDirection(
+  set: SetPerformance | null | undefined,
+  defaultReps: number | null,
+  rirTarget: number = SMART_PROGRESSION_RIR_TARGET,
+): ProgressionDirection {
+  if (!set) return "none";
+
+  const reps = defaultReps ?? 0;
+  const setReps = set.reps == null ? 0 : Number(set.reps);
+  const setRir = set.rir == null ? 0 : Number(set.rir);
+
+  if (setReps < reps && setRir <= 1) return "decrease";
+  if (setReps >= reps && setRir >= rirTarget) return "increase";
   return "none";
 }

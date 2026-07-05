@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   progressionOverloadPctToApply,
   resolveProgressionDirection,
+  resolveSetProgressionDirection,
   rirOverloadMultiplier,
   SMART_PROGRESSION_RIR_TARGET,
 } from "./progressionRir";
@@ -87,7 +88,7 @@ describe("resolveProgressionDirection", () => {
 
   it("defaultReps null treated as 0 — increase fires when rir gate passes", () => {
     const sets = [{ reps: 10, rir: 3 }];
-    // defaultReps null → 0; reps (10) >= 0 ✓; rir (3) > 2 ✓ → increase
+    // defaultReps null → 0; reps (10) >= 0 ✓; rir (3) >= 2 ✓ → increase
     expect(
       resolveProgressionDirection({ latestSets: sets, defaultSets: 1, defaultReps: null }),
     ).toBe("increase");
@@ -98,6 +99,85 @@ describe("resolveProgressionDirection", () => {
     // reps (0) < defaultReps (0) is false → cannot trigger decrease
     expect(
       resolveProgressionDirection({ latestSets: sets, defaultSets: 1, defaultReps: null }),
+    ).toBe("none");
+  });
+
+  it("increases when rir equals target exactly (>=, not strictly >)", () => {
+    const sets = [
+      { reps: 10, rir: 2 },
+      { reps: 10, rir: 2 },
+      { reps: 10, rir: 2 },
+    ];
+    expect(resolveProgressionDirection({ latestSets: sets, ...base })).toBe("increase");
+  });
+});
+
+describe("resolveSetProgressionDirection", () => {
+  // Repro from issue #70: Seated Bicep Curl, last Pull session was
+  // reps 10 / weight 55 / RIR 3, 2, 2 — all three sets should increase
+  // since RIR 2 now meets the target (>= 2), not the old strict > 2, and
+  // one set's performance no longer blocks the others.
+  it("increases every set in the bicep curl repro (RIR 3, 2, 2 at target reps)", () => {
+    const defaultReps = 10;
+    const sets = [
+      { reps: 10, rir: 3 },
+      { reps: 10, rir: 2 },
+      { reps: 10, rir: 2 },
+    ];
+    for (const set of sets) {
+      expect(
+        resolveSetProgressionDirection(set, defaultReps, SMART_PROGRESSION_RIR_TARGET),
+      ).toBe("increase");
+    }
+  });
+
+  it("evaluates each set independently — a failing set does not block others", () => {
+    const defaultReps = 10;
+    expect(
+      resolveSetProgressionDirection(
+        { reps: 10, rir: 1 },
+        defaultReps,
+        SMART_PROGRESSION_RIR_TARGET,
+      ),
+    ).toBe("none");
+    expect(
+      resolveSetProgressionDirection(
+        { reps: 10, rir: 3 },
+        defaultReps,
+        SMART_PROGRESSION_RIR_TARGET,
+      ),
+    ).toBe("increase");
+    expect(
+      resolveSetProgressionDirection(
+        { reps: 10, rir: 2 },
+        defaultReps,
+        SMART_PROGRESSION_RIR_TARGET,
+      ),
+    ).toBe("increase");
+  });
+
+  it("decreases when reps fall short and RIR is 1 or below", () => {
+    expect(
+      resolveSetProgressionDirection({ reps: 8, rir: 0 }, 10, SMART_PROGRESSION_RIR_TARGET),
+    ).toBe("decrease");
+    expect(
+      resolveSetProgressionDirection({ reps: 8, rir: 1 }, 10, SMART_PROGRESSION_RIR_TARGET),
+    ).toBe("decrease");
+  });
+
+  it("coerces null RIR to 0 rather than treating it as unknown", () => {
+    expect(
+      resolveSetProgressionDirection({ reps: 8, rir: null }, 10, SMART_PROGRESSION_RIR_TARGET),
+    ).toBe("decrease");
+    expect(
+      resolveSetProgressionDirection({ reps: 10, rir: null }, 10, SMART_PROGRESSION_RIR_TARGET),
+    ).toBe("none");
+  });
+
+  it("returns none when there is no prior set performance", () => {
+    expect(resolveSetProgressionDirection(null, 10, SMART_PROGRESSION_RIR_TARGET)).toBe("none");
+    expect(
+      resolveSetProgressionDirection(undefined, 10, SMART_PROGRESSION_RIR_TARGET),
     ).toBe("none");
   });
 });

@@ -38,18 +38,16 @@ function compareWorkoutsInWeek(
   b: WorkoutRow,
   splitsOrder: string[],
 ): number {
+  const dc = a.date.localeCompare(b.date);
+  if (dc !== 0) return dc;
+  const tc = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  if (tc !== 0) return tc;
   const ra = splitsOrder.indexOf(a.split);
   const rb = splitsOrder.indexOf(b.split);
   const pa = ra >= 0 ? ra : 10_000;
   const pb = rb >= 0 ? rb : 10_000;
   if (pa !== pb) return pa - pb;
-  const sc = a.split.localeCompare(b.split);
-  if (sc !== 0) return sc;
-  const dc = b.date.localeCompare(a.date);
-  if (dc !== 0) return dc;
-  return (
-    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
+  return a.split.localeCompare(b.split);
 }
 
 function formatWeight(tt: TrackingType | null, weight: number | null): string {

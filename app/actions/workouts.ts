@@ -10,7 +10,7 @@ import {
 } from "@/lib/queries/read";
 import {
   SMART_PROGRESSION_RIR_TARGET,
-  resolveProgressionDirection,
+  resolveSetProgressionDirection,
 } from "@/lib/progressionRir";
 import {
   applyFixedIncrement,
@@ -182,20 +182,23 @@ export async function createWorkoutDraftAndRedirect(split: string) {
         : Number(ex.progressive_overload_increment);
     const defaultReps = ex.default_reps != null ? Number(ex.default_reps) : null;
     const latestSets = latestPerfByExercise[ex.id] ?? [];
-
-    // Resolve progression direction at exercise level (not per-set)
-    const progressionDirection = resolveProgressionDirection({
-      latestSets,
-      defaultSets: ex.default_sets,
-      defaultReps,
-      rirTarget: SMART_PROGRESSION_RIR_TARGET,
-    });
+    const latestSetByNumber = new Map(
+      latestSets.map((s) => [s.set_number, s]),
+    );
 
     return Array.from({ length: ex.default_sets }, (_, i) => {
       const set_number = i + 1;
       const key = `${ex.id}:${set_number}`;
       const lastW = previousByKey[key] ?? null;
       const reps = defaultReps;
+
+      // Resolve progression direction per-set — one weak/missing set no
+      // longer blocks progression for the others (#69, #70).
+      const progressionDirection = resolveSetProgressionDirection(
+        latestSetByNumber.get(set_number) ?? null,
+        defaultReps,
+        SMART_PROGRESSION_RIR_TARGET,
+      );
 
       let weight: number | null = null;
       if (usesLoggedWeightColumn(tt)) {
@@ -374,14 +377,14 @@ export async function addWorkoutSet(workoutId: string, exerciseId: string) {
     workout.split,
   );
   const latestSets = latestPerfByExercise[exerciseId] ?? [];
+  const latestSet = latestSets.find((s) => s.set_number === next) ?? null;
 
-  // Resolve progression direction at exercise level
-  const progressionDirection = resolveProgressionDirection({
-    latestSets,
-    defaultSets: exercise.default_sets ?? 3,
-    defaultReps: reps,
-    rirTarget: SMART_PROGRESSION_RIR_TARGET,
-  });
+  // Resolve progression direction for this specific set number (#69, #70).
+  const progressionDirection = resolveSetProgressionDirection(
+    latestSet,
+    reps,
+    SMART_PROGRESSION_RIR_TARGET,
+  );
 
   let weight: number | null = null;
   if (usesLoggedWeightColumn(trackingType)) {

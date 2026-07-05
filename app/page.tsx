@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { discardDraft } from "@/app/actions/workouts";
+import { DraftWorkoutBanner } from "@/components/home/DraftWorkoutBanner";
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv } from "@/lib/env";
@@ -57,30 +57,7 @@ export default async function HomePage() {
 
       {/* Draft workout banner */}
       {draft ? (
-        <div className="mb-10 rounded-lg border border-[var(--gym-amber)]/30 bg-[var(--gym-amber)]/5 p-4 dark:border-[var(--gym-amber)]/40 dark:bg-[var(--gym-amber)]/10">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--gym-amber)] dark:text-orange-400">
-            Draft in progress
-          </p>
-          <p className="mt-2 font-data text-lg font-semibold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
-            {draft.split}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link
-              href={`/workout/${draft.id}`}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-4 py-2 font-semibold text-[var(--steel-gray)] transition hover:bg-[var(--gray-100)] dark:border-[var(--gray-200)] dark:bg-[var(--gray-100)] dark:text-[var(--chalk-white)] dark:hover:bg-[var(--gray-200)]"
-            >
-              Continue
-            </Link>
-            <form action={discardDraft.bind(null, draft.id)}>
-              <button
-                type="submit"
-                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--muted-red)]/40 bg-transparent px-4 py-2 font-semibold text-[var(--muted-red)] transition hover:bg-[var(--muted-red)]/5 dark:hover:bg-[var(--muted-red)]/10"
-              >
-                Discard
-              </button>
-            </form>
-          </div>
-        </div>
+        <DraftWorkoutBanner draftId={draft.id} splitName={draft.split} />
       ) : null}
 
       {/* Recent workouts section */}
