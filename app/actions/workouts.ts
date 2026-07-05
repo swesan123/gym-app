@@ -341,7 +341,7 @@ export async function markSetDone(setId: string) {
 
   const { data: row, error: fetchErr } = await supabase
     .from("workout_sets")
-    .select("workout_id, exercise_id, reps, weight, rir, duration_seconds")
+    .select("exercise_id, reps, weight, rir, duration_seconds")
     .eq("id", setId)
     .single();
 
@@ -381,7 +381,10 @@ export async function markSetDone(setId: string) {
 
   if (error) throw new Error(error.message);
 
-  revalidatePath(`/workout/${row.workout_id}`);
+  // Deliberately not revalidating `/workout/${workoutId}` here — the active
+  // workout page already reflects completion optimistically via localRows,
+  // and a full RSC re-render on every Done tap has caused intermittent
+  // Server Components render errors.
   revalidatePath("/");
   revalidatePath("/history");
   revalidatePath("/progress");
@@ -393,16 +396,6 @@ export async function markSetDone(setId: string) {
 export async function clearSetDone(setId: string) {
   const supabase = await createClient();
 
-  const { data: row, error: fetchErr } = await supabase
-    .from("workout_sets")
-    .select("workout_id")
-    .eq("id", setId)
-    .single();
-
-  if (fetchErr || !row) {
-    throw new Error(fetchErr?.message ?? "Set not found");
-  }
-
   const { error } = await supabase
     .from("workout_sets")
     .update({ completed_at: null })
@@ -410,7 +403,6 @@ export async function clearSetDone(setId: string) {
 
   if (error) throw new Error(error.message);
 
-  revalidatePath(`/workout/${row.workout_id}`);
   revalidatePath("/");
 }
 

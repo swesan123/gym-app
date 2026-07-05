@@ -28,6 +28,7 @@ export function FocusSetCard({
   onDoneRest,
   onOpenNote,
   onSetCompleted,
+  onSetFieldsChange,
 }: {
   row: FlatSetRow;
   exerciseName: string;
@@ -44,6 +45,10 @@ export function FocusSetCard({
   onDoneRest: () => void;
   onOpenNote: () => void;
   onSetCompleted?: (setId: string, completedAt: string | null) => void;
+  onSetFieldsChange?: (
+    setId: string,
+    fields: { reps: number | null; weight: number | null; rir: number | null; duration_seconds: number | null },
+  ) => void;
 }) {
   const {
     reps,
@@ -65,7 +70,7 @@ export function FocusSetCard({
     timerEndAt,
     timerRemaining,
     startTimer,
-  } = useSetEditor({ row, bodyWeight, onDoneRest, onSetCompleted });
+  } = useSetEditor({ row, bodyWeight, onDoneRest, onSetCompleted, onSetFieldsChange });
 
   const tt = row.tracking_type;
   const repsOptions = mergeNumberOptions(REPS_PRESETS, reps);

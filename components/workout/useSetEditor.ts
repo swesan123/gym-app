@@ -18,6 +18,7 @@ export function useSetEditor({
   readOnly,
   onDoneRest,
   onSetCompleted,
+  onSetFieldsChange,
 }: {
   row: FlatSetRow;
   bodyWeight: number | null;
@@ -26,6 +27,17 @@ export function useSetEditor({
   onDoneRest?: () => void;
   /** Called so the parent can optimistically update localRows with the completion timestamp. */
   onSetCompleted?: (setId: string, completedAt: string | null) => void;
+  /** Called on every field edit so the parent's localRows stays current — keeps
+   * List and Focus views showing the same values when the user switches between them (#72). */
+  onSetFieldsChange?: (
+    setId: string,
+    fields: {
+      reps: number | null;
+      weight: number | null;
+      rir: number | null;
+      duration_seconds: number | null;
+    },
+  ) => void;
 }) {
   const [reps, setReps] = useState(() => row.reps?.toString() ?? "");
   const [weight, setWeight] = useState(() => row.weight?.toString() ?? "");
@@ -72,36 +84,51 @@ export function useSetEditor({
     duration_seconds: parseOptionalNumber(duration),
   });
 
-  // Debounced DB save — only persists values, no timer/completion logic here.
+  // Debounced DB save — also pushes the current values to the parent's
+  // localRows immediately (not debounced) so switching between List and
+  // Focus view shows the same values mid-edit (#72).
   useEffect(() => {
     if (readOnly) return;
     if (skipSave.current) {
       skipSave.current = false;
       return;
     }
+    const parsed = {
+      reps: parseOptionalNumber(reps),
+      weight: parseOptionalNumber(weight),
+      rir: parseOptionalNumber(rir),
+      duration_seconds: parseOptionalNumber(duration),
+    };
+    onSetFieldsChange?.(row.id, parsed);
     const t = setTimeout(() => {
-      void updateWorkoutSet({
-        id: row.id,
-        reps: parseOptionalNumber(reps),
-        weight: parseOptionalNumber(weight),
-        rir: parseOptionalNumber(rir),
-        duration_seconds: parseOptionalNumber(duration),
-      }).catch(() => {
+      void updateWorkoutSet({ id: row.id, ...parsed }).catch(() => {
         // Error handling is done at the parent level
       });
     }, 500);
     return () => clearTimeout(t);
-  }, [readOnly, row.id, reps, weight, rir, duration]);
+  }, [readOnly, row.id, reps, weight, rir, duration, onSetFieldsChange]);
 
   const handleMarkDone = () => {
     setMarkDoneError(null);
     startMarkDone(async () => {
       try {
+        // Flush the latest field values before validating/marking done — the
+        // debounced autosave above may not have fired yet, so the server could
+        // otherwise validate stale DB values.
+        await updateWorkoutSet({
+          id: row.id,
+          reps: parseOptionalNumber(reps),
+          weight: parseOptionalNumber(weight),
+          rir: parseOptionalNumber(rir),
+          duration_seconds: parseOptionalNumber(duration),
+        });
+        // Start rest immediately — don't let a slow/failed completion write
+        // hold up the rest timer.
+        onDoneRest?.();
         const result = await markSetDone(row.id);
         const ts = result?.completedAt ?? new Date().toISOString();
         setLocalCompletedAt(ts);
         onSetCompleted?.(row.id, ts);
-        onDoneRest?.();
       } catch (err) {
         setMarkDoneError(
           err instanceof Error ? err.message : "Could not mark set done",

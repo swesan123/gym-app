@@ -7,7 +7,7 @@ Mobile-first workout logging with Next.js, Tailwind, Supabase, and basic PWA sup
 1. Copy [`.env.example`](.env.example) to `.env.local` and set:
 
    - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY` — server-only, used by all server actions/pages (bypasses RLS); never expose to the client
 
 2. In Supabase (hosted or local Postgres), apply **all** migrations in order, then seed:
 

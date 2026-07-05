@@ -48,6 +48,7 @@ function SetTableRow({
   onSetTypeChange,
   onDoneRest,
   onSetCompleted,
+  onSetFieldsChange,
 }: {
   row: FlatSetRow;
   weightPresets: number[];
@@ -59,6 +60,10 @@ function SetTableRow({
   onSetTypeChange?: (setId: string, setType: SetType) => void;
   onDoneRest?: () => void;
   onSetCompleted?: (setId: string, completedAt: string | null) => void;
+  onSetFieldsChange?: (
+    setId: string,
+    fields: { reps: number | null; weight: number | null; rir: number | null; duration_seconds: number | null },
+  ) => void;
 }) {
   const {
     reps,
@@ -80,7 +85,7 @@ function SetTableRow({
     timerEndAt,
     timerRemaining,
     startTimer,
-  } = useSetEditor({ row, bodyWeight, readOnly, onDoneRest, onSetCompleted });
+  } = useSetEditor({ row, bodyWeight, readOnly, onDoneRest, onSetCompleted, onSetFieldsChange });
 
   const savedNote = row.note ?? "";
   const notePreview =
@@ -105,6 +110,8 @@ function SetTableRow({
     ? "bg-emerald-50/70 dark:bg-emerald-900/20"
     : "";
 
+  const fieldsLocked = readOnly || isDone;
+
   return (
     <tr className={`border-b border-[var(--gray-100)] transition-colors dark:border-[var(--gray-100)] ${rowBg}`}>
       <td className={`sticky left-0 z-10 py-1 pr-1 text-center text-xs font-semibold tabular-nums ${isDone ? "bg-emerald-50/70 dark:bg-emerald-900/20" : "bg-[var(--chalk-white)] dark:bg-[var(--gray-50)]"}`}>
@@ -114,7 +121,7 @@ function SetTableRow({
         <td className="py-1 pr-1">
           <div className="flex items-center gap-1">
             <select
-              disabled={readOnly}
+              disabled={fieldsLocked}
               value={duration}
               onChange={(e) => setDuration(e.target.value)}
               className={cellInput}
@@ -135,7 +142,7 @@ function SetTableRow({
               ) : (
                 <button
                   type="button"
-                  disabled={!duration}
+                  disabled={!duration || fieldsLocked}
                   onClick={() => startTimer(Number(duration))}
                   className="shrink-0 rounded px-1.5 py-1 text-xs font-semibold text-[var(--gym-amber)] hover:bg-[var(--gray-100)] disabled:opacity-40 dark:hover:bg-[var(--gray-100)]"
                   aria-label="Start countdown"
@@ -149,7 +156,7 @@ function SetTableRow({
       ) : (
         <td className="py-1 pr-1">
           <select
-            disabled={readOnly}
+            disabled={fieldsLocked}
             value={reps}
             onChange={(e) => setReps(e.target.value)}
             className={cellInput}
@@ -167,7 +174,7 @@ function SetTableRow({
       {showWeightCol && (
         <td className="py-1 pr-1">
           <select
-            disabled={readOnly}
+            disabled={fieldsLocked}
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
             className={cellInput}
@@ -185,7 +192,7 @@ function SetTableRow({
       {row.stretch_kind === "none" && (
         <td className="py-1 pr-1">
           <select
-            disabled={readOnly}
+            disabled={fieldsLocked}
             value={rir}
             onChange={(e) => setRir(e.target.value)}
             className={cellInput}
@@ -219,8 +226,9 @@ function SetTableRow({
         ) : (
           <button
             type="button"
+            disabled={fieldsLocked}
             onClick={() => onOpenNote(row.id, row.note ?? "")}
-            className={`${cellInput} max-h-10 min-h-0 min-w-0 touch-manipulation overflow-hidden text-left leading-snug line-clamp-2`}
+            className={`${cellInput} max-h-10 min-h-0 min-w-0 touch-manipulation overflow-hidden text-left leading-snug line-clamp-2 disabled:opacity-70`}
             aria-label="Edit note"
           >
             {notePreview ? (
@@ -253,17 +261,7 @@ function SetTableRow({
               >
                 W
               </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onSetTypeChange?.(row.id, "warmup")}
-                className="shrink-0 rounded px-1.5 py-1 text-[10px] font-semibold text-[var(--gray-400)] transition hover:bg-[var(--gray-100)] hover:text-[var(--gray-600)] dark:text-[var(--gray-500)] dark:hover:bg-[var(--gray-100)]"
-                aria-label="Working set — tap to make warmup"
-                title="Working set. Tap to mark as warmup."
-              >
-                W?
-              </button>
-            )}
+            ) : null}
             {isDone ? (
               <button
                 type="button"
@@ -321,6 +319,7 @@ function ExerciseSetTable({
   onError,
   onDoneRest,
   onSetCompleted,
+  onSetFieldsChange,
 }: {
   exerciseName: string;
   exerciseNotes?: string | null;
@@ -339,6 +338,10 @@ function ExerciseSetTable({
   onError: (message: string) => void;
   onDoneRest: (restSeconds: number | null, exerciseName: string, isLastSetOfExercise: boolean) => void;
   onSetCompleted: (setId: string, completedAt: string | null) => void;
+  onSetFieldsChange: (
+    setId: string,
+    fields: { reps: number | null; weight: number | null; rir: number | null; duration_seconds: number | null },
+  ) => void;
 }) {
   const router = useRouter();
   const tt = trackingType;
@@ -431,6 +434,7 @@ function ExerciseSetTable({
                     onDoneRest(restSeconds, exerciseName, isLastSetOfExercise)
                   }
                   onSetCompleted={onSetCompleted}
+                  onSetFieldsChange={onSetFieldsChange}
                   onSetTypeChange={(setId, setType) => {
                     void (async () => {
                       try {
@@ -556,6 +560,15 @@ export function ActiveWorkout({
   const updateRowCompletion = useCallback((setId: string, completedAt: string | null) => {
     setLocalRows(prev => prev.map(row =>
       row.id === setId ? { ...row, completed_at: completedAt } : row
+    ));
+  }, []);
+
+  const updateRowFields = useCallback((
+    setId: string,
+    fields: { reps: number | null; weight: number | null; rir: number | null; duration_seconds: number | null },
+  ) => {
+    setLocalRows(prev => prev.map(row =>
+      row.id === setId ? { ...row, ...fields } : row
     ));
   }, []);
 
@@ -828,6 +841,7 @@ export function ActiveWorkout({
               setFocusNoteTarget({ setId: focusRow.id, draft: focusRow.note ?? "" })
             }
             onSetCompleted={updateRowCompletion}
+            onSetFieldsChange={updateRowFields}
           />
         ) : (
           <p className="px-4 py-8 text-center text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
@@ -873,6 +887,7 @@ export function ActiveWorkout({
                         onError={setError}
                         onDoneRest={handleDoneRest}
                         onSetCompleted={updateRowCompletion}
+                        onSetFieldsChange={updateRowFields}
                       />
                     ))}
                   </div>
