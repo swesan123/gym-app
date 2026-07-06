@@ -337,7 +337,7 @@ function ExerciseSetTable({
   onRequestRemove: (setId: string) => void;
   onUpdateNote: (setId: string, note: string | null) => void;
   onError: (message: string) => void;
-  onDoneRest: (restSeconds: number | null, exerciseName: string, isLastSetOfExercise: boolean) => void;
+  onDoneRest: (setId: string, restSeconds: number | null, exerciseName: string, isLastSetOfExercise: boolean) => void;
   onSetCompleted: (setId: string, completedAt: string | null) => void;
   onSetFieldsChange: (
     setId: string,
@@ -432,7 +432,7 @@ function ExerciseSetTable({
                     setNoteTarget({ setId, draft: initial })
                   }
                   onDoneRest={() =>
-                    onDoneRest(restSeconds, exerciseName, isLastSetOfExercise)
+                    onDoneRest(s.id, restSeconds, exerciseName, isLastSetOfExercise)
                   }
                   onSetCompleted={onSetCompleted}
                   onSetFieldsChange={onSetFieldsChange}
@@ -556,6 +556,11 @@ export function ActiveWorkout({
 
   const [localRows, setLocalRows] = useState(() => rows);
 
+  // Rest should only fire the first time a set is marked Done — re-editing
+  // and re-completing a set (Edit → Done again) is a correction, not a new
+  // working-set completion, so it should not restart rest.
+  const restTriggeredSetIdsRef = useRef<Set<string>>(new Set());
+
   const updateRowNote = useCallback((setId: string, note: string | null) => {
     setLocalRows(prev => prev.map(row =>
       row.id === setId ? { ...row, note } : row
@@ -581,7 +586,7 @@ export function ActiveWorkout({
     setLocalRows(prev => prev.filter(r => r.id !== setId));
   }, []);
 
-  const restoreRow = useCallback((row: FlatSetRow) => {
+  const addRow = useCallback((row: FlatSetRow) => {
     setLocalRows(prev => [...prev, row]);
   }, []);
 
@@ -701,7 +706,7 @@ export function ActiveWorkout({
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to remove set");
         if (removedRow) {
-          restoreRow(removedRow);
+          addRow(removedRow);
         }
       }
     });
@@ -736,17 +741,28 @@ export function ActiveWorkout({
   const handleAddSet = (exerciseId: string) => {
     startTransition(async () => {
       try {
-        await addWorkoutSet(workoutId, exerciseId);
-        router.refresh();
+        const newRow = await addWorkoutSet(workoutId, exerciseId);
+        addRow(newRow);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not add set");
       }
     });
   };
 
-  /** Start rest after Done is tapped — skips automatically on the last set of the exercise (#66, #67). */
-  const handleDoneRest = (restSeconds: number | null, exerciseName: string, isLastSetOfExercise: boolean) => {
+  /**
+   * Start rest after Done is tapped — skips automatically on the last set of
+   * the exercise (#66, #67), and only fires the first time a given set is
+   * marked Done (a later Edit → Done again does not restart rest).
+   */
+  const handleDoneRest = (
+    setId: string,
+    restSeconds: number | null,
+    exerciseName: string,
+    isLastSetOfExercise: boolean,
+  ) => {
+    if (restTriggeredSetIdsRef.current.has(setId)) return;
     if (isLastSetOfExercise || restSeconds == null || restSeconds <= 0) return;
+    restTriggeredSetIdsRef.current.add(setId);
     startRestTimer(restSeconds, exerciseName);
   };
 
@@ -765,7 +781,7 @@ export function ActiveWorkout({
   // finishes with the header Finish button.
   const focusOnDoneRest = () => {
     if (!focusStep || !focusGroup) return;
-    handleDoneRest(focusGroup.rest_seconds, focusGroup.exercise_name, focusStep.isLastSetOfExercise);
+    handleDoneRest(focusStep.setId, focusGroup.rest_seconds, focusGroup.exercise_name, focusStep.isLastSetOfExercise);
   };
 
   return (
@@ -861,6 +877,7 @@ export function ActiveWorkout({
             onOpenNote={() =>
               setFocusNoteTarget({ setId: focusRow.id, draft: focusRow.note ?? "" })
             }
+            onAddSet={() => handleAddSet(focusStep.exerciseId)}
             onSetCompleted={updateRowCompletion}
             onSetFieldsChange={updateRowFields}
           />

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import type { FlatSetRow } from "@/components/workout/groupSets";
 import type { SetType, TrackingType } from "@/lib/database.types";
 import {
   fetchPreviousWeightsBeforeDate,
@@ -460,7 +461,10 @@ export async function markExerciseDone(workoutId: string, exerciseId: string) {
   revalidatePath("/");
 }
 
-export async function addWorkoutSet(workoutId: string, exerciseId: string) {
+export async function addWorkoutSet(
+  workoutId: string,
+  exerciseId: string,
+): Promise<FlatSetRow> {
   const supabase = await createClient();
 
   const { data: workout, error: wErr } = await supabase
@@ -486,7 +490,7 @@ export async function addWorkoutSet(workoutId: string, exerciseId: string) {
   const { data: exercise, error: exErr } = await supabase
     .from("exercises")
     .select(
-      "tracking_type, default_sets, default_reps, progressive_overload_increment, machine_start_weight, machine_end_weight, machine_increment",
+      "name, tracking_type, stretch_kind, sort_order, notes, default_sets, default_reps, progressive_overload_increment, machine_start_weight, machine_end_weight, machine_increment, rest_seconds",
     )
     .eq("id", exerciseId)
     .single();
@@ -553,19 +557,42 @@ export async function addWorkoutSet(workoutId: string, exerciseId: string) {
     bodyWeight,
   });
 
-  const { error } = await supabase.from("workout_sets").insert({
-    workout_id: workoutId,
-    exercise_id: exerciseId,
-    set_number: next,
-    reps,
-    weight,
-    volume,
-  });
+  const { data: inserted, error } = await supabase
+    .from("workout_sets")
+    .insert({
+      workout_id: workoutId,
+      exercise_id: exerciseId,
+      set_number: next,
+      reps,
+      weight,
+      volume,
+    })
+    .select("id, set_number, reps, weight, rir, duration_seconds, volume, note, set_type, completed_at")
+    .single();
 
-  if (error) throw new Error(error.message);
+  if (error || !inserted) throw new Error(error?.message ?? "Failed to add set");
 
-  revalidatePath(`/workout/${workoutId}`);
+  const sk = exercise.stretch_kind;
+  const stretchKind: FlatSetRow["stretch_kind"] =
+    sk === "dynamic" || sk === "static" ? sk : "none";
+
+  // Deliberately not revalidating `/workout/${workoutId}` — the active
+  // workout page reflects the new set optimistically via localRows.
   revalidatePath("/");
+
+  return {
+    ...inserted,
+    exercise_id: exerciseId,
+    exercise_name: exercise.name,
+    tracking_type: trackingType,
+    stretch_kind: stretchKind,
+    sort_order: exercise.sort_order ?? 0,
+    exercise_notes: exercise.notes ?? null,
+    machine_start_weight: exercise.machine_start_weight ?? null,
+    machine_end_weight: exercise.machine_end_weight ?? null,
+    machine_increment: exercise.machine_increment ?? null,
+    rest_seconds: exercise.rest_seconds == null ? null : Number(exercise.rest_seconds),
+  };
 }
 
 export async function removeWorkoutSet(setId: string, workoutId: string) {

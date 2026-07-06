@@ -27,6 +27,7 @@ export function FocusSetCard({
   onNext,
   onDoneRest,
   onOpenNote,
+  onAddSet,
   onSetCompleted,
   onSetFieldsChange,
 }: {
@@ -44,6 +45,7 @@ export function FocusSetCard({
   onNext: () => void;
   onDoneRest: () => void;
   onOpenNote: () => void;
+  onAddSet: () => void;
   onSetCompleted?: (setId: string, completedAt: string | null) => void;
   onSetFieldsChange?: (
     setId: string,
@@ -275,6 +277,15 @@ export function FocusSetCard({
           Next →
         </Button>
       </div>
+
+      <Button
+        type="button"
+        variant="secondary"
+        className="w-full py-3"
+        onClick={onAddSet}
+      >
+        + Set
+      </Button>
     </div>
   );
 }
