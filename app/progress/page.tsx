@@ -24,6 +24,9 @@ export default async function ProgressPage() {
   if (monthlyRes.error) {
     throw new Error(monthlyRes.error.message);
   }
+  if (splitWeeklyRes.error) {
+    throw new Error(splitWeeklyRes.error.message);
+  }
 
   const rows = [...(weeklyRes.data ?? [])].sort(
     (a, b) =>
