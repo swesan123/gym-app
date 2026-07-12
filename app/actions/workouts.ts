@@ -220,6 +220,9 @@ export async function createWorkoutDraftAndRedirect(split: string) {
           // No progression configured
           weight = lastW;
         }
+        if (tt === "bodyweight" && weight == null) {
+          weight = 0;
+        }
       }
 
       const volume = computeSetVolume(tt, {
@@ -597,6 +600,28 @@ export async function addWorkoutSet(
 
 export async function removeWorkoutSet(setId: string, workoutId: string) {
   const supabase = await createClient();
+
+  const { data: target, error: fetchErr } = await supabase
+    .from("workout_sets")
+    .select("exercise_id")
+    .eq("id", setId)
+    .eq("workout_id", workoutId)
+    .maybeSingle();
+  if (fetchErr) throw new Error(fetchErr.message);
+  if (!target) throw new Error("Set not found");
+
+  const { count, error: countErr } = await supabase
+    .from("workout_sets")
+    .select("id", { count: "exact", head: true })
+    .eq("workout_id", workoutId)
+    .eq("exercise_id", target.exercise_id);
+  if (countErr) throw new Error(countErr.message);
+  if ((count ?? 0) <= 1) {
+    throw new Error(
+      "Cannot remove the last set for this exercise. Add another set first, or remove the exercise from Settings.",
+    );
+  }
+
   const { error } = await supabase.from("workout_sets").delete().eq("id", setId);
   if (error) throw new Error(error.message);
 

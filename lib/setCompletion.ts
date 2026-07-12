@@ -26,8 +26,10 @@ export function isSetReadyToComplete(set: SetCompletionInput): boolean {
       : set.reps != null;
   if (!hasRepsOrDuration) return false;
 
-  if (usesLoggedWeightColumn(set.tracking_type) && set.weight == null) {
-    return false;
+  if (usesLoggedWeightColumn(set.tracking_type)) {
+    const weight =
+      set.tracking_type === "bodyweight" ? (set.weight ?? 0) : set.weight;
+    if (weight == null) return false;
   }
 
   if (!isStretch(set) && set.rir == null) return false;

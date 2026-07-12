@@ -53,3 +53,13 @@ export function mergeNumberOptions(presets: number[], current: string): number[]
     .filter((v) => Number.isFinite(v))
     .sort((a, b) => a - b);
 }
+
+/** Weight dropdown options — bodyweight always includes 0 (no extra weight). */
+export function mergeWeightOptions(
+  trackingType: TrackingType,
+  presets: number[],
+  current: string,
+): number[] {
+  const base = trackingType === "bodyweight" ? [0, ...presets] : presets;
+  return mergeNumberOptions(base, current);
+}

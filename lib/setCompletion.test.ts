@@ -60,7 +60,20 @@ describe("isSetReadyToComplete", () => {
         rir: 2,
         duration_seconds: null,
       }),
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  it("bodyweight stretch at 0 extra weight with empty presets is ready", () => {
+    expect(
+      isSetReadyToComplete({
+        tracking_type: "bodyweight",
+        stretch_kind: "static",
+        reps: 10,
+        weight: 0,
+        rir: null,
+        duration_seconds: null,
+      }),
+    ).toBe(true);
   });
 
   it("uses duration instead of reps for timed exercises", () => {

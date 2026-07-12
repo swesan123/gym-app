@@ -7,6 +7,7 @@ import {
   REPS_PRESETS,
   RIR_PRESETS,
   mergeNumberOptions,
+  mergeWeightOptions,
   weightColumnTitle,
   weightHeader,
 } from "@/components/workout/setFieldPresets";
@@ -61,7 +62,6 @@ export function FocusSetCard({
     setRir,
     duration,
     setDuration,
-    volumeLocal,
     isDone,
     readyToComplete,
     markDonePending,
@@ -76,7 +76,7 @@ export function FocusSetCard({
 
   const tt = row.tracking_type;
   const repsOptions = mergeNumberOptions(REPS_PRESETS, reps);
-  const weightOptions = mergeNumberOptions(weightPresets, weight);
+  const weightOptions = mergeWeightOptions(tt, weightPresets, weight);
   const rirOptions = mergeNumberOptions(RIR_PRESETS, rir);
   const durationOptions = mergeNumberOptions(DURATION_PRESETS, duration);
 
@@ -220,12 +220,11 @@ export function FocusSetCard({
           ) : null}
         </div>
 
-        <div className="mt-4 flex items-center justify-between text-sm text-[var(--gray-600)] dark:text-[var(--gray-400)]">
-          <span>Vol {volumeLocal == null ? "—" : Math.round(volumeLocal).toLocaleString()}</span>
+        <div className="mt-4 flex justify-end text-sm text-[var(--gray-600)] dark:text-[var(--gray-400)]">
           <button
             type="button"
             onClick={onOpenNote}
-            className="max-w-[60%] truncate text-left underline decoration-dotted"
+            className="max-w-full truncate text-left underline decoration-dotted"
           >
             {savedNote.trim() ? savedNote : "Add note…"}
           </button>

@@ -20,6 +20,7 @@ import {
   RIR_PRESETS,
   buildMachineWeightPresets,
   mergeNumberOptions,
+  mergeWeightOptions,
   weightColumnTitle,
   weightHeader,
 } from "@/components/workout/setFieldPresets";
@@ -98,7 +99,7 @@ function SetTableRow({
 
   const tt = row.tracking_type;
   const repsOptions = mergeNumberOptions(REPS_PRESETS, reps);
-  const weightOptions = mergeNumberOptions(weightPresets, weight);
+  const weightOptions = mergeWeightOptions(tt, weightPresets, weight);
   const rirOptions = mergeNumberOptions(RIR_PRESETS, rir);
   const durationOptions = mergeNumberOptions(DURATION_PRESETS, duration);
 
@@ -714,6 +715,17 @@ export function ActiveWorkout({
 
   /** Defer opening the confirm modal so the same pointer gesture cannot "land" on the backdrop and dismiss it (mobile / touch). */
   const requestRemoveSet = (setId: string) => {
+    const row = localRows.find((r) => r.id === setId);
+    if (!row) return;
+    const setsForExercise = localRows.filter(
+      (r) => r.exercise_id === row.exercise_id,
+    ).length;
+    if (setsForExercise <= 1) {
+      setError(
+        "Cannot remove the last set for this exercise. Add another set first.",
+      );
+      return;
+    }
     window.setTimeout(() => setRemoveTarget(setId), 0);
   };
 
@@ -938,7 +950,7 @@ export function ActiveWorkout({
       <Modal
         open={!!removeTarget}
         title="Remove this set?"
-        description="This deletes the set row for this workout."
+        description="Removes this set row from today's workout only. The exercise stays in your split settings."
         variant="danger"
         confirmLabel="Remove set"
         onCancel={() => setRemoveTarget(null)}
