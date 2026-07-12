@@ -41,7 +41,7 @@ export default async function ProgressPage() {
           Progress
         </h1>
         <p className="mt-2 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
-          RIR-adjusted rep capacity by exercise and muscle group.
+          RIR-adjusted volume by exercise and muscle group.
         </p>
       </div>
 
@@ -56,7 +56,7 @@ export default async function ProgressPage() {
 
       {rows.length === 0 ? (
         <p className="mt-8 text-center text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
-          Finish a workout to see weekly rep capacity here.
+          Finish a workout to see weekly adjusted volume here.
         </p>
       ) : null}
     </div>

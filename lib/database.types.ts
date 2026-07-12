@@ -238,7 +238,8 @@ export type Database = {
           exercise_id: string;
           exercise: string;
           muscle: string;
-          max_rep_capacity: number | null;
+          max_adjusted_volume: number | null;
+          best_volume: number | null;
           best_reps: number | null;
           best_rir: number | null;
           best_weight: number | null;
@@ -250,7 +251,7 @@ export type Database = {
           split: string;
           exercise: string;
           muscle: string;
-          max_rep_capacity: number | null;
+          max_adjusted_volume: number | null;
         };
       };
       monthly_rep_capacity_by_exercise: {
@@ -259,7 +260,7 @@ export type Database = {
           exercise_id: string;
           exercise: string;
           muscle: string;
-          max_rep_capacity: number | null;
+          total_adjusted_volume: number | null;
         };
       };
     };
