@@ -180,6 +180,13 @@ export function ProgressCharts({
         </div>
       )}
 
+      {split && exercises.length === 0 ? (
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          No logged sets for this split yet. Finish a workout with exercises
+          assigned to {split}.
+        </p>
+      ) : null}
+
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex flex-wrap items-end gap-3">
           <h2 className="text-base font-semibold">Overall trends</h2>
