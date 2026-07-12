@@ -10,12 +10,16 @@ set completed_at = coalesce(
   now()
 )
 from public.workouts w
-join public.exercises e on e.id = ws.exercise_id
 where ws.workout_id = w.id
   and w.status = 'completed'
   and ws.completed_at is null
   and ws.reps is not null
-  and coalesce(e.stretch_kind, 'none') = 'none';
+  and exists (
+    select 1
+    from public.exercises e
+    where e.id = ws.exercise_id
+      and coalesce(e.stretch_kind, 'none') = 'none'
+  );
 
 create or replace view public.weekly_rep_capacity_by_split
 with (security_invoker = true) as
