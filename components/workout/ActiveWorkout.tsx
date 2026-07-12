@@ -40,6 +40,29 @@ const FOCUS_STEP_STORAGE_PREFIX = "gym-app:focusStep:";
 
 type ViewMode = "list" | "focus";
 
+function getInitialFocusIndex(
+  rows: FlatSetRow[],
+  focusStepStorageKey: string,
+  readOnly: boolean,
+): number {
+  if (typeof window === "undefined" || readOnly) return 0;
+
+  const focusSteps = buildFocusSteps(groupFlatSets(rows));
+  if (focusSteps.length === 0) return 0;
+
+  const saved = window.sessionStorage.getItem(focusStepStorageKey);
+  if (saved) {
+    const idx = focusSteps.findIndex((s) => s.setId === saved);
+    if (idx >= 0) return idx;
+  }
+
+  const firstIncomplete = focusSteps.findIndex((step) => {
+    const row = rows.find((r) => r.id === step.setId);
+    return row && row.set_type !== "warmup" && row.completed_at == null;
+  });
+  return firstIncomplete >= 0 ? firstIncomplete : 0;
+}
+
 function SetTableRow({
   row,
   weightPresets,
@@ -551,20 +574,21 @@ export function ActiveWorkout({
     const raw = window.sessionStorage.getItem(viewModeStorageKey);
     return raw === "focus" ? "focus" : "list";
   });
-  const [focusIndex, setFocusIndex] = useState(0);
+  const [focusIndex, setFocusIndex] = useState(() =>
+    getInitialFocusIndex(rows, focusStepStorageKey, readOnly),
+  );
   const [focusNoteTarget, setFocusNoteTarget] = useState<{
     setId: string;
     draft: string;
   } | null>(null);
 
   const [localRows, setLocalRows] = useState(() => rows);
-
+  const [prevRows, setPrevRows] = useState(rows);
   // Pick up server-refreshed rows (e.g. exercise added to split mid-workout, #79).
-  useEffect(() => {
+  if (rows !== prevRows) {
+    setPrevRows(rows);
     setLocalRows(rows);
-  }, [rows]);
-
-  const focusRestoredRef = useRef(false);
+  }
 
   // Rest should only fire the first time a set is marked Done — re-editing
   // and re-completing a set (Edit → Done again) is a correction, not a new
@@ -619,29 +643,6 @@ export function ActiveWorkout({
       Notification.requestPermission();
     }
   }, []);
-
-  // Restore Focus position after leaving and returning to the workout (#77).
-  useEffect(() => {
-    if (readOnly || focusRestoredRef.current || focusSteps.length === 0) return;
-    focusRestoredRef.current = true;
-
-    const saved = window.sessionStorage.getItem(focusStepStorageKey);
-    if (saved) {
-      const idx = focusSteps.findIndex((s) => s.setId === saved);
-      if (idx >= 0) {
-        setFocusIndex(idx);
-        return;
-      }
-    }
-
-    const firstIncomplete = focusSteps.findIndex((step) => {
-      const row = localRows.find((r) => r.id === step.setId);
-      return row && row.set_type !== "warmup" && row.completed_at == null;
-    });
-    if (firstIncomplete >= 0) {
-      setFocusIndex(firstIncomplete);
-    }
-  }, [focusSteps, localRows, readOnly, focusStepStorageKey]);
 
   // Refresh server rows when returning to the tab (e.g. after settings sync, #79).
   useEffect(() => {
