@@ -1,7 +1,12 @@
 -- Progress: RIR-adjusted volume S = V × 1/(1 − 0.03×RIR).
 -- V is stored workout_sets.volume; null RIR counts as 0 (plain volume).
+-- Drop first: Postgres cannot rename view columns via CREATE OR REPLACE.
 
-create or replace view public.weekly_rep_capacity_by_exercise
+drop view if exists public.weekly_rep_capacity_by_split;
+drop view if exists public.monthly_rep_capacity_by_exercise;
+drop view if exists public.weekly_rep_capacity_by_exercise;
+
+create view public.weekly_rep_capacity_by_exercise
 with (security_invoker = true) as
 select distinct on (w.week, e.id)
   w.week,
@@ -29,7 +34,7 @@ order by
 
 grant select on public.weekly_rep_capacity_by_exercise to anon, authenticated;
 
-create or replace view public.weekly_rep_capacity_by_split
+create view public.weekly_rep_capacity_by_split
 with (security_invoker = true) as
 select
   w.week,
@@ -51,7 +56,7 @@ group by w.week, es.split_name, e.name, e.muscle;
 
 grant select on public.weekly_rep_capacity_by_split to anon, authenticated;
 
-create or replace view public.monthly_rep_capacity_by_exercise
+create view public.monthly_rep_capacity_by_exercise
 with (security_invoker = true) as
 select
   date_trunc('month', w.date)::date as month_start,
