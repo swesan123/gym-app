@@ -7,6 +7,7 @@ import type { FlatSetRow } from "@/components/workout/groupSets";
 import type { SetType, TrackingType } from "@/lib/database.types";
 import {
   fetchPreviousWeightsBeforeDate,
+  fetchSetsForWorkout,
   isWorkoutSplitsTableUnavailable,
 } from "@/lib/queries/read";
 import {
@@ -18,6 +19,7 @@ import {
   usesLoggedWeightColumn,
 } from "@/lib/progressiveOverload";
 import { isSetReadyToComplete } from "@/lib/setCompletion";
+import { normalizeLoggedWeight } from "@/lib/normalizeLoggedWeight";
 import { createClient } from "@/lib/supabase/server";
 import { formatWorkoutWeek } from "@/lib/week";
 import { computeSetVolume } from "@/lib/volume";
@@ -96,6 +98,31 @@ async function fetchLatestCompletedSetsByExercise(
   );
 }
 
+async function fetchDraftSetContext(
+  date: string,
+  exerciseIds: string[],
+  split: string,
+) {
+  const supabase = await createClient();
+  const [{ data: profile }, previousByKey, latestPerfByExercise] =
+    await Promise.all([
+      supabase
+        .from("user_training_profile")
+        .select("body_weight")
+        .eq("singleton", true)
+        .maybeSingle(),
+      fetchPreviousWeightsBeforeDate(date, exerciseIds),
+      fetchLatestCompletedSetsByExercise(date, exerciseIds, split),
+    ]);
+
+  return {
+    bodyWeight:
+      profile?.body_weight == null ? null : Number(profile.body_weight),
+    previousByKey,
+    latestPerfByExercise,
+  };
+}
+
 type ExerciseDraftSource = {
   id: string;
   default_sets: number;
@@ -153,9 +180,7 @@ function buildDraftSetInsertRows(
       } else {
         weight = lastW;
       }
-      if (tt === "bodyweight" && weight == null) {
-        weight = 0;
-      }
+      weight = normalizeLoggedWeight(tt, weight);
     }
 
     const volume = computeSetVolume(tt, {
@@ -240,21 +265,8 @@ export async function createWorkoutDraftAndRedirect(split: string) {
 
   const exerciseIds = exercises.map((e) => e.id);
 
-  const [{ data: profile }, previousByKey, latestPerfByExercise] =
-    await Promise.all([
-      supabase
-        .from("user_training_profile")
-        .select("body_weight")
-        .eq("singleton", true)
-        .maybeSingle(),
-      // No split filter here — use the last weight from ANY split for this
-      // exercise. This ensures pre-fill works even when splits are reorganised.
-      fetchPreviousWeightsBeforeDate(dateStr, exerciseIds),
-      // Split-scoped: progression direction is based on performance in THIS split.
-      fetchLatestCompletedSetsByExercise(dateStr, exerciseIds, splitName),
-    ]);
-  const bodyWeight =
-    profile?.body_weight == null ? null : Number(profile.body_weight);
+  const { bodyWeight, previousByKey, latestPerfByExercise } =
+    await fetchDraftSetContext(dateStr, exerciseIds, splitName);
 
   const rows = exercises.flatMap((ex) =>
     buildDraftSetInsertRows(
@@ -576,9 +588,7 @@ export async function addWorkoutSet(
       // No progression configured
       weight = lastW;
     }
-    if (trackingType === "bodyweight" && weight == null) {
-      weight = 0;
-    }
+    weight = normalizeLoggedWeight(trackingType, weight);
   }
 
   const volume = computeSetVolume(trackingType, {
@@ -697,19 +707,8 @@ export async function syncExerciseToActiveDraft(
     throw new Error(exErr?.message ?? "Exercise not found");
   }
 
-  const [{ data: profile }, previousByKey, latestPerfByExercise] =
-    await Promise.all([
-      supabase
-        .from("user_training_profile")
-        .select("body_weight")
-        .eq("singleton", true)
-        .maybeSingle(),
-      fetchPreviousWeightsBeforeDate(draft.date, [exerciseId]),
-      fetchLatestCompletedSetsByExercise(draft.date, [exerciseId], draft.split),
-    ]);
-
-  const bodyWeight =
-    profile?.body_weight == null ? null : Number(profile.body_weight);
+  const { bodyWeight, previousByKey, latestPerfByExercise } =
+    await fetchDraftSetContext(draft.date, [exerciseId], draft.split);
 
   const insertRows = buildDraftSetInsertRows(
     draft.id,
@@ -728,6 +727,22 @@ export async function syncExerciseToActiveDraft(
 
   revalidatePath(`/workout/${draft.id}`);
   revalidatePath("/");
+}
+
+/** Fetch current set rows for an active workout without a full page refresh. */
+export async function fetchWorkoutSetRows(
+  workoutId: string,
+): Promise<FlatSetRow[]> {
+  const supabase = await createClient();
+  const { data: workout, error } = await supabase
+    .from("workouts")
+    .select("split")
+    .eq("id", workoutId)
+    .maybeSingle();
+  if (error || !workout) {
+    throw new Error(error?.message ?? "Workout not found");
+  }
+  return fetchSetsForWorkout(workoutId, workout.split);
 }
 
 export async function finishWorkout(workoutId: string) {

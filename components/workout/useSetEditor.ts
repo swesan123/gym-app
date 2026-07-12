@@ -4,7 +4,7 @@ import { clearSetDone, markSetDone, updateWorkoutSet } from "@/app/actions/worko
 import type { FlatSetRow } from "@/components/workout/groupSets";
 import { isSetReadyToComplete } from "@/lib/setCompletion";
 import { parseOptionalNumber } from "@/lib/parse";
-import { useCountdown } from "@/lib/useCountdown";
+import { useCountdownOnComplete } from "@/lib/useCountdownOnComplete";
 import { computeSetVolume } from "@/lib/volume";
 
 /**
@@ -63,9 +63,6 @@ export function useSetEditor({
   const [markDoneError, setMarkDoneError] = useState<string | null>(null);
   const [timerEndAt, setTimerEndAt] = useState<number | null>(null);
   const timerSecondsRef = useRef<number>(0);
-  // Guards the timer-completion effect below against treating the first
-  // render after starting a countdown (before it has ticked) as "finished".
-  const timerWasActiveRef = useRef(false);
 
   const skipSave = useRef(true);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -184,26 +181,12 @@ export function useSetEditor({
     setTimerEndAt(Date.now() + seconds * 1000);
   };
 
-  const timerRemaining = useCountdown(timerEndAt);
-
-  // When the countdown reaches zero, auto-fill duration with the target
-  // time (can't be derived during render, so this runs in an effect). Guard
-  // against treating the render right after startTimer (before any tick) as
-  // "already finished" — only complete once we've observed remaining > 0.
-  useEffect(() => {
-    if (timerEndAt == null) {
-      timerWasActiveRef.current = false;
-      return;
-    }
-    if (timerRemaining > 0) {
-      timerWasActiveRef.current = true;
-      return;
-    }
-    if (!timerWasActiveRef.current) return;
-    timerWasActiveRef.current = false;
+  const onTimerComplete = () => {
     setDuration(String(timerSecondsRef.current));
     setTimerEndAt(null);
-  }, [timerRemaining, timerEndAt]);
+  };
+
+  const timerRemaining = useCountdownOnComplete(timerEndAt, onTimerComplete);
 
   return {
     reps,

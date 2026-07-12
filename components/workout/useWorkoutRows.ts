@@ -1,0 +1,78 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import type { FlatSetRow } from "@/components/workout/groupSets";
+import { mergeServerRows } from "@/lib/mergeServerRows";
+
+type SetFields = {
+  reps: number | null;
+  weight: number | null;
+  rir: number | null;
+  duration_seconds: number | null;
+};
+
+export function useWorkoutRows(serverRows: FlatSetRow[]) {
+  const [localRows, setLocalRows] = useState(() => serverRows);
+  const serverSignatureRef = useRef(rowSetSignature(serverRows));
+
+  useEffect(() => {
+    const signature = rowSetSignature(serverRows);
+    if (signature === serverSignatureRef.current) return;
+    serverSignatureRef.current = signature;
+    setLocalRows((prev) => mergeServerRows(prev, serverRows));
+  }, [serverRows]);
+
+  const applyServerRows = useCallback((fresh: FlatSetRow[]) => {
+    serverSignatureRef.current = rowSetSignature(fresh);
+    setLocalRows((prev) => mergeServerRows(prev, fresh));
+  }, []);
+
+  const updateRowNote = useCallback((setId: string, note: string | null) => {
+    setLocalRows((prev) =>
+      prev.map((row) => (row.id === setId ? { ...row, note } : row)),
+    );
+  }, []);
+
+  const updateRowCompletion = useCallback(
+    (setId: string, completedAt: string | null) => {
+      setLocalRows((prev) =>
+        prev.map((row) =>
+          row.id === setId ? { ...row, completed_at: completedAt } : row,
+        ),
+      );
+    },
+    [],
+  );
+
+  const updateRowFields = useCallback((setId: string, fields: SetFields) => {
+    setLocalRows((prev) =>
+      prev.map((row) => (row.id === setId ? { ...row, ...fields } : row)),
+    );
+  }, []);
+
+  const removeRow = useCallback((setId: string) => {
+    setLocalRows((prev) => prev.filter((r) => r.id !== setId));
+  }, []);
+
+  const addRow = useCallback((row: FlatSetRow) => {
+    setLocalRows((prev) => [...prev, row]);
+  }, []);
+
+  return {
+    localRows,
+    applyServerRows,
+    updateRowNote,
+    updateRowCompletion,
+    updateRowFields,
+    removeRow,
+    addRow,
+  };
+}
+
+function rowSetSignature(rows: FlatSetRow[]): string {
+  return rows
+    .map(
+      (r) =>
+        `${r.id}:${r.exercise_id}:${r.set_number}:${r.completed_at ?? ""}:${r.reps ?? ""}:${r.weight ?? ""}`,
+    )
+    .join("|");
+}
