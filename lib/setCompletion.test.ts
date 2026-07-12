@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { incompleteSets, isSetReadyToComplete } from "./setCompletion";
+import { incompleteSets, isSetReadyToComplete, getFinishModalState } from "./setCompletion";
 
 describe("isSetReadyToComplete", () => {
   it("requires reps, weight, and rir for weighted exercises", () => {
@@ -201,5 +201,33 @@ describe("incompleteSets", () => {
       },
     ];
     expect(incompleteSets(sets)).toHaveLength(1);
+  });
+});
+
+describe("getFinishModalState", () => {
+  it("allows finish when all sets are marked Done", () => {
+    const state = getFinishModalState([
+      {
+        exercise_name: "Bench",
+        set_number: 1,
+        set_type: "working",
+        completed_at: "2026-01-01T00:00:00Z",
+      },
+    ]);
+    expect(state.canFinish).toBe(true);
+    expect(state.confirmLabel).toBe("Finish workout");
+  });
+
+  it("blocks finish and lists undone sets", () => {
+    const state = getFinishModalState([
+      {
+        exercise_name: "Bench",
+        set_number: 1,
+        set_type: "working",
+        completed_at: null,
+      },
+    ]);
+    expect(state.canFinish).toBe(false);
+    expect(state.description).toContain("Bench set 1");
   });
 });

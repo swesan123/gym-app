@@ -29,13 +29,14 @@ import { WorkoutSummary } from "@/components/workout/WorkoutSummary";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import type { SetType, StretchKind, TrackingType } from "@/lib/database.types";
-import { formatUndoneSetsMessage } from "@/lib/setCompletion";
+import { formatUndoneSetsMessage, getFinishModalState } from "@/lib/setCompletion";
 import { useCountdown } from "@/lib/useCountdown";
 
 const NOTE_PREVIEW_MAX = 36;
 
 const REST_STORAGE_PREFIX = "gym-app:rest:";
 const VIEW_MODE_STORAGE_PREFIX = "gym-app:viewMode:";
+const FOCUS_STEP_STORAGE_PREFIX = "gym-app:focusStep:";
 
 type ViewMode = "list" | "focus";
 
@@ -526,6 +527,7 @@ export function ActiveWorkout({
   const readOnly = status === "completed";
   const restStorageKey = `${REST_STORAGE_PREFIX}${workoutId}`;
   const viewModeStorageKey = `${VIEW_MODE_STORAGE_PREFIX}${workoutId}`;
+  const focusStepStorageKey = `${FOCUS_STEP_STORAGE_PREFIX}${workoutId}`;
 
   // Rest timer persisted as an absolute epoch so it survives tab
   // backgrounding, throttling, and page refresh (#67).
@@ -556,6 +558,13 @@ export function ActiveWorkout({
   } | null>(null);
 
   const [localRows, setLocalRows] = useState(() => rows);
+
+  // Pick up server-refreshed rows (e.g. exercise added to split mid-workout, #79).
+  useEffect(() => {
+    setLocalRows(rows);
+  }, [rows]);
+
+  const focusRestoredRef = useRef(false);
 
   // Rest should only fire the first time a set is marked Done — re-editing
   // and re-completing a set (Edit → Done again) is a correction, not a new
@@ -594,6 +603,11 @@ export function ActiveWorkout({
   const groups = useMemo(() => groupFlatSets(localRows), [localRows]);
   const focusSteps = useMemo(() => buildFocusSteps(groups), [groups]);
 
+  const finishModalState = useMemo(
+    () => getFinishModalState(localRows),
+    [localRows],
+  );
+
   const setViewModePersisted = (mode: ViewMode) => {
     setViewMode(mode);
     window.sessionStorage.setItem(viewModeStorageKey, mode);
@@ -605,6 +619,40 @@ export function ActiveWorkout({
       Notification.requestPermission();
     }
   }, []);
+
+  // Restore Focus position after leaving and returning to the workout (#77).
+  useEffect(() => {
+    if (readOnly || focusRestoredRef.current || focusSteps.length === 0) return;
+    focusRestoredRef.current = true;
+
+    const saved = window.sessionStorage.getItem(focusStepStorageKey);
+    if (saved) {
+      const idx = focusSteps.findIndex((s) => s.setId === saved);
+      if (idx >= 0) {
+        setFocusIndex(idx);
+        return;
+      }
+    }
+
+    const firstIncomplete = focusSteps.findIndex((step) => {
+      const row = localRows.find((r) => r.id === step.setId);
+      return row && row.set_type !== "warmup" && row.completed_at == null;
+    });
+    if (firstIncomplete >= 0) {
+      setFocusIndex(firstIncomplete);
+    }
+  }, [focusSteps, localRows, readOnly, focusStepStorageKey]);
+
+  // Refresh server rows when returning to the tab (e.g. after settings sync, #79).
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        router.refresh();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [router]);
 
   /** Play audio/haptic feedback for rest completion. */
   const playRestAlert = useCallback(() => {
@@ -781,6 +829,13 @@ export function ActiveWorkout({
   const clampedFocusIndex =
     focusSteps.length > 0 ? Math.min(focusIndex, focusSteps.length - 1) : 0;
   const focusStep = focusSteps[clampedFocusIndex] ?? null;
+
+  // Persist the current Focus step so navigation away does not reset position (#77).
+  useEffect(() => {
+    if (readOnly || !focusStep) return;
+    window.sessionStorage.setItem(focusStepStorageKey, focusStep.setId);
+  }, [focusStep, readOnly, focusStepStorageKey]);
+
   const focusRow = focusStep
     ? localRows.find((r) => r.id === focusStep.setId) ?? null
     : null;
@@ -884,7 +939,9 @@ export function ActiveWorkout({
             stepIndex={clampedFocusIndex}
             totalSteps={focusSteps.length}
             onBack={() => setFocusIndex((i) => Math.max(0, i - 1))}
-            onNext={() => setFocusIndex((i) => Math.min(i + 1, focusSteps.length - 1))}
+            onNext={() =>
+              setFocusIndex((i) => Math.min(i + 1, focusSteps.length - 1))
+            }
             onDoneRest={focusOnDoneRest}
             onOpenNote={() =>
               setFocusNoteTarget({ setId: focusRow.id, draft: focusRow.note ?? "" })
@@ -959,11 +1016,13 @@ export function ActiveWorkout({
 
       <Modal
         open={finishOpen}
-        title="Finish workout?"
-        description="Marks this session complete and returns home. You can review it in History."
-        confirmLabel="Finish workout"
+        title={finishModalState.title}
+        description={finishModalState.description}
+        confirmLabel={finishModalState.confirmLabel}
+        confirmDisabled={!finishModalState.canFinish}
         onCancel={() => setFinishOpen(false)}
         onConfirm={() => {
+          if (!finishModalState.canFinish) return;
           setFinishOpen(false);
           onFinish();
         }}

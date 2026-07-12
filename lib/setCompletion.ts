@@ -69,3 +69,27 @@ export function formatUndoneSetsMessage(rows: UndoneSetRow[]): string | null {
   }
   return `Mark Done on these sets before finishing: ${labels.join(", ")}.`;
 }
+
+export function getFinishModalState(rows: UndoneSetRow[]): {
+  canFinish: boolean;
+  title: string;
+  description: string;
+  confirmLabel: string;
+} {
+  const undoneMessage = formatUndoneSetsMessage(rows);
+  if (!undoneMessage) {
+    return {
+      canFinish: true,
+      title: "Finish workout?",
+      description:
+        "All sets are marked Done. This marks the session complete and returns home. You can review it in History.",
+      confirmLabel: "Finish workout",
+    };
+  }
+  return {
+    canFinish: false,
+    title: "Sets still need Done",
+    description: undoneMessage,
+    confirmLabel: "Mark all sets Done first",
+  };
+}

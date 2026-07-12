@@ -18,6 +18,8 @@ type Props = {
   closeOnBackdrop?: boolean;
   /** When false, Escape does not dismiss. Default true. */
   closeOnEscape?: boolean;
+  /** When true, the confirm button is disabled (e.g. finish blocked until sets are Done). */
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -32,6 +34,7 @@ export function Modal({
   variant = "primary",
   closeOnBackdrop = true,
   closeOnEscape = true,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
 }: Props) {
@@ -112,6 +115,7 @@ export function Modal({
           <Button
             variant={variant === "danger" ? "danger" : "primary"}
             type="button"
+            disabled={confirmDisabled}
             onClick={onConfirm}
           >
             {confirmLabel}

@@ -96,6 +96,85 @@ async function fetchLatestCompletedSetsByExercise(
   );
 }
 
+type ExerciseDraftSource = {
+  id: string;
+  default_sets: number;
+  default_reps: number | null;
+  progressive_overload_increment: number | null;
+  tracking_type: string | null;
+  machine_start_weight: number | null;
+  machine_end_weight: number | null;
+  machine_increment: number | null;
+};
+
+function buildDraftSetInsertRows(
+  workoutId: string,
+  exercise: ExerciseDraftSource,
+  bodyWeight: number | null,
+  previousByKey: Record<string, number | null>,
+  latestPerfByExercise: Record<string, CompletedSetPerf[]>,
+) {
+  const tt = (exercise.tracking_type ?? "weighted") as TrackingType;
+  const incrementConfigured =
+    exercise.progressive_overload_increment == null
+      ? null
+      : Number(exercise.progressive_overload_increment);
+  const defaultReps =
+    exercise.default_reps != null ? Number(exercise.default_reps) : null;
+  const latestSets = latestPerfByExercise[exercise.id] ?? [];
+  const latestSetByNumber = new Map(
+    latestSets.map((s) => [s.set_number, s]),
+  );
+
+  return Array.from({ length: exercise.default_sets }, (_, i) => {
+    const set_number = i + 1;
+    const key = `${exercise.id}:${set_number}`;
+    const lastW = previousByKey[key] ?? null;
+    const reps = defaultReps;
+
+    const progressionDirection = resolveSetProgressionDirection(
+      latestSetByNumber.get(set_number) ?? null,
+      defaultReps,
+      SMART_PROGRESSION_RIR_TARGET,
+    );
+
+    let weight: number | null = null;
+    if (usesLoggedWeightColumn(tt)) {
+      if (incrementConfigured != null) {
+        weight = applyFixedIncrement(
+          lastW,
+          incrementConfigured,
+          progressionDirection,
+          exercise.machine_start_weight,
+          exercise.machine_end_weight,
+          exercise.machine_increment,
+          tt,
+        );
+      } else {
+        weight = lastW;
+      }
+      if (tt === "bodyweight" && weight == null) {
+        weight = 0;
+      }
+    }
+
+    const volume = computeSetVolume(tt, {
+      reps,
+      weight,
+      bodyWeight,
+    });
+
+    return {
+      workout_id: workoutId,
+      exercise_id: exercise.id,
+      set_number,
+      reps,
+      weight,
+      volume,
+    };
+  });
+}
+
 export async function createWorkoutDraftAndRedirect(split: string) {
   const splitName = split.trim();
   if (!splitName) throw new Error("Choose a split");
@@ -177,70 +256,15 @@ export async function createWorkoutDraftAndRedirect(split: string) {
   const bodyWeight =
     profile?.body_weight == null ? null : Number(profile.body_weight);
 
-  const rows = exercises.flatMap((ex) => {
-    const tt = (ex.tracking_type ?? "weighted") as TrackingType;
-    const incrementConfigured =
-      ex.progressive_overload_increment == null
-        ? null
-        : Number(ex.progressive_overload_increment);
-    const defaultReps = ex.default_reps != null ? Number(ex.default_reps) : null;
-    const latestSets = latestPerfByExercise[ex.id] ?? [];
-    const latestSetByNumber = new Map(
-      latestSets.map((s) => [s.set_number, s]),
-    );
-
-    return Array.from({ length: ex.default_sets }, (_, i) => {
-      const set_number = i + 1;
-      const key = `${ex.id}:${set_number}`;
-      const lastW = previousByKey[key] ?? null;
-      const reps = defaultReps;
-
-      // Resolve progression direction per-set — one weak/missing set no
-      // longer blocks progression for the others (#69, #70).
-      const progressionDirection = resolveSetProgressionDirection(
-        latestSetByNumber.get(set_number) ?? null,
-        defaultReps,
-        SMART_PROGRESSION_RIR_TARGET,
-      );
-
-      let weight: number | null = null;
-      if (usesLoggedWeightColumn(tt)) {
-        if (incrementConfigured != null) {
-          // Use fixed increment for this exercise
-          weight = applyFixedIncrement(
-            lastW,
-            incrementConfigured,
-            progressionDirection,
-            ex.machine_start_weight,
-            ex.machine_end_weight,
-            ex.machine_increment,
-            tt,
-          );
-        } else {
-          // No progression configured
-          weight = lastW;
-        }
-        if (tt === "bodyweight" && weight == null) {
-          weight = 0;
-        }
-      }
-
-      const volume = computeSetVolume(tt, {
-        reps,
-        weight,
-        bodyWeight,
-      });
-
-      return {
-        workout_id: workout.id,
-        exercise_id: ex.id,
-        set_number,
-        reps,
-        weight,
-        volume,
-      };
-    });
-  });
+  const rows = exercises.flatMap((ex) =>
+    buildDraftSetInsertRows(
+      workout.id,
+      ex,
+      bodyWeight,
+      previousByKey,
+      latestPerfByExercise,
+    ),
+  );
 
   const { error: sErr } = await supabase.from("workout_sets").insert(rows);
   if (sErr) {
@@ -552,6 +576,9 @@ export async function addWorkoutSet(
       // No progression configured
       weight = lastW;
     }
+    if (trackingType === "bodyweight" && weight == null) {
+      weight = 0;
+    }
   }
 
   const volume = computeSetVolume(trackingType, {
@@ -626,6 +653,80 @@ export async function removeWorkoutSet(setId: string, workoutId: string) {
   if (error) throw new Error(error.message);
 
   revalidatePath(`/workout/${workoutId}`);
+  revalidatePath("/");
+}
+
+/**
+ * When an exercise is added to a split that has an active draft workout,
+ * append its default sets so the in-progress session stays in sync (#79).
+ */
+export async function syncExerciseToActiveDraft(
+  exerciseId: string,
+  splitName: string,
+): Promise<void> {
+  const trimmed = splitName.trim();
+  if (!trimmed) return;
+
+  const supabase = await createClient();
+
+  const { data: draft, error: dErr } = await supabase
+    .from("workouts")
+    .select("id, date, split")
+    .eq("split", trimmed)
+    .eq("status", "draft")
+    .maybeSingle();
+  if (dErr) throw new Error(dErr.message);
+  if (!draft) return;
+
+  const { count, error: countErr } = await supabase
+    .from("workout_sets")
+    .select("id", { count: "exact", head: true })
+    .eq("workout_id", draft.id)
+    .eq("exercise_id", exerciseId);
+  if (countErr) throw new Error(countErr.message);
+  if ((count ?? 0) > 0) return;
+
+  const { data: exercise, error: exErr } = await supabase
+    .from("exercises")
+    .select(
+      "id, default_sets, default_reps, progressive_overload_increment, tracking_type, machine_start_weight, machine_end_weight, machine_increment",
+    )
+    .eq("id", exerciseId)
+    .single();
+  if (exErr || !exercise) {
+    throw new Error(exErr?.message ?? "Exercise not found");
+  }
+
+  const [{ data: profile }, previousByKey, latestPerfByExercise] =
+    await Promise.all([
+      supabase
+        .from("user_training_profile")
+        .select("body_weight")
+        .eq("singleton", true)
+        .maybeSingle(),
+      fetchPreviousWeightsBeforeDate(draft.date, [exerciseId]),
+      fetchLatestCompletedSetsByExercise(draft.date, [exerciseId], draft.split),
+    ]);
+
+  const bodyWeight =
+    profile?.body_weight == null ? null : Number(profile.body_weight);
+
+  const insertRows = buildDraftSetInsertRows(
+    draft.id,
+    exercise,
+    bodyWeight,
+    previousByKey,
+    latestPerfByExercise,
+  );
+
+  if (insertRows.length === 0) return;
+
+  const { error: insertErr } = await supabase
+    .from("workout_sets")
+    .insert(insertRows);
+  if (insertErr) throw new Error(insertErr.message);
+
+  revalidatePath(`/workout/${draft.id}`);
   revalidatePath("/");
 }
 

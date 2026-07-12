@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import type { StretchKind, TrackingType } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { syncExerciseToActiveDraft } from "@/app/actions/workouts";
 
 export async function updateExercise(input: {
   id: string;
@@ -92,6 +93,10 @@ export async function updateExercise(input: {
     if (insertErr) throw new Error(insertErr.message);
   }
 
+  for (const splitName of newSplitNames) {
+    await syncExerciseToActiveDraft(input.id, splitName);
+  }
+
   revalidatePath("/settings/exercises");
   revalidatePath("/workout/start");
   revalidatePath("/progress");
@@ -153,6 +158,10 @@ export async function createExercise(input: {
       await supabase.from("exercises").delete().eq("id", inserted.id);
       throw new Error(insertErr.message);
     }
+  }
+
+  for (const splitName of input.splits) {
+    await syncExerciseToActiveDraft(inserted.id, splitName.trim());
   }
 
   revalidatePath("/settings/exercises");
