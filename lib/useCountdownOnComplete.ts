@@ -13,7 +13,10 @@ export function useCountdownOnComplete(
   const remaining = useCountdown(endAt);
   const wasActiveRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     if (endAt == null) {
