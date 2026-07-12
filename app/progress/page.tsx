@@ -12,9 +12,9 @@ export default async function ProgressPage() {
   const supabase = await createClient();
 
   const [weeklyRes, monthlyRes, splitWeeklyRes, catalog] = await Promise.all([
-    supabase.from("weekly_volume_by_exercise").select("*"),
-    supabase.from("monthly_volume_by_exercise").select("*"),
-    supabase.from("weekly_volume_by_split").select("*"),
+    supabase.from("weekly_rep_capacity_by_exercise").select("*"),
+    supabase.from("monthly_rep_capacity_by_exercise").select("*"),
+    supabase.from("weekly_rep_capacity_by_split").select("*"),
     fetchSplitsCatalog(),
   ]);
 
@@ -38,7 +38,7 @@ export default async function ProgressPage() {
           Progress
         </h1>
         <p className="mt-2 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
-          Volume trends by exercise and muscle group.
+          RIR-adjusted rep capacity by exercise and muscle group.
         </p>
       </div>
 
@@ -53,7 +53,7 @@ export default async function ProgressPage() {
 
       {rows.length === 0 ? (
         <p className="mt-8 text-center text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
-          Finish a workout to see weekly totals here.
+          Finish a workout to see weekly rep capacity here.
         </p>
       ) : null}
     </div>

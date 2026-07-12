@@ -232,56 +232,34 @@ export type Database = {
       };
     };
     Views: {
-      weekly_volume_summary: {
-        Row: {
-          week: string;
-          exercise: string;
-          muscle: string;
-          total_sets: number;
-          total_reps: number | null;
-          total_volume: number | null;
-        };
-      };
-      weekly_volume_by_split: {
-        Row: {
-          week: string;
-          split: string;
-          exercise: string;
-          muscle: string;
-          total_sets: number;
-          total_reps: number | null;
-          total_volume: number | null;
-        };
-      };
-      monthly_volume_by_split: {
-        Row: {
-          month_start: string;
-          split: string;
-          total_sets: number;
-          total_reps: number | null;
-          total_volume: number | null;
-        };
-      };
-      weekly_volume_by_exercise: {
+      weekly_rep_capacity_by_exercise: {
         Row: {
           week: string;
           exercise_id: string;
           exercise: string;
           muscle: string;
-          total_sets: number;
-          total_reps: number | null;
-          total_volume: number | null;
+          max_rep_capacity: number | null;
+          best_reps: number | null;
+          best_rir: number | null;
+          best_weight: number | null;
         };
       };
-      monthly_volume_by_exercise: {
+      weekly_rep_capacity_by_split: {
+        Row: {
+          week: string;
+          split: string;
+          exercise: string;
+          muscle: string;
+          max_rep_capacity: number | null;
+        };
+      };
+      monthly_rep_capacity_by_exercise: {
         Row: {
           month_start: string;
           exercise_id: string;
           exercise: string;
           muscle: string;
-          total_sets: number;
-          total_reps: number | null;
-          total_volume: number | null;
+          max_rep_capacity: number | null;
         };
       };
     };
