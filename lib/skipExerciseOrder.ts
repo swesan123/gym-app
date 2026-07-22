@@ -7,11 +7,8 @@ export type ExerciseOrderInfo = {
 };
 
 /**
- * Reorders exercises within the skipped exercise's stretch section
- * (dynamic/main/static) so it moves to the end: the remaining exercises in
- * that section are compacted into a contiguous 0..N-1 sequence in their
- * existing relative order, and the skipped exercise is placed after all of
- * them (#93). Exercises outside the section are left untouched.
+ * Swaps the skipped exercise one position forward within its stretch section
+ * (dynamic/main/static). Exercises outside the section are left untouched (#93).
  */
 export function computeSkipOrderUpdates(
   exercises: ExerciseOrderInfo[],
@@ -20,12 +17,17 @@ export function computeSkipOrderUpdates(
   const skipped = exercises.find((e) => e.id === skippedExerciseId);
   if (!skipped) return [];
 
-  const remaining = exercises
-    .filter((e) => e.id !== skippedExerciseId && e.stretchKind === skipped.stretchKind)
+  const section = exercises
+    .filter((e) => e.stretchKind === skipped.stretchKind)
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
-  return [
-    ...remaining.map((e, i) => ({ exerciseId: e.id, sortOrder: i })),
-    { exerciseId: skippedExerciseId, sortOrder: remaining.length },
-  ];
+  const idx = section.findIndex((e) => e.id === skippedExerciseId);
+  if (idx < 0) return [];
+  if (idx >= section.length - 1) {
+    return section.map((e, i) => ({ exerciseId: e.id, sortOrder: i }));
+  }
+
+  const reordered = [...section];
+  [reordered[idx], reordered[idx + 1]] = [reordered[idx + 1], reordered[idx]];
+  return reordered.map((e, i) => ({ exerciseId: e.id, sortOrder: i }));
 }

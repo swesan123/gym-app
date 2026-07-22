@@ -724,9 +724,9 @@ export async function removeWorkoutSet(setId: string, workoutId: string) {
 }
 
 /**
- * Move an exercise to the end of its stretch section (dynamic/main/static)
- * for this workout session only, so it can be revisited later without
- * losing its place in the split's default order (#93).
+ * Swap an exercise one position forward within its stretch section
+ * (dynamic/main/static) for this workout session only, so it can be
+ * revisited later without losing the split's default order (#93).
  */
 export async function skipExerciseInWorkout(
   workoutId: string,
