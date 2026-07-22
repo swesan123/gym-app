@@ -141,7 +141,7 @@ export function ExerciseSetTable({
                   </th>
                 )}
                 <th className="min-w-[5rem] py-2 pl-2 pr-1">Note</th>
-                {!readOnly ? <th className="w-[5.5rem] py-2 pr-1" /> : null}
+                {!readOnly ? <th className="w-[7.25rem] min-w-[7.25rem] py-2 pr-1" /> : null}
               </tr>
             </thead>
             <tbody>

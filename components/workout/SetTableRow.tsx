@@ -225,7 +225,7 @@ export function SetTableRow({
           />
         </td>
       )}
-      <td className="min-w-0 max-w-[5rem] py-1 pl-2 pr-1 sm:max-w-[8rem]">
+      <td className="min-w-0 max-w-[5rem] overflow-hidden py-1 pl-2 pr-1 sm:max-w-[8rem]">
         {readOnly ? (
           <span className="block max-h-10 overflow-hidden break-words px-1.5 text-left text-sm leading-snug text-[var(--gray-600)] line-clamp-2 dark:text-[var(--gray-400)]">
             {notePreview ?? "—"}
@@ -247,7 +247,7 @@ export function SetTableRow({
         )}
       </td>
       {!readOnly ? (
-        <td className="py-1 pl-1 pr-1">
+        <td className="w-[7.25rem] min-w-[7.25rem] py-1 pl-1 pr-1">
           <div className="flex items-center justify-end gap-1">
             {hasStarted && setElapsedSeconds != null ? (
               <span className="font-data shrink-0 text-[10px] tabular-nums text-[var(--gray-500)] dark:text-[var(--gray-400)]">
@@ -294,7 +294,7 @@ export function SetTableRow({
               >
                 {clearDonePending ? "…" : "Edit"}
               </button>
-            ) : (
+            ) : hasStarted ? (
               <button
                 type="button"
                 disabled={!readyToComplete || markDonePending}
@@ -304,7 +304,7 @@ export function SetTableRow({
               >
                 {markDonePending ? "…" : "Done"}
               </button>
-            )}
+            ) : null}
             <button
               type="button"
               onClick={() => onRequestRemove(row.id)}
