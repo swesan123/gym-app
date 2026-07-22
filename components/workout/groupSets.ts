@@ -8,6 +8,8 @@ export type FlatSetRow = SummarySet & {
   tracking_type: TrackingType;
   stretch_kind: StretchKind;
   sort_order: number;
+  /** Default order from exercise_splits (unchanged by per-workout skip reorder). */
+  split_catalog_order: number;
   exercise_notes?: string | null;
   machine_start_weight?: number | null;
   machine_end_weight?: number | null;

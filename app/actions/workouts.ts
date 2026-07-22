@@ -585,6 +585,13 @@ export async function addWorkoutSet(
 
   if (exErr || !exercise) throw new Error(exErr?.message ?? "Exercise not found");
 
+  const { data: splitOrderRow } = await supabase
+    .from("exercise_splits")
+    .select("sort_order")
+    .eq("exercise_id", exerciseId)
+    .eq("split_name", workout.split)
+    .maybeSingle();
+
   const trackingType = (exercise.tracking_type ?? "weighted") as TrackingType;
   const incrementConfigured =
     exercise.progressive_overload_increment == null
@@ -681,6 +688,8 @@ export async function addWorkoutSet(
     tracking_type: trackingType,
     stretch_kind: stretchKind,
     sort_order: exercise.sort_order ?? 0,
+    split_catalog_order:
+      splitOrderRow?.sort_order ?? exercise.sort_order ?? 0,
     exercise_notes: exercise.notes ?? null,
     machine_start_weight: exercise.machine_start_weight ?? null,
     machine_end_weight: exercise.machine_end_weight ?? null,
@@ -727,6 +736,9 @@ export async function removeWorkoutSet(setId: string, workoutId: string) {
  * Swap an exercise one position forward within its stretch section
  * (dynamic/main/static) for this workout session only, so it can be
  * revisited later without losing the split's default order (#93).
+ *
+ * Reorder defers to after the next exercise in split catalog order (not a
+ * symmetric swap with the visual neighbor).
  */
 export async function skipExerciseInWorkout(
   workoutId: string,
@@ -790,6 +802,7 @@ export async function skipExerciseInWorkout(
     id: e.id,
     stretchKind: (e.stretch_kind ?? "none") as StretchKind,
     sortOrder: currentSortOrder(e.id, e.sort_order),
+    splitOrder: splitSortByExercise.get(e.id) ?? e.sort_order ?? 0,
   }));
 
   const updates = computeSkipOrderUpdates(orderInfo, exerciseId);

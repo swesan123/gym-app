@@ -28,7 +28,6 @@ type Props = {
   pending: boolean;
   restSeconds: number | null;
   onAddSet: () => void;
-  onSkip: () => void;
   onRequestRemove: (setId: string) => void;
   onUpdateNote: (setId: string, note: string | null) => void;
   onError: (message: string) => void;
@@ -64,7 +63,6 @@ export function ExerciseSetTable({
   pending,
   restSeconds,
   onAddSet,
-  onSkip,
   onRequestRemove,
   onUpdateNote,
   onError,
@@ -104,27 +102,14 @@ export function ExerciseSetTable({
   return (
     <>
       <section className="rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] dark:border-[var(--gray-100)] dark:bg-[var(--gray-50)]">
-        <div className="flex items-start justify-between gap-2 border-b border-[var(--gray-100)] px-2 py-2 dark:border-[var(--gray-100)]">
-          <div>
-            <h2 className="text-base font-bold leading-tight text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
-              {exerciseName}
-            </h2>
-            {exerciseNotes ? (
-              <p className="mt-1 text-xs text-[var(--gray-600)] dark:text-[var(--gray-400)]">
-                {exerciseNotes}
-              </p>
-            ) : null}
-          </div>
-          {!readOnly ? (
-            <Button
-              variant="ghost"
-              type="button"
-              className="min-h-8 shrink-0 px-2 py-1 text-xs"
-              disabled={pending}
-              onClick={onSkip}
-            >
-              Skip →
-            </Button>
+        <div className="border-b border-[var(--gray-100)] px-2 py-2 dark:border-[var(--gray-100)]">
+          <h2 className="text-base font-bold leading-tight text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
+            {exerciseName}
+          </h2>
+          {exerciseNotes ? (
+            <p className="mt-1 text-xs text-[var(--gray-600)] dark:text-[var(--gray-400)]">
+              {exerciseNotes}
+            </p>
           ) : null}
         </div>
         <div className="w-full min-w-0 overflow-x-auto">

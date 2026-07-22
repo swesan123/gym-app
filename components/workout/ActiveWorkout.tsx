@@ -28,6 +28,10 @@ import { Modal } from "@/components/ui/modal";
 import { canRemoveWorkoutSet } from "@/lib/canRemoveWorkoutSet";
 import { clampWorkoutElapsedSeconds, formatDurationSeconds } from "@/lib/duration";
 import { getFinishModalState } from "@/lib/setCompletion";
+import {
+  buildExerciseOrderInfoFromRows,
+  splitCatalogNextExerciseId,
+} from "@/lib/skipExerciseOrder";
 import { useWorkoutElapsed } from "@/lib/useWorkoutElapsed";
 
 const VIEW_MODE_STORAGE_PREFIX = "gym-app:viewMode:";
@@ -77,6 +81,7 @@ export function ActiveWorkout({
     applyServerRows,
     updateRowNote,
     updateRowCompletion,
+    updateRowStartedAt,
     updateRowFields,
     updateRowsSortOrder,
     removeRow,
@@ -103,7 +108,11 @@ export function ActiveWorkout({
       return row && row.set_type !== "warmup" && row.completed_at == null;
     });
     if (!next) return;
-    void markSetStarted(next.setId).catch(() => {
+    void markSetStarted(next.setId)
+      .then(({ startedAt }) => {
+        updateRowStartedAt(next.setId, startedAt);
+      })
+      .catch(() => {
       // Best-effort — only affects the per-set duration shown in history.
     });
   };
@@ -159,10 +168,7 @@ export function ActiveWorkout({
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [workoutId, readOnly, applyServerRows]);
 
-  // After skipping an exercise in Focus mode, land on the next incomplete
-  // step once the reordered `focusSteps` reflects the skip (#93). Prefers a
-  // step outside the skipped exercise; falls back to it if nothing else is
-  // left to do.
+  // After skipping in Focus mode, land on the split-catalog next exercise (#93).
   useEffect(() => {
     const skippedId = skippedExerciseRef.current;
     if (!skippedId) return;
@@ -173,9 +179,21 @@ export function ActiveWorkout({
       return !!row && row.set_type !== "warmup" && row.completed_at == null;
     };
 
-    let nextIndex = focusSteps.findIndex(
-      (step) => step.exerciseId !== skippedId && isIncomplete(step.setId),
-    );
+    const orderInfo = buildExerciseOrderInfoFromRows(localRows);
+    const nextExerciseId = splitCatalogNextExerciseId(orderInfo, skippedId);
+
+    let nextIndex = -1;
+    if (nextExerciseId) {
+      nextIndex = focusSteps.findIndex(
+        (step) =>
+          step.exerciseId === nextExerciseId && isIncomplete(step.setId),
+      );
+    }
+    if (nextIndex < 0) {
+      nextIndex = focusSteps.findIndex(
+        (step) => step.exerciseId !== skippedId && isIncomplete(step.setId),
+      );
+    }
     if (nextIndex < 0) {
       nextIndex = focusSteps.findIndex((step) => isIncomplete(step.setId));
     }
@@ -241,9 +259,8 @@ export function ActiveWorkout({
   };
 
   const handleSkipExercise = (exerciseId: string) => {
-    if (viewMode === "focus") {
-      skippedExerciseRef.current = exerciseId;
-    }
+    if (viewMode !== "focus") return;
+    skippedExerciseRef.current = exerciseId;
     startTransition(async () => {
       try {
         const updates = await skipExerciseInWorkout(workoutId, exerciseId);
@@ -436,7 +453,6 @@ export function ActiveWorkout({
                         pending={pending}
                         restSeconds={g.rest_seconds}
                         onAddSet={() => handleAddSet(g.exercise_id)}
-                        onSkip={() => handleSkipExercise(g.exercise_id)}
                         onRequestRemove={requestRemoveSet}
                         onUpdateNote={updateRowNote}
                         onError={setError}

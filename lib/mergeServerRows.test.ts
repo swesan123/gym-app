@@ -12,6 +12,7 @@ function row(
     tracking_type: "weighted",
     stretch_kind: "none",
     sort_order: 0,
+    split_catalog_order: 0,
     exercise_notes: null,
     machine_start_weight: null,
     machine_end_weight: null,

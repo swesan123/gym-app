@@ -43,6 +43,14 @@ export function useWorkoutRows(serverRows: FlatSetRow[]) {
     [],
   );
 
+  const updateRowStartedAt = useCallback((setId: string, startedAt: string) => {
+    setLocalRows((prev) =>
+      prev.map((row) =>
+        row.id === setId ? { ...row, started_at: startedAt } : row,
+      ),
+    );
+  }, []);
+
   const updateRowFields = useCallback((setId: string, fields: SetFields) => {
     setLocalRows((prev) =>
       prev.map((row) => (row.id === setId ? { ...row, ...fields } : row)),
@@ -77,6 +85,7 @@ export function useWorkoutRows(serverRows: FlatSetRow[]) {
     applyServerRows,
     updateRowNote,
     updateRowCompletion,
+    updateRowStartedAt,
     updateRowFields,
     updateRowsSortOrder,
     removeRow,

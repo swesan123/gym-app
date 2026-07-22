@@ -86,6 +86,25 @@ function getExerciseSplits(ex: ExerciseWithSplits): string[] {
   return (ex.exercise_splits ?? []).map((es) => es.split_name).sort();
 }
 
+function weightGridLabels(trackingType: TrackingType): {
+  start: string;
+  end: string;
+  increment: string;
+} {
+  if (trackingType === "bodyweight") {
+    return {
+      start: "Extra weight start",
+      end: "Extra weight end",
+      increment: "Extra weight increment",
+    };
+  }
+  return {
+    start: "Machine start",
+    end: "Machine end",
+    increment: "Machine increment",
+  };
+}
+
 export function ExerciseSettingsClient({
   exercises,
   splits,
@@ -106,6 +125,8 @@ export function ExerciseSettingsClient({
   const [addingSplits, setAddingSplits] = useState<Set<string>>(new Set());
   const [editTrackingType, setEditTrackingType] = useState<TrackingType>("weighted");
   const [addTrackingType, setAddTrackingType] = useState<TrackingType>("weighted");
+  const [editStretchKind, setEditStretchKind] = useState<StretchKind>("none");
+  const [addStretchKind, setAddStretchKind] = useState<StretchKind>("none");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSplit, setSelectedSplit] = useState<string>("");
 
@@ -297,6 +318,7 @@ export function ExerciseSettingsClient({
                   sortedSplits[0]?.name ? new Set([sortedSplits[0].name]) : new Set()
                 );
                 setAddTrackingType("weighted");
+                setAddStretchKind("none");
               }}
             >
               Add
@@ -387,6 +409,7 @@ export function ExerciseSettingsClient({
                               setEditing(ex);
                               setEditingSplits(new Set(getExerciseSplits(ex)));
                               setEditTrackingType(ex.tracking_type);
+                              setEditStretchKind(ex.stretch_kind ?? "none");
                             }}
                           >
                             Edit
@@ -565,7 +588,8 @@ export function ExerciseSettingsClient({
               <select
                 name="stretch_kind"
                 required
-                defaultValue={editing.stretch_kind ?? "none"}
+                value={editStretchKind}
+                onChange={(e) => setEditStretchKind(e.target.value as StretchKind)}
                 className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
               >
                 <option value="none">Main</option>
@@ -639,9 +663,10 @@ export function ExerciseSettingsClient({
                 </label>
               </div>
             ) : null}
+            {editStretchKind === "none" ? (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
-                Machine start
+                {weightGridLabels(editTrackingType).start}
                 <input
                   name="machine_start_weight"
                   type="number"
@@ -653,7 +678,7 @@ export function ExerciseSettingsClient({
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
-                Machine end
+                {weightGridLabels(editTrackingType).end}
                 <input
                   name="machine_end_weight"
                   type="number"
@@ -665,7 +690,7 @@ export function ExerciseSettingsClient({
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
-                Machine increment
+                {weightGridLabels(editTrackingType).increment}
                 <input
                   name="machine_increment"
                   type="number"
@@ -677,6 +702,7 @@ export function ExerciseSettingsClient({
                 />
               </label>
             </div>
+            ) : null}
           </form>
         ) : null}
       </Modal>
@@ -686,7 +712,7 @@ export function ExerciseSettingsClient({
         title="Add exercise"
         cancelLabel="Cancel"
         confirmLabel="Create"
-        onCancel={() => { setAdding(false); setAddingSplits(new Set()); }}
+        onCancel={() => { setAdding(false); setAddingSplits(new Set()); setAddStretchKind("none"); }}
         onConfirm={() => {
           const form = document.getElementById(
             "add-exercise-form",
@@ -822,7 +848,8 @@ export function ExerciseSettingsClient({
             <select
               name="stretch_kind"
               required
-              defaultValue="none"
+              value={addStretchKind}
+              onChange={(e) => setAddStretchKind(e.target.value as StretchKind)}
               className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
             >
               <option value="none">Main</option>
@@ -892,9 +919,10 @@ export function ExerciseSettingsClient({
               </label>
             </div>
           ) : null}
+          {addStretchKind === "none" ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
-              Machine start
+              {weightGridLabels(addTrackingType).start}
               <input
                 name="machine_start_weight"
                 type="number"
@@ -905,7 +933,7 @@ export function ExerciseSettingsClient({
               />
             </label>
             <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
-              Machine end
+              {weightGridLabels(addTrackingType).end}
               <input
                 name="machine_end_weight"
                 type="number"
@@ -916,7 +944,7 @@ export function ExerciseSettingsClient({
               />
             </label>
             <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
-              Machine increment
+              {weightGridLabels(addTrackingType).increment}
               <input
                 name="machine_increment"
                 type="number"
@@ -927,6 +955,7 @@ export function ExerciseSettingsClient({
               />
             </label>
           </div>
+          ) : null}
         </form>
       </Modal>
 

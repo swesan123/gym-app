@@ -114,6 +114,8 @@ export async function fetchSetsForWorkout(
         splitSortOrderMap.get(row.exercise_id) ??
         ex?.sort_order ??
         0,
+      split_catalog_order:
+        splitSortOrderMap.get(row.exercise_id) ?? ex?.sort_order ?? 0,
       rest_seconds:
         ex?.rest_seconds == null ? null : Number(ex.rest_seconds),
     };

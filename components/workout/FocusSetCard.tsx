@@ -11,6 +11,8 @@ import {
   weightHeader,
 } from "@/components/workout/setFieldPresets";
 import { useSetEditor } from "@/components/workout/useSetEditor";
+import { formatDurationSeconds } from "@/lib/duration";
+import { useSetElapsed } from "@/lib/useSetElapsed";
 
 export function FocusSetCard({
   row,
@@ -77,6 +79,8 @@ export function FocusSetCard({
     startTimer,
   } = useSetEditor({ row, bodyWeight, onDoneRest, onSetCompleted, onSetFieldsChange });
 
+  const setElapsedSeconds = useSetElapsed(row.started_at, row.completed_at);
+
   const tt = row.tracking_type;
   const repsOptions = mergeNumberOptions(REPS_PRESETS, reps);
   const weightOptions = mergeWeightOptions(tt, weightPresets, weight);
@@ -98,8 +102,15 @@ export function FocusSetCard({
         <span>
           Step {stepIndex + 1} of {totalSteps}
         </span>
-        <span>
-          Set {setPositionInExercise + 1} of {totalSetsForExercise}
+        <span className="flex items-center gap-2">
+          {setElapsedSeconds != null ? (
+            <span className="font-data font-semibold tabular-nums text-[var(--gym-amber)]">
+              {formatDurationSeconds(setElapsedSeconds)}
+            </span>
+          ) : null}
+          <span>
+            Set {setPositionInExercise + 1} of {totalSetsForExercise}
+          </span>
         </span>
       </div>
 

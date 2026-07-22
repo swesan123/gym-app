@@ -8,6 +8,8 @@ import {
 import type { FlatSetRow } from "@/components/workout/groupSets";
 import { useSetEditor } from "@/components/workout/useSetEditor";
 import type { SetType } from "@/lib/database.types";
+import { formatDurationSeconds } from "@/lib/duration";
+import { useSetElapsed } from "@/lib/useSetElapsed";
 
 const NOTE_PREVIEW_MAX = 36;
 
@@ -76,6 +78,8 @@ export function SetTableRow({
     onSetCompleted,
     onSetFieldsChange,
   });
+
+  const setElapsedSeconds = useSetElapsed(row.started_at, row.completed_at);
 
   const savedNote = row.note ?? "";
   const notePreview =
@@ -238,6 +242,11 @@ export function SetTableRow({
       {!readOnly ? (
         <td className="py-1 pl-1 pr-1">
           <div className="flex items-center justify-end gap-1">
+            {setElapsedSeconds != null ? (
+              <span className="font-data shrink-0 text-[10px] tabular-nums text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+                {formatDurationSeconds(setElapsedSeconds)}
+              </span>
+            ) : null}
             {markDoneError ? (
               <span
                 className="max-w-[5rem] truncate text-[10px] leading-tight text-red-600"
