@@ -77,6 +77,36 @@ jobs:
                 comment:
                   "Implemented: per-set Done button with `completed_at` tracking, field validation before Done, and finish-workout blocked until all sets are marked Done.",
               },
+              {
+                number: 90,
+                comment:
+                  "Implemented: per-exercise duration start/end/step settings for timed exercises in Exercise Settings, with custom duration presets in the active workout (falls back to global presets when unset).",
+              },
+              {
+                number: 91,
+                comment:
+                  "Implemented: progression now ranks workouts by recency across splits (`pickLatestWorkoutPerExercise`) so moving an exercise to a new split no longer blocks weight progression.",
+              },
+              {
+                number: 92,
+                comment:
+                  "Implemented: previous-weight lookup uses most-recent-by-key ranking so a newer bodyweight session with null extra weight is not shadowed by an older logged weight.",
+              },
+              {
+                number: 93,
+                comment:
+                  "Implemented: Skip → on each exercise in List and Focus views reorders exercises for the current session only (swaps one position forward within the same stretch section).",
+              },
+              {
+                number: 94,
+                comment:
+                  "Implemented: live elapsed-time counter in the active workout header (`useWorkoutElapsed`), ticking from workout start.",
+              },
+              {
+                number: 95,
+                comment:
+                  "Implemented: `started_at` stamped when rest ends (or is skipped) before the next set; per-set elapsed time shown on the completed workout summary in History.",
+              },
             ];
 
             for (const { number, comment } of closings) {
