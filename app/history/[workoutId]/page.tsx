@@ -24,6 +24,7 @@ export default async function HistoryDetailPage({ params }: Props) {
     .from("workouts")
     .select("*")
     .eq("id", workoutId)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (error || !workout) {

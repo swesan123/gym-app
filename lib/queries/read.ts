@@ -1,5 +1,6 @@
 import type { FlatSetRow } from "@/components/workout/groupSets";
 import type { TrackingType } from "@/lib/database.types";
+import { pickMostRecentByKey, rankWorkoutsByRecency } from "@/lib/previousPerformance";
 import { createClient } from "@/lib/supabase/server";
 
 export async function fetchSetsForWorkout(
@@ -8,7 +9,7 @@ export async function fetchSetsForWorkout(
 ): Promise<FlatSetRow[]> {
   const supabase = await createClient();
 
-  const [{ data, error }, splitOrderData] = await Promise.all([
+  const [{ data, error }, splitOrderData, workoutOrderData] = await Promise.all([
     supabase
       .from("workout_sets")
       .select(
@@ -24,6 +25,7 @@ export async function fetchSetsForWorkout(
         note,
         set_type,
         completed_at,
+        started_at,
         exercises (
           name,
           tracking_type,
@@ -31,6 +33,9 @@ export async function fetchSetsForWorkout(
           machine_start_weight,
           machine_end_weight,
           machine_increment,
+          duration_start_seconds,
+          duration_end_seconds,
+          duration_step_seconds,
           stretch_kind,
           sort_order,
           rest_seconds
@@ -44,6 +49,10 @@ export async function fetchSetsForWorkout(
           .select("exercise_id, sort_order")
           .eq("split_name", workoutSplit)
       : Promise.resolve({ data: null, error: null }),
+    supabase
+      .from("workout_exercise_order")
+      .select("exercise_id, sort_order")
+      .eq("workout_id", workoutId),
   ]);
 
   if (error) throw new Error(error.message);
@@ -51,6 +60,10 @@ export async function fetchSetsForWorkout(
   // Build a map of exercise_id → per-split sort_order for correct workout ordering
   const splitSortOrderMap = new Map<string, number>(
     (splitOrderData.data ?? []).map((r) => [r.exercise_id, r.sort_order]),
+  );
+  // Per-workout order overrides the split default — set by Skip (#93).
+  const workoutSortOrderMap = new Map<string, number>(
+    (workoutOrderData.data ?? []).map((r) => [r.exercise_id, r.sort_order]),
   );
 
   const rows: FlatSetRow[] = (data ?? []).map((row) => {
@@ -61,6 +74,9 @@ export async function fetchSetsForWorkout(
       machine_start_weight: number | null;
       machine_end_weight: number | null;
       machine_increment: number | null;
+      duration_start_seconds: number | null;
+      duration_end_seconds: number | null;
+      duration_step_seconds: number | null;
       stretch_kind?: string | null;
       sort_order?: number | null;
       rest_seconds?: number | null;
@@ -82,14 +98,22 @@ export async function fetchSetsForWorkout(
       note: row.note,
       set_type: row.set_type ?? "working",
       completed_at: row.completed_at,
+      started_at: row.started_at,
       exercise_name: ex?.name ?? "Unknown",
       tracking_type: (ex?.tracking_type ?? "weighted") as TrackingType,
       exercise_notes: ex?.notes ?? null,
       machine_start_weight: ex?.machine_start_weight ?? null,
       machine_end_weight: ex?.machine_end_weight ?? null,
       machine_increment: ex?.machine_increment ?? null,
+      duration_start_seconds: ex?.duration_start_seconds ?? null,
+      duration_end_seconds: ex?.duration_end_seconds ?? null,
+      duration_step_seconds: ex?.duration_step_seconds ?? null,
       stretch_kind,
-      sort_order: splitSortOrderMap.get(row.exercise_id) ?? ex?.sort_order ?? 0,
+      sort_order:
+        workoutSortOrderMap.get(row.exercise_id) ??
+        splitSortOrderMap.get(row.exercise_id) ??
+        ex?.sort_order ??
+        0,
       rest_seconds:
         ex?.rest_seconds == null ? null : Number(ex.rest_seconds),
     };
@@ -182,6 +206,7 @@ export async function fetchPreviousWeightsBeforeDate(
     .from("workouts")
     .select("id, date, created_at")
     .eq("status", "completed")
+    .is("deleted_at", null)
     .lte("date", beforeDate);
   if (split?.trim()) {
     workoutsQuery = workoutsQuery.eq("split", split.trim());
@@ -195,39 +220,31 @@ export async function fetchPreviousWeightsBeforeDate(
   const workoutIds = (completedWorkouts ?? []).map((w) => w.id);
   if (!workoutIds.length) return {};
 
-  const rankByWorkoutId = new Map<string, number>();
-  workoutIds.forEach((id, idx) => rankByWorkoutId.set(id, idx));
+  const rankByWorkoutId = rankWorkoutsByRecency(workoutIds);
 
   const { data: previousSetRows, error: previousErr } = await supabase
     .from("workout_sets")
     .select("workout_id, exercise_id, set_number, weight")
     .in("workout_id", workoutIds)
     .in("exercise_id", ids)
-    .not("weight", "is", null)
     .neq("set_type", "warmup");
   if (previousErr) throw new Error(previousErr.message);
 
-  const best = new Map<
-    string,
-    {
-      rank: number;
-      weight: number;
-    }
-  >();
-
-  for (const row of previousSetRows ?? []) {
-    const key = `${row.exercise_id}:${row.set_number}`;
-    const rank = rankByWorkoutId.get(row.workout_id) ?? Number.MAX_SAFE_INTEGER;
-    const weight = Number(row.weight);
-    const existing = best.get(key);
-    if (!existing || rank < existing.rank) {
-      best.set(key, { rank, weight });
-    }
-  }
-
-  return Object.fromEntries(
-    [...best.entries()].map(([key, value]) => [key, value.weight]),
+  // A null weight on a completed set only occurs for bodyweight exercises
+  // with no extra load logged (weighted/assisted sets can't complete with a
+  // null weight — see isSetReadyToComplete). Treat it as 0 rather than
+  // skipping the row entirely, so a more recent 0-extra-weight session isn't
+  // shadowed by an older session that happened to log real weight (#92).
+  const picked = pickMostRecentByKey(
+    (previousSetRows ?? []).map((row) => ({
+      workout_id: row.workout_id,
+      key: `${row.exercise_id}:${row.set_number}`,
+      value: row.weight == null ? 0 : Number(row.weight),
+    })),
+    rankByWorkoutId,
   );
+
+  return Object.fromEntries(picked.entries());
 }
 
 export async function fetchPreviousWeightsForWorkout(

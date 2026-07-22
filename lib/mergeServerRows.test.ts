@@ -25,6 +25,7 @@ function row(
     note: null,
     set_type: "working",
     completed_at: null,
+    started_at: null,
     ...overrides,
   };
 }

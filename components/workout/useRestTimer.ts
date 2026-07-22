@@ -4,7 +4,11 @@ import { useCountdownOnComplete } from "@/lib/useCountdownOnComplete";
 
 const REST_STORAGE_PREFIX = "gym-app:rest:";
 
-export function useRestTimer(workoutId: string, readOnly: boolean) {
+export function useRestTimer(
+  workoutId: string,
+  readOnly: boolean,
+  onRestEnd?: () => void,
+) {
   const restStorageKey = `${REST_STORAGE_PREFIX}${workoutId}`;
 
   const [restEndAt, setRestEndAt] = useState<number | null>(() => {
@@ -56,13 +60,15 @@ export function useRestTimer(workoutId: string, readOnly: boolean) {
   const stopRestTimer = useCallback(() => {
     setRestEndAt(null);
     window.sessionStorage.removeItem(restStorageKey);
-  }, [restStorageKey]);
+    onRestEnd?.();
+  }, [restStorageKey, onRestEnd]);
 
   const onRestComplete = useCallback(() => {
     playRestAlert();
     setRestEndAt(null);
     window.sessionStorage.removeItem(restStorageKey);
-  }, [playRestAlert, restStorageKey]);
+    onRestEnd?.();
+  }, [playRestAlert, restStorageKey, onRestEnd]);
 
   const restRemaining = useCountdownOnComplete(restEndAt, onRestComplete);
 

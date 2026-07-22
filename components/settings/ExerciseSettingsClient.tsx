@@ -43,13 +43,19 @@ function parseNullableNumber(raw: FormDataEntryValue | null): number | null {
   return Number.isFinite(num) ? num : null;
 }
 
-function parseOptionalReps(raw: FormDataEntryValue | null): number | null {
+/** Bounds differ because `default_reps` doubles as the default duration
+ * (seconds) for timed exercises rather than adding a separate column (#90). */
+function parseDefaultRepsOrDuration(
+  raw: FormDataEntryValue | null,
+  trackingType: TrackingType,
+): number | null {
   const value = String(raw ?? "").trim();
   if (!value) return null;
   const n = Number(value);
   if (!Number.isFinite(n)) return null;
   const r = Math.round(n);
-  if (r < 1 || r > 50) return null;
+  const max = trackingType === "timed" ? 3600 : 50;
+  if (r < 1 || r > max) return null;
   return r;
 }
 
@@ -98,6 +104,8 @@ export function ExerciseSettingsClient({
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingSplits, setEditingSplits] = useState<Set<string>>(new Set());
   const [addingSplits, setAddingSplits] = useState<Set<string>>(new Set());
+  const [editTrackingType, setEditTrackingType] = useState<TrackingType>("weighted");
+  const [addTrackingType, setAddTrackingType] = useState<TrackingType>("weighted");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSplit, setSelectedSplit] = useState<string>("");
 
@@ -152,12 +160,15 @@ export function ExerciseSettingsClient({
     const machine_start_weight = parseNullableNumber(fd.get("machine_start_weight"));
     const machine_end_weight = parseNullableNumber(fd.get("machine_end_weight"));
     const machine_increment = parseNullableNumber(fd.get("machine_increment"));
-    const default_reps = parseOptionalReps(fd.get("default_reps"));
+    const default_reps = parseDefaultRepsOrDuration(fd.get("default_reps"), tracking_type);
     const progressive_overload_increment = parseOverloadIncrement(
       fd.get("progressive_overload_increment"),
     );
     const rest_seconds = parseRestSeconds(fd.get("rest_seconds"));
     const stretch_kind = parseStretchKind(fd.get("stretch_kind"));
+    const duration_start_seconds = parseNullableNumber(fd.get("duration_start_seconds"));
+    const duration_end_seconds = parseNullableNumber(fd.get("duration_end_seconds"));
+    const duration_step_seconds = parseNullableNumber(fd.get("duration_step_seconds"));
 
     startTransition(async () => {
       try {
@@ -178,6 +189,9 @@ export function ExerciseSettingsClient({
           progressive_overload_increment,
           rest_seconds,
           stretch_kind,
+          duration_start_seconds,
+          duration_end_seconds,
+          duration_step_seconds,
         });
         setEditing(null);
         setEditingSplits(new Set());
@@ -199,12 +213,15 @@ export function ExerciseSettingsClient({
     const machine_start_weight = parseNullableNumber(fd.get("machine_start_weight"));
     const machine_end_weight = parseNullableNumber(fd.get("machine_end_weight"));
     const machine_increment = parseNullableNumber(fd.get("machine_increment"));
-    const default_reps = parseOptionalReps(fd.get("default_reps"));
+    const default_reps = parseDefaultRepsOrDuration(fd.get("default_reps"), tracking_type);
     const progressive_overload_increment = parseOverloadIncrement(
       fd.get("progressive_overload_increment"),
     );
     const rest_seconds = parseRestSeconds(fd.get("rest_seconds"));
     const stretch_kind = parseStretchKind(fd.get("stretch_kind"));
+    const duration_start_seconds = parseNullableNumber(fd.get("duration_start_seconds"));
+    const duration_end_seconds = parseNullableNumber(fd.get("duration_end_seconds"));
+    const duration_step_seconds = parseNullableNumber(fd.get("duration_step_seconds"));
 
     startTransition(async () => {
       try {
@@ -224,6 +241,9 @@ export function ExerciseSettingsClient({
           progressive_overload_increment,
           rest_seconds,
           stretch_kind,
+          duration_start_seconds,
+          duration_end_seconds,
+          duration_step_seconds,
         });
         setAdding(false);
         setAddingSplits(new Set());
@@ -276,6 +296,7 @@ export function ExerciseSettingsClient({
                 setAddingSplits(
                   sortedSplits[0]?.name ? new Set([sortedSplits[0].name]) : new Set()
                 );
+                setAddTrackingType("weighted");
               }}
             >
               Add
@@ -365,6 +386,7 @@ export function ExerciseSettingsClient({
                             onClick={() => {
                               setEditing(ex);
                               setEditingSplits(new Set(getExerciseSplits(ex)));
+                              setEditTrackingType(ex.tracking_type);
                             }}
                           >
                             Edit
@@ -489,12 +511,12 @@ export function ExerciseSettingsClient({
               />
             </label>
             <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
-              Default reps
+              {editTrackingType === "timed" ? "Default duration (seconds)" : "Default reps"}
               <input
                 name="default_reps"
                 type="number"
                 min={1}
-                max={50}
+                max={editTrackingType === "timed" ? 3600 : 50}
                 placeholder="Prefill new sets"
                 defaultValue={editing.default_reps ?? ""}
                 className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
@@ -556,7 +578,8 @@ export function ExerciseSettingsClient({
               <select
                 name="tracking_type"
                 required
-                defaultValue={editing.tracking_type}
+                value={editTrackingType}
+                onChange={(e) => setEditTrackingType(e.target.value as TrackingType)}
                 className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
               >
                 {TRACKING.map((t) => (
@@ -576,6 +599,46 @@ export function ExerciseSettingsClient({
                 className="rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 py-2 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
               />
             </label>
+            {editTrackingType === "timed" ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
+                  Duration start (sec)
+                  <input
+                    name="duration_start_seconds"
+                    type="number"
+                    min={1}
+                    step="any"
+                    defaultValue={editing.duration_start_seconds ?? ""}
+                    className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                    onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                  />
+                </label>
+                <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
+                  Duration end (sec)
+                  <input
+                    name="duration_end_seconds"
+                    type="number"
+                    min={1}
+                    step="any"
+                    defaultValue={editing.duration_end_seconds ?? ""}
+                    className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                    onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                  />
+                </label>
+                <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
+                  Duration step (sec)
+                  <input
+                    name="duration_step_seconds"
+                    type="number"
+                    min={1}
+                    step="any"
+                    defaultValue={editing.duration_step_seconds ?? ""}
+                    className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                    onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                  />
+                </label>
+              </div>
+            ) : null}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
                 Machine start
@@ -716,12 +779,12 @@ export function ExerciseSettingsClient({
             />
           </label>
           <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
-            Default reps
+            {addTrackingType === "timed" ? "Default duration (seconds)" : "Default reps"}
             <input
               name="default_reps"
               type="number"
               min={1}
-              max={50}
+              max={addTrackingType === "timed" ? 3600 : 50}
               placeholder="Prefill new sets"
               className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
               onWheel={(e) => (e.target as HTMLInputElement).blur()}
@@ -772,7 +835,8 @@ export function ExerciseSettingsClient({
             <select
               name="tracking_type"
               required
-              defaultValue="weighted"
+              value={addTrackingType}
+              onChange={(e) => setAddTrackingType(e.target.value as TrackingType)}
               className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
             >
               {TRACKING.map((t) => (
@@ -791,6 +855,43 @@ export function ExerciseSettingsClient({
               className="rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 py-2 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
             />
           </label>
+          {addTrackingType === "timed" ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
+                Duration start (sec)
+                <input
+                  name="duration_start_seconds"
+                  type="number"
+                  min={1}
+                  step="any"
+                  className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                  onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
+                Duration end (sec)
+                <input
+                  name="duration_end_seconds"
+                  type="number"
+                  min={1}
+                  step="any"
+                  className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                  onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
+                Duration step (sec)
+                <input
+                  name="duration_step_seconds"
+                  type="number"
+                  min={1}
+                  step="any"
+                  className="min-h-11 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-3 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+                  onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                />
+              </label>
+            </div>
+          ) : null}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <label className="flex flex-col gap-2 text-sm font-medium text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
               Machine start

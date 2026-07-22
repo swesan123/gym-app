@@ -7,9 +7,12 @@ import {
   addWorkoutSet,
   fetchWorkoutSetRows,
   finishWorkout,
+  markSetStarted,
   removeWorkoutSet,
+  skipExerciseInWorkout,
   updateWorkoutSet,
 } from "@/app/actions/workouts";
+import { buildExerciseDurationPresetsMap } from "@/components/workout/buildExerciseDurationPresets";
 import { buildExerciseWeightPresetsMap } from "@/components/workout/buildExerciseWeightPresets";
 import { ExerciseSetTable } from "@/components/workout/ExerciseSetTable";
 import { FocusSetCard } from "@/components/workout/FocusSetCard";
@@ -17,12 +20,15 @@ import type { FlatSetRow } from "@/components/workout/groupSets";
 import { partitionGroupsByStretchKind } from "@/components/workout/partitionGroupsByStretchKind";
 import { useFocusNavigation } from "@/components/workout/useFocusNavigation";
 import { useRestTimer } from "@/components/workout/useRestTimer";
+import { DURATION_PRESETS } from "@/components/workout/setFieldPresets";
 import { useWorkoutRows } from "@/components/workout/useWorkoutRows";
 import { WorkoutSummary } from "@/components/workout/WorkoutSummary";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { canRemoveWorkoutSet } from "@/lib/canRemoveWorkoutSet";
+import { clampWorkoutElapsedSeconds, formatDurationSeconds } from "@/lib/duration";
 import { getFinishModalState } from "@/lib/setCompletion";
+import { useWorkoutElapsed } from "@/lib/useWorkoutElapsed";
 
 const VIEW_MODE_STORAGE_PREFIX = "gym-app:viewMode:";
 
@@ -32,6 +38,7 @@ export function ActiveWorkout({
   workoutId,
   split,
   status,
+  workoutCreatedAt,
   rows,
   weightPresets,
   exercisePresetMap,
@@ -40,6 +47,7 @@ export function ActiveWorkout({
   workoutId: string;
   split: string;
   status: "draft" | "completed";
+  workoutCreatedAt: string;
   rows: FlatSetRow[];
   weightPresets: number[];
   exercisePresetMap: Record<string, number[]>;
@@ -58,12 +66,19 @@ export function ActiveWorkout({
   const readOnly = status === "completed";
   const viewModeStorageKey = `${VIEW_MODE_STORAGE_PREFIX}${workoutId}`;
 
+  const workoutStartAt = useMemo(
+    () => new Date(workoutCreatedAt).getTime(),
+    [workoutCreatedAt],
+  );
+  const elapsedSeconds = useWorkoutElapsed(readOnly ? null : workoutStartAt);
+
   const {
     localRows,
     applyServerRows,
     updateRowNote,
     updateRowCompletion,
     updateRowFields,
+    updateRowsSortOrder,
     removeRow,
     addRow,
   } = useWorkoutRows(rows);
@@ -78,15 +93,31 @@ export function ActiveWorkout({
     setFocusIndex,
   } = useFocusNavigation(localRows, workoutId, readOnly);
 
+  // When rest ends (naturally or skipped), stamp the next incomplete set's
+  // started_at so its elapsed time in history reflects when it became
+  // available rather than whenever the user gets around to editing it (#95).
+  const markNextSetStarted = () => {
+    if (readOnly) return;
+    const next = focusSteps.find((step) => {
+      const row = localRows.find((r) => r.id === step.setId);
+      return row && row.set_type !== "warmup" && row.completed_at == null;
+    });
+    if (!next) return;
+    void markSetStarted(next.setId).catch(() => {
+      // Best-effort — only affects the per-set duration shown in history.
+    });
+  };
+
   const {
     restEndAt,
     restLabel,
     restRemaining,
     startRestTimer,
     stopRestTimer,
-  } = useRestTimer(workoutId, readOnly);
+  } = useRestTimer(workoutId, readOnly, markNextSetStarted);
 
   const restTriggeredSetIdsRef = useRef<Set<string>>(new Set());
+  const skippedExerciseRef = useRef<string | null>(null);
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window === "undefined") return "list";
@@ -103,6 +134,11 @@ export function ActiveWorkout({
     () =>
       buildExerciseWeightPresetsMap(rows, weightPresets, exercisePresetMap),
     [rows, weightPresets, exercisePresetMap],
+  );
+
+  const exerciseDurationPresets = useMemo(
+    () => buildExerciseDurationPresetsMap(rows),
+    [rows],
   );
 
   const setViewModePersisted = (mode: ViewMode) => {
@@ -122,6 +158,29 @@ export function ActiveWorkout({
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [workoutId, readOnly, applyServerRows]);
+
+  // After skipping an exercise in Focus mode, land on the next incomplete
+  // step once the reordered `focusSteps` reflects the skip (#93). Prefers a
+  // step outside the skipped exercise; falls back to it if nothing else is
+  // left to do.
+  useEffect(() => {
+    const skippedId = skippedExerciseRef.current;
+    if (!skippedId) return;
+    skippedExerciseRef.current = null;
+
+    const isIncomplete = (setId: string) => {
+      const row = localRows.find((r) => r.id === setId);
+      return !!row && row.set_type !== "warmup" && row.completed_at == null;
+    };
+
+    let nextIndex = focusSteps.findIndex(
+      (step) => step.exerciseId !== skippedId && isIncomplete(step.setId),
+    );
+    if (nextIndex < 0) {
+      nextIndex = focusSteps.findIndex((step) => isIncomplete(step.setId));
+    }
+    if (nextIndex >= 0) setFocusIndex(nextIndex);
+  }, [focusSteps, localRows, setFocusIndex]);
 
   const onConfirmRemove = () => {
     if (!removeTarget) return;
@@ -181,6 +240,21 @@ export function ActiveWorkout({
     });
   };
 
+  const handleSkipExercise = (exerciseId: string) => {
+    if (viewMode === "focus") {
+      skippedExerciseRef.current = exerciseId;
+    }
+    startTransition(async () => {
+      try {
+        const updates = await skipExerciseInWorkout(workoutId, exerciseId);
+        updateRowsSortOrder(updates);
+      } catch (e) {
+        skippedExerciseRef.current = null;
+        setError(e instanceof Error ? e.message : "Could not skip exercise");
+      }
+    });
+  };
+
   const handleDoneRest = (
     setId: string,
     restSeconds: number | null,
@@ -234,6 +308,16 @@ export function ActiveWorkout({
             <h1 className="text-lg font-bold leading-snug text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
               {readOnly ? "Workout (completed)" : "Active workout"}
             </h1>
+            {!readOnly ? (
+              <p className="font-data text-xs font-semibold tabular-nums text-[var(--gym-amber)]">
+                {formatDurationSeconds(clampWorkoutElapsedSeconds(elapsedSeconds))}
+                {restEndAt != null && restRemaining > 0 ? (
+                  <span className="ml-2 text-emerald-600 dark:text-emerald-400">
+                    · Rest {restRemaining}s
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
           </div>
           {!readOnly ? (
             <div className="flex shrink-0 rounded-lg border border-[var(--gray-300)] p-0.5 dark:border-[var(--gray-200)]">
@@ -279,6 +363,9 @@ export function ActiveWorkout({
             weightPresets={
               exerciseWeightPresets.get(focusStep.exerciseId) ?? weightPresets
             }
+            durationPresets={
+              exerciseDurationPresets.get(focusStep.exerciseId) ?? DURATION_PRESETS
+            }
             showWeightCol={
               focusGroup.tracking_type === "weighted" ||
               focusGroup.tracking_type === "assisted" ||
@@ -302,6 +389,7 @@ export function ActiveWorkout({
               })
             }
             onAddSet={() => handleAddSet(focusStep.exerciseId)}
+            onSkip={() => handleSkipExercise(focusStep.exerciseId)}
             onSetCompleted={updateRowCompletion}
             onSetFieldsChange={updateRowFields}
           />
@@ -339,11 +427,16 @@ export function ActiveWorkout({
                           exerciseWeightPresets.get(g.exercise_id) ??
                           weightPresets
                         }
+                        durationPresets={
+                          exerciseDurationPresets.get(g.exercise_id) ??
+                          DURATION_PRESETS
+                        }
                         bodyWeight={bodyWeight}
                         readOnly={readOnly}
                         pending={pending}
                         restSeconds={g.rest_seconds}
                         onAddSet={() => handleAddSet(g.exercise_id)}
+                        onSkip={() => handleSkipExercise(g.exercise_id)}
                         onRequestRemove={requestRemoveSet}
                         onUpdateNote={updateRowNote}
                         onError={setError}

@@ -21,6 +21,7 @@ export default async function HomePage() {
         .from("workouts")
         .select("id, split")
         .eq("status", "draft")
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
@@ -28,6 +29,7 @@ export default async function HomePage() {
         .from("workouts")
         .select("id, split, date")
         .eq("status", "completed")
+        .is("deleted_at", null)
         .gte("date", since)
         .order("date", { ascending: false })
         .order("created_at", { ascending: false }),

@@ -1,5 +1,4 @@
 import {
-  DURATION_PRESETS,
   REPS_PRESETS,
   RIR_PRESETS,
   mergeNumberOptions,
@@ -15,6 +14,7 @@ const NOTE_PREVIEW_MAX = 36;
 type Props = {
   row: FlatSetRow;
   weightPresets: number[];
+  durationPresets: number[];
   showWeightCol: boolean;
   bodyWeight: number | null;
   readOnly?: boolean;
@@ -37,6 +37,7 @@ type Props = {
 export function SetTableRow({
   row,
   weightPresets,
+  durationPresets,
   showWeightCol,
   bodyWeight,
   readOnly,
@@ -88,7 +89,7 @@ export function SetTableRow({
   const repsOptions = mergeNumberOptions(REPS_PRESETS, reps);
   const weightOptions = mergeWeightOptions(tt, weightPresets, weight);
   const rirOptions = mergeNumberOptions(RIR_PRESETS, rir);
-  const durationOptions = mergeNumberOptions(DURATION_PRESETS, duration);
+  const durationOptions = mergeNumberOptions(durationPresets, duration);
 
   const cellInput =
     "box-border h-10 min-h-10 w-full min-w-0 rounded border border-[var(--gray-300)] bg-[var(--chalk-white)] px-1.5 text-sm dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]";

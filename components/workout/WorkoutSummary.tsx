@@ -1,6 +1,7 @@
 import type { SetType, StretchKind, TrackingType } from "@/lib/database.types";
 
 import { partitionGroupsByStretchKind } from "@/components/workout/partitionGroupsByStretchKind";
+import { formatDurationSeconds, setElapsedSeconds } from "@/lib/duration";
 
 export type SummarySet = {
   id: string;
@@ -13,6 +14,7 @@ export type SummarySet = {
   note: string | null;
   set_type: SetType;
   completed_at: string | null;
+  started_at: string | null;
 };
 
 export type SummaryExercise = {
@@ -39,51 +41,59 @@ function ExerciseCard({ g }: { g: SummaryExercise }) {
         {g.exercise_name}
       </h3>
       <ul className="mt-3 space-y-3">
-        {g.sets.map((s) => (
-          <li
-            key={s.id}
-            className="rounded-lg bg-[var(--gray-50)] p-3 dark:bg-[var(--gray-100)]/80"
-          >
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
-              <span className="font-semibold text-[var(--steel-gray)] dark:text-[var(--gray-200)]">
-                Set {s.set_number}
-              </span>
-              {g.tracking_type === "timed" ? (
-                <span className="text-[var(--gray-600)] dark:text-[var(--gray-400)]">
-                  {s.duration_seconds != null
-                    ? `${s.duration_seconds}s`
-                    : "—"}
+        {g.sets.map((s) => {
+          const elapsed = setElapsedSeconds(s.started_at, s.completed_at);
+          return (
+            <li
+              key={s.id}
+              className="rounded-lg bg-[var(--gray-50)] p-3 dark:bg-[var(--gray-100)]/80"
+            >
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+                <span className="font-semibold text-[var(--steel-gray)] dark:text-[var(--gray-200)]">
+                  Set {s.set_number}
                 </span>
-              ) : (
-                <>
+                {g.tracking_type === "timed" ? (
                   <span className="text-[var(--gray-600)] dark:text-[var(--gray-400)]">
-                    Reps: {s.reps ?? "—"}
+                    {s.duration_seconds != null
+                      ? `${s.duration_seconds}s`
+                      : "—"}
                   </span>
-                  {(g.tracking_type === "weighted" ||
-                    g.tracking_type === "assisted" ||
-                    (g.tracking_type === "bodyweight" && s.weight != null)) && (
+                ) : (
+                  <>
                     <span className="text-[var(--gray-600)] dark:text-[var(--gray-400)]">
-                      Wt: {s.weight ?? "—"}
+                      Reps: {s.reps ?? "—"}
                     </span>
-                  )}
-                </>
-              )}
-              {s.rir != null && (
-                <span className="text-[var(--gray-600)] dark:text-[var(--gray-400)]">
-                  RIR {s.rir}
+                    {(g.tracking_type === "weighted" ||
+                      g.tracking_type === "assisted" ||
+                      (g.tracking_type === "bodyweight" && s.weight != null)) && (
+                      <span className="text-[var(--gray-600)] dark:text-[var(--gray-400)]">
+                        Wt: {s.weight ?? "—"}
+                      </span>
+                    )}
+                  </>
+                )}
+                {s.rir != null && (
+                  <span className="text-[var(--gray-600)] dark:text-[var(--gray-400)]">
+                    RIR {s.rir}
+                  </span>
+                )}
+                <span className="font-data text-[var(--gym-amber)]">
+                  Vol {formatVolume(s.volume)}
                 </span>
-              )}
-              <span className="font-data text-[var(--gym-amber)]">
-                Vol {formatVolume(s.volume)}
-              </span>
-            </div>
-            {s.note ? (
-              <p className="mt-2 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
-                {s.note}
-              </p>
-            ) : null}
-          </li>
-        ))}
+                {elapsed != null && (
+                  <span className="text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+                    {formatDurationSeconds(elapsed)}
+                  </span>
+                )}
+              </div>
+              {s.note ? (
+                <p className="mt-2 text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+                  {s.note}
+                </p>
+              ) : null}
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

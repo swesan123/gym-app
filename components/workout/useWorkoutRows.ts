@@ -49,6 +49,21 @@ export function useWorkoutRows(serverRows: FlatSetRow[]) {
     );
   }, []);
 
+  const updateRowsSortOrder = useCallback(
+    (updates: { exerciseId: string; sortOrder: number }[]) => {
+      const sortOrderByExercise = new Map(
+        updates.map((u) => [u.exerciseId, u.sortOrder]),
+      );
+      setLocalRows((prev) =>
+        prev.map((row) => {
+          const sortOrder = sortOrderByExercise.get(row.exercise_id);
+          return sortOrder === undefined ? row : { ...row, sort_order: sortOrder };
+        }),
+      );
+    },
+    [],
+  );
+
   const removeRow = useCallback((setId: string) => {
     setLocalRows((prev) => prev.filter((r) => r.id !== setId));
   }, []);
@@ -63,6 +78,7 @@ export function useWorkoutRows(serverRows: FlatSetRow[]) {
     updateRowNote,
     updateRowCompletion,
     updateRowFields,
+    updateRowsSortOrder,
     removeRow,
     addRow,
   };

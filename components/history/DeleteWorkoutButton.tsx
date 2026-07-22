@@ -38,7 +38,7 @@ export function DeleteWorkoutButton({ workoutId }: { workoutId: string }) {
       <Modal
         open={open}
         title="Delete workout?"
-        description="This permanently deletes the workout and all logged sets."
+        description="Moves this workout to Recently deleted in History, where it can be restored or erased for good."
         variant="danger"
         confirmLabel="Delete workout"
         onCancel={() => setOpen(false)}

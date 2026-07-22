@@ -3,7 +3,6 @@
 import type { FlatSetRow } from "@/components/workout/groupSets";
 import { Button } from "@/components/ui/button";
 import {
-  DURATION_PRESETS,
   REPS_PRESETS,
   RIR_PRESETS,
   mergeNumberOptions,
@@ -17,6 +16,7 @@ export function FocusSetCard({
   row,
   exerciseName,
   weightPresets,
+  durationPresets,
   showWeightCol,
   showRirCol,
   bodyWeight,
@@ -29,12 +29,14 @@ export function FocusSetCard({
   onDoneRest,
   onOpenNote,
   onAddSet,
+  onSkip,
   onSetCompleted,
   onSetFieldsChange,
 }: {
   row: FlatSetRow;
   exerciseName: string;
   weightPresets: number[];
+  durationPresets: number[];
   showWeightCol: boolean;
   showRirCol: boolean;
   bodyWeight: number | null;
@@ -47,6 +49,7 @@ export function FocusSetCard({
   onDoneRest: () => void;
   onOpenNote: () => void;
   onAddSet: () => void;
+  onSkip: () => void;
   onSetCompleted?: (setId: string, completedAt: string | null) => void;
   onSetFieldsChange?: (
     setId: string,
@@ -78,7 +81,7 @@ export function FocusSetCard({
   const repsOptions = mergeNumberOptions(REPS_PRESETS, reps);
   const weightOptions = mergeWeightOptions(tt, weightPresets, weight);
   const rirOptions = mergeNumberOptions(RIR_PRESETS, rir);
-  const durationOptions = mergeNumberOptions(DURATION_PRESETS, duration);
+  const durationOptions = mergeNumberOptions(durationPresets, duration);
 
   const fieldClass =
     "box-border h-12 min-h-12 w-full min-w-0 rounded-lg border border-[var(--gray-300)] bg-[var(--chalk-white)] px-2 text-base dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]";
@@ -105,11 +108,21 @@ export function FocusSetCard({
           <h2 className="text-2xl font-bold leading-tight text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
             {exerciseName}
           </h2>
-          {isDone ? (
-            <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-              ✓ Done
-            </span>
-          ) : null}
+          <div className="flex shrink-0 items-center gap-2">
+            {isDone ? (
+              <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                ✓ Done
+              </span>
+            ) : null}
+            <Button
+              variant="ghost"
+              type="button"
+              className="min-h-8 shrink-0 px-2 py-1 text-xs"
+              onClick={onSkip}
+            >
+              Skip →
+            </Button>
+          </div>
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3">

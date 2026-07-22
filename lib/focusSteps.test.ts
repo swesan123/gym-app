@@ -28,6 +28,7 @@ function makeSet(id: string, set_number: number) {
     note: null,
     set_type: "working" as const,
     completed_at: null,
+    started_at: null,
   };
 }
 

@@ -8,6 +8,18 @@ export function clampWorkoutElapsedSeconds(
   return Math.min(Math.max(0, totalSeconds), WORKOUT_DISPLAY_DURATION_CAP_SEC);
 }
 
+/** How long a set took (started_at → completed_at), or null if either is missing (#95). */
+export function setElapsedSeconds(
+  startedAt: string | null,
+  completedAt: string | null,
+): number | null {
+  if (startedAt == null || completedAt == null) return null;
+  const seconds = Math.round(
+    (new Date(completedAt).getTime() - new Date(startedAt).getTime()) / 1000,
+  );
+  return seconds >= 0 ? seconds : null;
+}
+
 export function formatDurationSeconds(totalSeconds: number | null): string {
   if (totalSeconds == null || !Number.isFinite(totalSeconds) || totalSeconds < 0) {
     return "—";

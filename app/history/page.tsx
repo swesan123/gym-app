@@ -1,11 +1,18 @@
 import Link from "next/link";
 
 import { CopyHistoryButton } from "@/components/history/CopyHistoryButton";
+import { RestoreWorkoutButton } from "@/components/history/RestoreWorkoutButton";
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
 import { clampWorkoutElapsedSeconds, formatDurationSeconds } from "@/lib/duration";
 import { hasSupabaseEnv } from "@/lib/env";
+import {
+  computeCoreSplits,
+  missingSplitsForWeek,
+  type WeeklySplitCounts,
+} from "@/lib/missingSplits";
 import { fetchSplitsCatalog } from "@/lib/queries/read";
 import { createClient } from "@/lib/supabase/server";
+import { formatWorkoutWeek } from "@/lib/week";
 
 import type { Database } from "@/lib/database.types";
 
@@ -126,14 +133,22 @@ export default async function HistoryPage() {
 
   const supabase = await createClient();
 
-  const [{ data: workouts, error }, catalog] = await Promise.all([
-    supabase
-      .from("workouts")
-      .select("*")
-      .order("date", { ascending: false })
-      .order("created_at", { ascending: false }),
-    fetchSplitsCatalog(),
-  ]);
+  const [{ data: workouts, error }, { data: deletedWorkouts }, catalog] =
+    await Promise.all([
+      supabase
+        .from("workouts")
+        .select("*")
+        .is("deleted_at", null)
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("workouts")
+        .select("id, date, week, split, status")
+        .not("deleted_at", "is", null)
+        .order("date", { ascending: false })
+        .limit(50),
+      fetchSplitsCatalog(),
+    ]);
 
   if (error) {
     throw new Error(error.message);
@@ -178,6 +193,21 @@ export default async function HistoryPage() {
   const uniqueWeeks = [...new Set(list.map((w) => w.week))].sort((a, b) =>
     b.localeCompare(a),
   );
+
+  const currentWeekKey = formatWorkoutWeek(new Date());
+  const weeklyCompletedSplits: WeeklySplitCounts = new Map();
+  for (const w of list) {
+    if (w.status !== "completed") continue;
+    const splits = weeklyCompletedSplits.get(w.week) ?? new Set<string>();
+    splits.add(w.split);
+    weeklyCompletedSplits.set(w.week, splits);
+  }
+  const elapsedWeekKeys = uniqueWeeks.filter((w) => w !== currentWeekKey);
+  const coreSplits = computeCoreSplits(
+    weeklyCompletedSplits,
+    elapsedWeekKeys.slice(0, 8),
+  );
+
   const copyPayload = buildHistoryCopyPayload({
     workouts: list,
     weekKeys: uniqueWeeks,
@@ -205,11 +235,20 @@ export default async function HistoryPage() {
           const inWeek = list
             .filter((w) => w.week === weekKey)
             .sort((a, b) => compareWorkoutsInWeek(a, b, splitNamesOrder));
+          const missingSplits =
+            weekKey === currentWeekKey
+              ? []
+              : missingSplitsForWeek(weeklyCompletedSplits, weekKey, coreSplits);
           return (
             <section key={weekKey}>
               <h2 className="text-lg font-bold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
                 {formatWeekHeading(weekKey)}
               </h2>
+              {missingSplits.length > 0 ? (
+                <p className="mt-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                  ⚠ Missing: {missingSplits.join(", ")}
+                </p>
+              ) : null}
               <ul className="mt-4 flex flex-col gap-3">
                 {inWeek.map((w) => {
                   const vol = volumeMap.get(w.id) ?? 0;
@@ -270,6 +309,33 @@ export default async function HistoryPage() {
         <p className="mt-8 text-center text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
           No workouts yet.
         </p>
+      ) : null}
+
+      {deletedWorkouts && deletedWorkouts.length > 0 ? (
+        <section className="mt-10 border-t border-[var(--gray-200)] pt-6 dark:border-[var(--gray-100)]">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+            Recently deleted
+          </h2>
+          <ul className="mt-4 flex flex-col gap-3">
+            {deletedWorkouts.map((w) => (
+              <li
+                key={w.id}
+                className="flex items-center justify-between gap-2 rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] p-4 dark:border-[var(--gray-200)] dark:bg-[var(--gray-50)]"
+              >
+                <div>
+                  <p className="font-semibold text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
+                    {w.split}
+                  </p>
+                  <p className="text-sm text-[var(--gray-500)] dark:text-[var(--gray-400)]">
+                    {w.date}
+                    {w.status === "draft" ? " · Draft" : ""}
+                  </p>
+                </div>
+                <RestoreWorkoutButton workoutId={w.id} />
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
     </div>
   );

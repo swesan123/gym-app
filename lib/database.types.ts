@@ -27,6 +27,9 @@ export type Database = {
           sort_order: number;
           stretch_kind: StretchKind;
           archived_at: string | null;
+          duration_start_seconds: number | null;
+          duration_end_seconds: number | null;
+          duration_step_seconds: number | null;
           created_at: string;
         };
         Insert: {
@@ -46,6 +49,9 @@ export type Database = {
           sort_order?: number;
           stretch_kind?: StretchKind;
           archived_at?: string | null;
+          duration_start_seconds?: number | null;
+          duration_end_seconds?: number | null;
+          duration_step_seconds?: number | null;
           created_at?: string;
         };
         Update: {
@@ -65,6 +71,9 @@ export type Database = {
           sort_order?: number;
           stretch_kind?: StretchKind;
           archived_at?: string | null;
+          duration_start_seconds?: number | null;
+          duration_end_seconds?: number | null;
+          duration_step_seconds?: number | null;
           created_at?: string;
         };
       };
@@ -138,6 +147,7 @@ export type Database = {
           notes: string | null;
           created_at: string;
           completed_at: string | null;
+          deleted_at: string | null;
         };
         Insert: {
           id?: string;
@@ -148,6 +158,7 @@ export type Database = {
           notes?: string | null;
           created_at?: string;
           completed_at?: string | null;
+          deleted_at?: string | null;
         };
         Update: {
           id?: string;
@@ -158,6 +169,7 @@ export type Database = {
           notes?: string | null;
           created_at?: string;
           completed_at?: string | null;
+          deleted_at?: string | null;
         };
       };
       workout_sets: {
@@ -174,6 +186,7 @@ export type Database = {
           note: string | null;
           set_type: SetType;
           completed_at: string | null;
+          started_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -189,6 +202,7 @@ export type Database = {
           note?: string | null;
           set_type?: SetType;
           completed_at?: string | null;
+          started_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -204,6 +218,7 @@ export type Database = {
           note?: string | null;
           set_type?: SetType;
           completed_at?: string | null;
+          started_at?: string | null;
           created_at?: string;
         };
       };
@@ -228,6 +243,23 @@ export type Database = {
           value?: number;
           label?: string | null;
           created_at?: string;
+        };
+      };
+      workout_exercise_order: {
+        Row: {
+          workout_id: string;
+          exercise_id: string;
+          sort_order: number;
+        };
+        Insert: {
+          workout_id: string;
+          exercise_id: string;
+          sort_order: number;
+        };
+        Update: {
+          workout_id?: string;
+          exercise_id?: string;
+          sort_order?: number;
         };
       };
     };

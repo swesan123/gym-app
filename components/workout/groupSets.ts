@@ -12,6 +12,9 @@ export type FlatSetRow = SummarySet & {
   machine_start_weight?: number | null;
   machine_end_weight?: number | null;
   machine_increment?: number | null;
+  duration_start_seconds?: number | null;
+  duration_end_seconds?: number | null;
+  duration_step_seconds?: number | null;
   rest_seconds?: number | null;
 };
 
@@ -50,6 +53,7 @@ export function groupFlatSets(rows: FlatSetRow[]): SummaryExercise[] {
       rest_seconds,
       set_type,
       completed_at,
+      started_at,
     } = r;
 
     const existing = map.get(exercise_id);
@@ -64,6 +68,7 @@ export function groupFlatSets(rows: FlatSetRow[]): SummaryExercise[] {
       note,
       set_type,
       completed_at,
+      started_at,
     };
 
     if (!existing) {

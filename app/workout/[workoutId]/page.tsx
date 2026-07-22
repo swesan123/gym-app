@@ -25,6 +25,7 @@ export default async function WorkoutSessionPage({ params }: Props) {
     .from("workouts")
     .select("*")
     .eq("id", workoutId)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (error || !workout) {
@@ -45,6 +46,7 @@ export default async function WorkoutSessionPage({ params }: Props) {
       workoutId={workoutId}
       split={workout.split}
       status={workout.status}
+      workoutCreatedAt={workout.created_at}
       rows={rows}
       weightPresets={weightPresets}
       exercisePresetMap={exercisePresetMap}

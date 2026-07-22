@@ -21,6 +21,9 @@ export async function updateExercise(input: {
   progressive_overload_increment: number | null;
   rest_seconds: number | null;
   stretch_kind: StretchKind;
+  duration_start_seconds: number | null;
+  duration_end_seconds: number | null;
+  duration_step_seconds: number | null;
 }) {
   const supabase = await createClient();
   const { error } = await supabase
@@ -38,6 +41,9 @@ export async function updateExercise(input: {
       progressive_overload_increment: input.progressive_overload_increment,
       rest_seconds: input.rest_seconds,
       stretch_kind: input.stretch_kind,
+      duration_start_seconds: input.duration_start_seconds,
+      duration_end_seconds: input.duration_end_seconds,
+      duration_step_seconds: input.duration_step_seconds,
     })
     .eq("id", input.id);
 
@@ -116,6 +122,9 @@ export async function createExercise(input: {
   progressive_overload_increment: number | null;
   rest_seconds: number | null;
   stretch_kind: StretchKind;
+  duration_start_seconds: number | null;
+  duration_end_seconds: number | null;
+  duration_step_seconds: number | null;
 }) {
   const supabase = await createClient();
 
@@ -134,6 +143,9 @@ export async function createExercise(input: {
       progressive_overload_increment: input.progressive_overload_increment,
       rest_seconds: input.rest_seconds,
       stretch_kind: input.stretch_kind,
+      duration_start_seconds: input.duration_start_seconds,
+      duration_end_seconds: input.duration_end_seconds,
+      duration_step_seconds: input.duration_step_seconds,
       sort_order: 0,
     })
     .select("id")
