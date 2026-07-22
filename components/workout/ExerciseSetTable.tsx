@@ -38,6 +38,7 @@ type Props = {
     isLastSetOfExercise: boolean,
   ) => void;
   onSetCompleted: (setId: string, completedAt: string | null) => void;
+  onSetStarted: (setId: string, startedAt: string | null) => void;
   onSetFieldsChange: (
     setId: string,
     fields: {
@@ -68,6 +69,7 @@ export function ExerciseSetTable({
   onError,
   onDoneRest,
   onSetCompleted,
+  onSetStarted,
   onSetFieldsChange,
 }: Props) {
   const router = useRouter();
@@ -169,6 +171,7 @@ export function ExerciseSetTable({
                       )
                     }
                     onSetCompleted={onSetCompleted}
+                    onSetStarted={onSetStarted}
                     onSetFieldsChange={onSetFieldsChange}
                     onSetTypeChange={(setId, setType) => {
                       void (async () => {

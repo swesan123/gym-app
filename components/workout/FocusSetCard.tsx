@@ -33,6 +33,7 @@ export function FocusSetCard({
   onAddSet,
   onSkip,
   onSetCompleted,
+  onSetStarted,
   onSetFieldsChange,
 }: {
   row: FlatSetRow;
@@ -53,6 +54,7 @@ export function FocusSetCard({
   onAddSet: () => void;
   onSkip: () => void;
   onSetCompleted?: (setId: string, completedAt: string | null) => void;
+  onSetStarted?: (setId: string, startedAt: string | null) => void;
   onSetFieldsChange?: (
     setId: string,
     fields: { reps: number | null; weight: number | null; rir: number | null; duration_seconds: number | null },
@@ -68,18 +70,29 @@ export function FocusSetCard({
     duration,
     setDuration,
     isDone,
+    hasStarted,
+    startedAt,
     readyToComplete,
     markDonePending,
     clearDonePending,
+    startPending,
     markDoneError,
+    handleStartSet,
     handleMarkDone,
     handleClearDone,
     timerEndAt,
     timerRemaining,
     startTimer,
-  } = useSetEditor({ row, bodyWeight, onDoneRest, onSetCompleted, onSetFieldsChange });
+  } = useSetEditor({
+    row,
+    bodyWeight,
+    onDoneRest,
+    onSetCompleted,
+    onSetStarted,
+    onSetFieldsChange,
+  });
 
-  const setElapsedSeconds = useSetElapsed(row.started_at, row.completed_at);
+  const setElapsedSeconds = useSetElapsed(startedAt, row.completed_at);
 
   const tt = row.tracking_type;
   const repsOptions = mergeNumberOptions(REPS_PRESETS, reps);
@@ -267,6 +280,15 @@ export function FocusSetCard({
             onClick={handleClearDone}
           >
             {clearDonePending ? "Clearing…" : "Edit"}
+          </Button>
+        ) : !hasStarted ? (
+          <Button
+            type="button"
+            className="mt-4 w-full py-3 text-base"
+            disabled={startPending}
+            onClick={handleStartSet}
+          >
+            {startPending ? "Starting…" : "Start"}
           </Button>
         ) : (
           <Button

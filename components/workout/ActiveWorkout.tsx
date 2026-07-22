@@ -408,6 +408,7 @@ export function ActiveWorkout({
             onAddSet={() => handleAddSet(focusStep.exerciseId)}
             onSkip={() => handleSkipExercise(focusStep.exerciseId)}
             onSetCompleted={updateRowCompletion}
+            onSetStarted={updateRowStartedAt}
             onSetFieldsChange={updateRowFields}
           />
         ) : (
@@ -458,6 +459,7 @@ export function ActiveWorkout({
                         onError={setError}
                         onDoneRest={handleDoneRest}
                         onSetCompleted={updateRowCompletion}
+                        onSetStarted={updateRowStartedAt}
                         onSetFieldsChange={updateRowFields}
                       />
                     ))}

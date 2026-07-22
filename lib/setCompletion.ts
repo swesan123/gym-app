@@ -38,6 +38,14 @@ export function isSetReadyToComplete(set: SetCompletionInput): boolean {
   return true;
 }
 
+/** Fields filled and the set timer has been started (Start tap or rest auto-start). */
+export function isSetReadyToMarkDone(
+  set: SetCompletionInput & { started_at?: string | null },
+): boolean {
+  if (set.started_at == null) return false;
+  return isSetReadyToComplete(set);
+}
+
 export function incompleteSets<T extends SetCompletionInput & { set_type?: string }>(
   sets: T[],
 ): T[] {

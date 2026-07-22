@@ -323,7 +323,7 @@ export async function updateWorkoutSet(input: {
   const { data: row, error: fetchErr } = await supabase
     .from("workout_sets")
     .select(
-      "exercise_id, reps, weight, rir, duration_seconds, note, set_type, completed_at, started_at",
+      "exercise_id, reps, weight, rir, duration_seconds, note, set_type, completed_at",
     )
     .eq("id", input.id)
     .single();
@@ -360,11 +360,6 @@ export async function updateWorkoutSet(input: {
   const completedAt =
     trackedFieldChanged && row.completed_at != null ? null : row.completed_at;
 
-  // Any save on a not-yet-started set counts as the user beginning work on
-  // it — covers the common case of hitting Done on prefilled values with no
-  // preceding rest timer, where no individual field actually changes (#95).
-  const startedAt = row.started_at ?? new Date().toISOString();
-
   const volume = computeSetVolume(trackingType, {
     reps,
     weight,
@@ -381,7 +376,6 @@ export async function updateWorkoutSet(input: {
       duration_seconds: durationSeconds,
       note: input.note !== undefined ? input.note : row.note,
       set_type: setType,
-      started_at: startedAt,
       volume,
       completed_at: completedAt,
     })

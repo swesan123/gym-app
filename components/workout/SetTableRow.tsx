@@ -25,6 +25,7 @@ type Props = {
   onSetTypeChange?: (setId: string, setType: SetType) => void;
   onDoneRest?: () => void;
   onSetCompleted?: (setId: string, completedAt: string | null) => void;
+  onSetStarted?: (setId: string, startedAt: string | null) => void;
   onSetFieldsChange?: (
     setId: string,
     fields: {
@@ -48,6 +49,7 @@ export function SetTableRow({
   onSetTypeChange,
   onDoneRest,
   onSetCompleted,
+  onSetStarted,
   onSetFieldsChange,
 }: Props) {
   const {
@@ -61,10 +63,14 @@ export function SetTableRow({
     setDuration,
     volumeLocal,
     isDone,
+    hasStarted,
+    startedAt,
     readyToComplete,
     markDonePending,
     clearDonePending,
+    startPending,
     markDoneError,
+    handleStartSet,
     handleMarkDone,
     handleClearDone,
     timerEndAt,
@@ -76,10 +82,11 @@ export function SetTableRow({
     readOnly,
     onDoneRest,
     onSetCompleted,
+    onSetStarted,
     onSetFieldsChange,
   });
 
-  const setElapsedSeconds = useSetElapsed(row.started_at, row.completed_at);
+  const setElapsedSeconds = useSetElapsed(startedAt, row.completed_at);
 
   const savedNote = row.note ?? "";
   const notePreview =
@@ -242,10 +249,20 @@ export function SetTableRow({
       {!readOnly ? (
         <td className="py-1 pl-1 pr-1">
           <div className="flex items-center justify-end gap-1">
-            {setElapsedSeconds != null ? (
+            {hasStarted && setElapsedSeconds != null ? (
               <span className="font-data shrink-0 text-[10px] tabular-nums text-[var(--gray-500)] dark:text-[var(--gray-400)]">
                 {formatDurationSeconds(setElapsedSeconds)}
               </span>
+            ) : !isDone ? (
+              <button
+                type="button"
+                disabled={startPending}
+                onClick={handleStartSet}
+                className="shrink-0 rounded bg-[var(--gym-amber)] px-2 py-1 text-xs font-semibold text-[var(--chalk-white)] transition hover:bg-orange-600 disabled:opacity-40"
+                aria-label={`Start set ${row.set_number}`}
+              >
+                {startPending ? "…" : "Start"}
+              </button>
             ) : null}
             {markDoneError ? (
               <span

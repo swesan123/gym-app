@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import { clearSetDone, markSetDone, updateWorkoutSet } from "@/app/actions/workouts";
+import {
+  clearSetDone,
+  markSetDone,
+  markSetStarted,
+  updateWorkoutSet,
+} from "@/app/actions/workouts";
 import type { FlatSetRow } from "@/components/workout/groupSets";
-import { isSetReadyToComplete } from "@/lib/setCompletion";
+import { isSetReadyToMarkDone } from "@/lib/setCompletion";
 import { parseOptionalNumber } from "@/lib/parse";
 import { useCountdownOnComplete } from "@/lib/useCountdownOnComplete";
 import { computeSetVolume } from "@/lib/volume";
@@ -18,6 +23,7 @@ export function useSetEditor({
   readOnly,
   onDoneRest,
   onSetCompleted,
+  onSetStarted,
   onSetFieldsChange,
 }: {
   row: FlatSetRow;
@@ -27,6 +33,8 @@ export function useSetEditor({
   onDoneRest?: () => void;
   /** Called so the parent can optimistically update localRows with the completion timestamp. */
   onSetCompleted?: (setId: string, completedAt: string | null) => void;
+  /** Called when the user taps Start (or rest auto-starts the next set). */
+  onSetStarted?: (setId: string, startedAt: string | null) => void;
   /** Called on every field edit so the parent's localRows stays current — keeps
    * List and Focus views showing the same values when the user switches between them (#72). */
   onSetFieldsChange?: (
@@ -58,8 +66,16 @@ export function useSetEditor({
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setLocalCompletedAt(row.completed_at); }, [row.completed_at]);
 
+  const [localStartedAt, setLocalStartedAt] = useState<string | null>(
+    () => row.started_at,
+  );
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setLocalStartedAt(row.started_at); }, [row.started_at]);
+
   const [markDonePending, startMarkDone] = useTransition();
   const [clearDonePending, startClearDone] = useTransition();
+  const [startPending, startStartSet] = useTransition();
   const [markDoneError, setMarkDoneError] = useState<string | null>(null);
   const [timerEndAt, setTimerEndAt] = useState<number | null>(null);
   const timerSecondsRef = useRef<number>(0);
@@ -68,6 +84,8 @@ export function useSetEditor({
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isDone = localCompletedAt != null;
+  const startedAt = localStartedAt ?? row.started_at;
+  const hasStarted = startedAt != null;
 
   const volumeLocal = computeSetVolume(row.tracking_type, {
     reps: parseOptionalNumber(reps),
@@ -76,13 +94,14 @@ export function useSetEditor({
     bodyWeight,
   });
 
-  const readyToComplete = isSetReadyToComplete({
+  const readyToComplete = isSetReadyToMarkDone({
     tracking_type: row.tracking_type,
     stretch_kind: row.stretch_kind,
     reps: parseOptionalNumber(reps),
     weight: parseOptionalNumber(weight),
     rir: parseOptionalNumber(rir),
     duration_seconds: parseOptionalNumber(duration),
+    started_at: startedAt,
   });
 
   // Debounced DB save — also pushes the current values to the parent's
@@ -110,6 +129,23 @@ export function useSetEditor({
     saveTimeoutRef.current = t;
     return () => clearTimeout(t);
   }, [readOnly, row.id, reps, weight, rir, duration, onSetFieldsChange]);
+
+  const handleStartSet = () => {
+    if (readOnly || hasStarted) return;
+    const optimisticTs = new Date().toISOString();
+    setLocalStartedAt(optimisticTs);
+    onSetStarted?.(row.id, optimisticTs);
+    startStartSet(async () => {
+      try {
+        const { startedAt: serverStartedAt } = await markSetStarted(row.id);
+        setLocalStartedAt(serverStartedAt);
+        onSetStarted?.(row.id, serverStartedAt);
+      } catch {
+        setLocalStartedAt(row.started_at);
+        onSetStarted?.(row.id, row.started_at);
+      }
+    });
+  };
 
   const handleMarkDone = () => {
     setMarkDoneError(null);
@@ -199,10 +235,14 @@ export function useSetEditor({
     setDuration,
     volumeLocal,
     isDone,
+    hasStarted,
+    startedAt,
     readyToComplete,
     markDonePending,
     clearDonePending,
+    startPending,
     markDoneError,
+    handleStartSet,
     handleMarkDone,
     handleClearDone,
     timerEndAt,

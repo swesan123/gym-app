@@ -43,7 +43,7 @@ export function useWorkoutRows(serverRows: FlatSetRow[]) {
     [],
   );
 
-  const updateRowStartedAt = useCallback((setId: string, startedAt: string) => {
+  const updateRowStartedAt = useCallback((setId: string, startedAt: string | null) => {
     setLocalRows((prev) =>
       prev.map((row) =>
         row.id === setId ? { ...row, started_at: startedAt } : row,

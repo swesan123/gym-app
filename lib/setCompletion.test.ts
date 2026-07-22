@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { incompleteSets, isSetReadyToComplete, getFinishModalState } from "./setCompletion";
+import { incompleteSets, isSetReadyToComplete, isSetReadyToMarkDone, getFinishModalState } from "./setCompletion";
 
 describe("isSetReadyToComplete", () => {
   it("requires reps, weight, and rir for weighted exercises", () => {
@@ -161,6 +161,31 @@ describe("isSetReadyToComplete", () => {
         weight: null,
         rir: null,
         duration_seconds: 30,
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("isSetReadyToMarkDone", () => {
+  const filledWeighted = {
+    tracking_type: "weighted",
+    reps: 10,
+    weight: 50,
+    rir: 2,
+    duration_seconds: null,
+  } as const;
+
+  it("is false when fields are filled but started_at is missing", () => {
+    expect(isSetReadyToMarkDone({ ...filledWeighted, started_at: null })).toBe(
+      false,
+    );
+  });
+
+  it("is true when fields are filled and started_at is set", () => {
+    expect(
+      isSetReadyToMarkDone({
+        ...filledWeighted,
+        started_at: "2026-01-01T00:00:00.000Z",
       }),
     ).toBe(true);
   });
