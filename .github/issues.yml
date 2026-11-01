@@ -1,40 +1,25 @@
 issues:
-  - title: Create workout data model
-    body: Define a Workout class with attributes like date, exercises, and optional notes. Add Firestore mapping functions.
-    labels: ["type: feature", "backend"]
+  - title: Adopt free-exercise-db muscle/equipment taxonomy
+    body: |
+      Follow-up from #97. Use the public-domain [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (Unlicense) taxonomy for `muscle`, `equipment`, and `mechanic` instead of free-text muscle names, so the AI chat and progress views can group exercises consistently. Optionally seed instructions/images for existing exercises by name match.
+    labels: ["type: enhancement", "backend", "priority: low"]
 
-  - title: Build workout logging screen
-    body: UI to add exercises, log sets, reps, and weights. Save data locally for now.
-    labels: ["type: feature", "web", "ui"]
+  - title: Wall-clock rest timer that survives backgrounding
+    body: |
+      Follow-up from #97. Port the rest-timer approach from [GymCoach](https://github.com/gymcoach-app/gymcoach) `lib/rest-timer.ts` (MIT): store `endsAt` / `pausedRemainingMs` instead of ticking state, pure functions taking `now`, +/-15s adjust. Pair with wake-lock and vibration helpers so the timer is accurate when iOS Safari backgrounds the tab.
+    labels: ["type: enhancement", "ui", "priority: medium"]
 
-  - title: Connect workout logging to Firestore
-    body: Implement Firestore save functionality for completed workouts using WorkoutService.
-    labels: ["type: feature", "firebase", "backend"]
+  - title: Intra-set RIR autoregulation suggestions in Focus view
+    body: |
+      Follow-up from #97. After logging a set's RIR, suggest the next set's load/reps (reference: GymCoach `lib/intra-set-autoregulation.ts`, MIT) and snap suggestions to the exercise's machine weight options (GymCoach `lib/gym-loads.ts`). Suggestions only; never auto-change logged values.
+    labels: ["type: feature", "ui", "priority: medium"]
 
-  - title: Create workout history screen
-    body: Display a scrollable list or calendar view of past workouts. Data pulled from Firestore.
-    labels: ["type: feature", "web", "ui"]
+  - title: Keep Supabase project from auto-pausing
+    body: |
+      The free-tier Supabase project paused after a week of inactivity and the app returned 500s on History/Progress. Add a scheduled GitHub Action (every 3 days) that runs a trivial query against the database, and confirm the daily backup workflow is still enabled (GitHub disables scheduled workflows after 60 days without repo activity).
+    labels: ["type: chore", "backend", "priority: high"]
 
-  - title: Add authentication with Firebase
-    body: Enable sign-up/sign-in using Firebase Authentication (email & password).
-    labels: ["type: feature", "firebase", "backend"]
-
-  - title: Display progress chart
-    body: Visualize progress (e.g. total volume over time) using fl_chart.
-    labels: ["type: feature", "ui", "web"]
-
-  - title: Add rest timer widget
-    body: Add a customizable rest timer during sets. Optional vibration or beep feedback.
-    labels: ["type: enhancement", "ui"]
-
-  - title: Implement responsive design
-    body: Ensure UI scales well across desktop and mobile screens using LayoutBuilder or MediaQuery.
-    labels: ["type: enhancement", "ui", "web"]
-
-  - title: Create reusable exercise tile widget
-    body: Extract a component for displaying each exercise entry. Used in log and history views.
-    labels: ["type: refactor", "ui"]
-
-  - title: Set up constants and utilities
-    body: Move repeated strings, colors, and Firestore paths to a constants file.
-    labels: ["type: chore", "backend"]
+  - title: Rate-limit passcode login attempts
+    body: |
+      Follow-up from #97 security review. `login` only adds a 400ms delay on failure. Add durable rate limiting (e.g. Vercel Firewall rate-limit rule on POST /login, or a Supabase-backed attempt counter with exponential backoff) so a short passcode can't be brute-forced.
+    labels: ["type: enhancement", "backend", "priority: medium"]
