@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "streamdown/styles.css";
+@source "../node_modules/streamdown/dist/*.js";
 
 :root {
   /* Gym-inspired color palette */
@@ -41,7 +43,8 @@
   --color-surface: var(--chalk-white);
   --color-surface-alt: var(--gray-100);
   --color-border: var(--gray-200);
-  --color-muted: var(--gray-500);
+  --color-muted: var(--gray-100);
+  --color-muted-foreground: var(--gray-500);
   --color-muted-fg: var(--gray-700);
 
   /* Spacing scale */
