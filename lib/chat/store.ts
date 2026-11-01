@@ -39,6 +39,16 @@ export async function createChat(title?: string): Promise<{ id: string }> {
   return { id: data.id };
 }
 
+/** Creates the chat row with a client-generated id if it does not exist yet. */
+export async function ensureChat(chatId: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("chats")
+    .upsert({ id: chatId }, { onConflict: "id", ignoreDuplicates: true });
+
+  if (error) throw new Error(error.message);
+}
+
 export async function listChats(
   limit = 20,
 ): Promise<{ id: string; title: string; updatedAt: string }[]> {
