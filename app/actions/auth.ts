@@ -10,6 +10,7 @@ import {
   createSessionToken,
   safeEqual,
 } from "@/lib/auth/session";
+import { hasAuthEnv } from "@/lib/env";
 
 export type LoginState = {
   error?: string;
@@ -22,12 +23,11 @@ export async function login(
   formData: FormData,
 ): Promise<LoginState> {
   const passcode = String(formData.get("passcode") ?? "");
-  const expected = process.env.APP_PASSCODE ?? "";
-  const secret = process.env.AUTH_SECRET ?? "";
-
-  if (!expected || !secret) {
+  if (!hasAuthEnv()) {
     return { error: "Authentication is not configured" };
   }
+  const expected = process.env.APP_PASSCODE ?? "";
+  const secret = process.env.AUTH_SECRET ?? "";
 
   if (!safeEqual(passcode, expected)) {
     await new Promise((resolve) => setTimeout(resolve, FAILURE_DELAY_MS));
