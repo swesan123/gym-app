@@ -13,7 +13,12 @@ import { buildSystemPrompt } from "@/lib/ai/system-prompt";
 import { chatTools, WRITE_TOOL_APPROVAL } from "@/lib/ai/tools";
 import type { ChatUIMessage } from "@/lib/ai/message";
 import { ensureChat, saveMessages } from "@/lib/chat/store";
-import { getOpenRouterModel, hasOpenRouterEnv, hasSupabaseEnv } from "@/lib/env";
+import {
+  getOpenRouterModel,
+  getToolApprovalSecret,
+  hasOpenRouterEnv,
+  hasSupabaseEnv,
+} from "@/lib/env";
 
 export const maxDuration = 60;
 
@@ -21,22 +26,8 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_ERROR_LENGTH = 200;
 
-let warnedMissingApprovalSecret = false;
-
 const jsonError = (error: string, status: number) =>
   NextResponse.json({ error }, { status });
-
-const getApprovalSecret = (): string | undefined => {
-  const secret = process.env.TOOL_APPROVAL_SECRET?.trim();
-  if (secret) return secret;
-  if (process.env.NODE_ENV === "production" && !warnedMissingApprovalSecret) {
-    warnedMissingApprovalSecret = true;
-    console.warn(
-      "[api/chat] TOOL_APPROVAL_SECRET is not set; tool approvals are not signed.",
-    );
-  }
-  return undefined;
-};
 
 const toSafeErrorMessage = (error: unknown): string => {
   const raw = error instanceof Error ? error.message : String(error);
@@ -55,6 +46,13 @@ export async function POST(request: Request) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!hasOpenRouterEnv() || !apiKey) {
     return jsonError("AI chat is not configured: set OPENROUTER_API_KEY", 503);
+  }
+  const approvalSecret = getToolApprovalSecret();
+  if (!approvalSecret && process.env.NODE_ENV === "production") {
+    return jsonError(
+      "AI chat is not configured: set TOOL_APPROVAL_SECRET (32+ characters)",
+      503,
+    );
   }
 
   let body: unknown;
@@ -93,7 +91,6 @@ export async function POST(request: Request) {
     apiKey,
     headers: { "X-Title": "GymLog" },
   });
-  const approvalSecret = getApprovalSecret();
 
   const result = streamText({
     model: openrouter(getOpenRouterModel()),

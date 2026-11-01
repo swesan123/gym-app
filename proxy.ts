@@ -5,7 +5,7 @@ import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth/session";
 import { hasAuthEnv } from "@/lib/env";
 
 const PRODUCTION_MISSING_ENV_BODY =
-  "This app requires APP_PASSCODE and AUTH_SECRET to be set in production.";
+  "This app requires APP_PASSCODE (8+ characters) and AUTH_SECRET (32+ characters) to be set in production.";
 
 export async function proxy(request: NextRequest) {
   if (!hasAuthEnv()) {

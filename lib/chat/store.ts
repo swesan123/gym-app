@@ -168,6 +168,18 @@ export async function saveMessages(
     if (upsertError) throw new Error(upsertError.message);
   }
 
+  const keptIds = new Set(messages.map((message) => message.id));
+  const staleIds = [...existingCreatedAt.keys()].filter((id) => !keptIds.has(id));
+  if (staleIds.length > 0) {
+    const { error: deleteError } = await supabase
+      .from("chat_messages")
+      .delete()
+      .eq("chat_id", chatId)
+      .in("id", staleIds);
+
+    if (deleteError) throw new Error(deleteError.message);
+  }
+
   const { data: chat, error: chatError } = await supabase
     .from("chats")
     .select("title")
