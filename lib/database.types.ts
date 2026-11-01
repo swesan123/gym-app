@@ -9,6 +9,52 @@ export type SetType = "warmup" | "working";
 export type Database = {
   public: {
     Tables: {
+      chat_messages: {
+        Row: {
+          id: string;
+          chat_id: string;
+          role: string;
+          parts: unknown;
+          metadata: unknown | null;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          chat_id: string;
+          role: string;
+          parts: unknown;
+          metadata?: unknown | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          chat_id?: string;
+          role?: string;
+          parts?: unknown;
+          metadata?: unknown | null;
+          created_at?: string;
+        };
+      };
+      chats: {
+        Row: {
+          id: string;
+          title: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       exercises: {
         Row: {
           id: string;
