@@ -566,7 +566,9 @@ export async function syncExerciseToActiveDraftCore(
   const context = await fetchDraftSetContext(draft.date, [exerciseId]);
   const { bodyWeight, previousByKey, latestPerfByExercise } = context;
 
-  const adjustments = planAdjustmentsForExercises(draft.date, [exercise], context);
+  const draftAdjustments = (draft.load_adjustments ?? {}) as LoadAdjustments;
+  const sessionOverride = Object.values(draftAdjustments).find((a) => a.overridden)?.cutPct;
+  const adjustments = planAdjustmentsForExercises(draft.date, [exercise], context, sessionOverride);
 
   const insertRows = buildDraftSetInsertRows(
     draft.id,
@@ -587,9 +589,16 @@ export async function syncExerciseToActiveDraftCore(
   if (adjustments[exerciseId]) {
     const { error: adjErr } = await supabase
       .from("workouts")
-      .update({ load_adjustments: { ...draft.load_adjustments, ...adjustments } })
+      .update({ load_adjustments: { ...draftAdjustments, ...adjustments } })
       .eq("id", draft.id);
-    if (adjErr) throw new Error(adjErr.message);
+    if (adjErr) {
+      await supabase
+        .from("workout_sets")
+        .delete()
+        .eq("workout_id", draft.id)
+        .eq("exercise_id", exerciseId);
+      throw new Error(adjErr.message);
+    }
   }
 
   return draft.id;
