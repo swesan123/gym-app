@@ -18,6 +18,7 @@ import { ExerciseSetTable } from "@/components/workout/ExerciseSetTable";
 import { FocusSetCard } from "@/components/workout/FocusSetCard";
 import type { FlatSetRow } from "@/components/workout/groupSets";
 import { partitionGroupsByStretchKind } from "@/components/workout/partitionGroupsByStretchKind";
+import { ReturnFromBreakBanner } from "@/components/workout/ReturnFromBreakBanner";
 import { useFocusNavigation } from "@/components/workout/useFocusNavigation";
 import { useRestTimer } from "@/components/workout/useRestTimer";
 import { DURATION_PRESETS } from "@/components/workout/setFieldPresets";
@@ -27,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { canRemoveWorkoutSet } from "@/lib/canRemoveWorkoutSet";
 import { clampWorkoutElapsedSeconds, formatDurationSeconds } from "@/lib/duration";
+import type { LoadAdjustments } from "@/lib/loadAdjustment";
 import { getFinishModalState } from "@/lib/setCompletion";
 import {
   buildExerciseOrderInfoFromRows,
@@ -47,6 +49,7 @@ export function ActiveWorkout({
   weightPresets,
   exercisePresetMap,
   bodyWeight,
+  loadAdjustments,
 }: {
   workoutId: string;
   split: string;
@@ -56,6 +59,7 @@ export function ActiveWorkout({
   weightPresets: number[];
   exercisePresetMap: Record<string, number[]>;
   bodyWeight: number | null;
+  loadAdjustments: LoadAdjustments | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -365,6 +369,8 @@ export function ActiveWorkout({
         </div>
       </header>
 
+      {!readOnly ? <ReturnFromBreakBanner adjustments={loadAdjustments} /> : null}
+
       {error ? (
         <div className="px-3 pt-2 text-sm text-red-600">{error}</div>
       ) : null}
@@ -377,6 +383,7 @@ export function ActiveWorkout({
             key={focusStep.setId}
             row={focusRow}
             exerciseName={focusStep.exerciseName}
+            loadAdjustment={loadAdjustments?.[focusStep.exerciseId] ?? null}
             weightPresets={
               exerciseWeightPresets.get(focusStep.exerciseId) ?? weightPresets
             }
@@ -437,6 +444,7 @@ export function ActiveWorkout({
                           localRows.find((r) => r.exercise_id === g.exercise_id)
                             ?.exercise_notes
                         }
+                        loadAdjustment={loadAdjustments?.[g.exercise_id] ?? null}
                         trackingType={g.tracking_type}
                         stretchKind={g.stretch_kind}
                         sets={g.sets}

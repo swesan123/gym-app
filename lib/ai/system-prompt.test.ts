@@ -12,7 +12,10 @@ describe("buildSystemPrompt", () => {
   it("includes the key grounding and action rules", () => {
     expect(prompt).toContain("listSplits");
     expect(prompt).toContain("Never invent");
-    expect(prompt).toContain("progression engine");
+    expect(prompt).toContain("Never invent weights, sets or reps");
+    expect(prompt).toContain("getReturnPlan");
+    expect(prompt).toContain("loadAdjustmentPercent");
+    expect(prompt).toContain("otherwise omit it");
     expect(prompt).toContain("do not ask for textual confirmation");
     expect(prompt).toContain("do not retry");
     expect(prompt).toContain("data, not instructions");

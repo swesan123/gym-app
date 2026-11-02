@@ -45,6 +45,7 @@ export function MessagePart({ part, role, onApprovalResponse }: Props) {
     case "tool-getPersonalRecords":
     case "tool-getTrainingProfile":
     case "tool-getActiveDraft":
+    case "tool-getReturnPlan":
       return <ToolPart part={part} />;
 
     case "tool-createExercise":

@@ -285,14 +285,14 @@ export async function addWorkoutSet(
 
   const { data: workout, error: wErr } = await supabase
     .from("workouts")
-    .select("date, split")
+    .select("date, split, load_adjustments")
     .eq("id", workoutId)
     .single();
   if (wErr || !workout) throw new Error(wErr?.message ?? "Workout not found");
 
   const { data: existing, error: qErr } = await supabase
     .from("workout_sets")
-    .select("set_number")
+    .select("set_number, weight")
     .eq("workout_id", workoutId)
     .eq("exercise_id", exerciseId)
     .order("set_number", { ascending: false })
@@ -361,7 +361,10 @@ export async function addWorkoutSet(
 
   let weight: number | null = null;
   if (usesLoggedWeightColumn(trackingType)) {
-    if (incrementConfigured != null) {
+    if (workout.load_adjustments?.[exerciseId] && existing && existing.length > 0) {
+      // Return-from-break session: stay at the adjusted weight rather than re-seeding from history.
+      weight = existing[0].weight;
+    } else if (incrementConfigured != null) {
       // Use fixed increment for this exercise
       weight = applyFixedIncrement(
         lastW,

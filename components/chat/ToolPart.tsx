@@ -40,6 +40,11 @@ const TOOL_LABELS: Record<ReadToolName, ToolLabels> = {
     done: "Checked for a workout in progress",
     failed: "Couldn't check for a workout in progress",
   },
+  getReturnPlan: {
+    running: "Checking time off…",
+    done: "Checked time off",
+    failed: "Couldn't check time off",
+  },
 };
 
 const chipClass =

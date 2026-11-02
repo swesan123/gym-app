@@ -19,6 +19,7 @@ const useFake = (results: Parameters<typeof createFakeSupabase>[0]) => {
           default_reps: 8,
           progressive_overload_increment: null,
           tracking_type: "weighted",
+          stretch_kind: "none",
           machine_start_weight: null,
           machine_end_weight: null,
           machine_increment: null,
@@ -57,8 +58,45 @@ describe("createWorkoutDraft", () => {
 
     await expect(createWorkoutDraft("Upper A")).resolves.toEqual({
       id: "workout-1",
+      loadAdjustments: {},
     });
     expect(calls).toContainEqual({ table: "workout_sets", op: "insert" });
     expect(calls).toContainEqual({ table: "workout_exercise_order", op: "insert" });
+    expect(calls).not.toContainEqual({ table: "workouts", op: "update" });
+  });
+
+  it("adjusts and stores the load after a 52-day break", async () => {
+    const lastDate = new Date(Date.now() - 52 * 86_400_000).toISOString().slice(0, 10);
+    const { calls } = useFake({
+      "workouts.select": {
+        data: [{ id: "old-1", date: lastDate, created_at: lastDate, load_adjustments: null }],
+      },
+      "workout_sets.select": {
+        data: [
+          {
+            workout_id: "old-1",
+            exercise_id: "ex-1",
+            set_number: 1,
+            reps: 8,
+            rir: 2,
+            weight: 100,
+            set_type: "working",
+            completed_at: lastDate,
+          },
+        ],
+      },
+    });
+
+    const { loadAdjustments } = await createWorkoutDraft("Upper A");
+
+    expect(loadAdjustments["ex-1"]).toMatchObject({
+      phase: "first-session",
+      gapDays: 52,
+      cutPct: 10,
+      dropOneSet: true,
+      targetRir: 3,
+      referenceWeights: { "1": 100 },
+    });
+    expect(calls).toContainEqual({ table: "workouts", op: "update" });
   });
 });

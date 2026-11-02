@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import type { PersonalRecord, RecordEntry } from "@/lib/ai/contracts";
+import type { PersonalRecord, RecordEntry, ReturnPlanExercise } from "@/lib/ai/contracts";
+import { formatGap } from "@/lib/loadAdjustment";
 
 import { mutedTextClass, primaryTextClass } from "./styles";
 import type { ReadToolPart } from "./types";
@@ -56,6 +57,24 @@ const recordRow = (record: PersonalRecord): string[] => [
   record.mostReps ? String(record.mostReps.value) : "—",
   record.bestSetVolume ? String(record.bestSetVolume.value) : "—",
 ];
+
+const describeReturnAdjustment = (exercise: ReturnPlanExercise): string => {
+  switch (exercise.phase) {
+    case null:
+      return "Normal";
+    case "hold":
+      return "Hold weight";
+    case "first-session":
+      return [`−${exercise.cutPct}%`, exercise.dropOneSet ? "one fewer set" : null].filter(Boolean).join(" · ");
+    case "ramp":
+      if (exercise.cutPct === 0) return "Back to pre-break weight";
+      return `−${exercise.cutPct}% · stepping back up`;
+    default: {
+      const exhaustive: never = exercise.phase;
+      return exhaustive;
+    }
+  }
+};
 
 export function ToolOutputSummary({ part }: { part: ReadToolOutputPart }) {
   switch (part.type) {
@@ -139,6 +158,32 @@ export function ToolOutputSummary({ part }: { part: ReadToolOutputPart }) {
             {part.output.draft.date} · {part.output.draft.workingSetsDone}/{part.output.draft.workingSetsTotal} sets
           </span>
         </p>
+      );
+
+    case "tool-getReturnPlan":
+      if ("error" in part.output) return <EmptyNote>{part.output.error}</EmptyNote>;
+      return (
+        <div className="space-y-2">
+          {part.output.daysSinceLastWorkout != null && (
+            <p className={`text-sm ${primaryTextClass}`}>
+              {formatGap(part.output.daysSinceLastWorkout)} since your last workout
+            </p>
+          )}
+          {part.output.exercises.length === 0 ? (
+            <EmptyNote>No exercises in this split.</EmptyNote>
+          ) : (
+            <ul className="space-y-1 text-sm">
+              {part.output.exercises.map((exercise) => (
+                <li key={exercise.exercise}>
+                  <span className={`font-medium ${primaryTextClass}`}>{exercise.exercise}</span>{" "}
+                  <span className={`font-data tabular-nums ${mutedTextClass}`}>
+                    {describeReturnAdjustment(exercise)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       );
 
     default: {

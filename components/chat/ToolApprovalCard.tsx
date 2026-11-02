@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import type { ChatUITools } from "@/lib/ai/message";
+import { formatCutRange, formatGap, type LoadAdjustmentSummary } from "@/lib/loadAdjustment";
 
 import { cardClass, linkButtonClass, mutedTextClass, primaryTextClass } from "./styles";
 import type { ApprovalResponder, WriteToolPart } from "./types";
@@ -47,9 +48,26 @@ const createExerciseFields = (input: CreateExerciseInput): Field[] => {
   return fields;
 };
 
+const describeLoad = (percent: number | undefined): string => {
+  if (percent === undefined) return "Automatic (adjusts for time off)";
+  if (percent === 0) return "Normal (no reduction)";
+  return `${percent}% lighter (custom)`;
+};
+
 const startWorkoutFields = (input: StartWorkoutInput): Field[] => [
   { label: "Split", value: input.split },
+  { label: "Load", value: describeLoad(input.loadAdjustmentPercent) },
 ];
+
+const describeAdjustment = (adjustment: LoadAdjustmentSummary): string => {
+  const gap = formatGap(adjustment.awayDays);
+  const cut = formatCutRange(adjustment);
+  if (adjustment.firstSessionBack) {
+    return `${cut} lighter after ${gap} off${adjustment.droppedSets ? ", one fewer set" : ""}. Aim for about ${adjustment.targetRir} reps in reserve.`;
+  }
+  if (adjustment.maxCutPct > 0) return `Easing back in: ${cut} below your pre-break weights`;
+  return `Holding weights after ${gap} off`;
+};
 
 const getOutputError = (output: unknown): string | null => {
   if (typeof output !== "object" || output === null || !("error" in output)) return null;
@@ -105,8 +123,10 @@ const SuccessSummary = ({ part }: { part: Extract<WriteToolPart, { state: "outpu
     }
     case "tool-startWorkout": {
       if ("error" in part.output) return <StatusCard title={part.output.error} tone="error" />;
+      const { adjustment } = part.output;
       return (
         <StatusCard title={`Started ${part.output.split} workout`} tone="success">
+          {adjustment && <p className={`mt-2 text-sm ${mutedTextClass}`}>{describeAdjustment(adjustment)}</p>}
           <Link href={part.output.url} className={`${linkButtonClass} mt-3 w-full`}>
             Open workout
           </Link>
