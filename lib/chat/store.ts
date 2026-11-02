@@ -130,35 +130,20 @@ export async function saveMessages(
     sequenceBaseMs = Math.max(sequenceBaseMs, maxExisting);
   }
 
+  // Bulk upserts send omitted columns as null (not the column default), so every row carries created_at.
   let newIndex = 0;
-  const upsertRows: {
-    id: string;
-    chat_id: string;
-    role: string;
-    parts: unknown;
-    metadata?: unknown | null;
-    created_at?: string;
-  }[] = [];
-
-  for (const message of messages) {
-    const row = {
+  const upsertRows = messages.map((message) => {
+    const existing = existingCreatedAt.get(message.id);
+    if (existing === undefined) newIndex += 1;
+    return {
       id: message.id,
       chat_id: chatId,
       role: message.role,
       parts: message.parts,
       metadata: message.metadata ?? null,
+      created_at: existing ?? new Date(sequenceBaseMs + newIndex).toISOString(),
     };
-
-    if (existingCreatedAt.has(message.id)) {
-      upsertRows.push(row);
-    } else {
-      newIndex += 1;
-      upsertRows.push({
-        ...row,
-        created_at: new Date(sequenceBaseMs + newIndex).toISOString(),
-      });
-    }
-  }
+  });
 
   if (upsertRows.length > 0) {
     const { error: upsertError } = await supabase

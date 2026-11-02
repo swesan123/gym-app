@@ -1,6 +1,7 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import {
   convertToModelMessages,
+  createIdGenerator,
   createUIMessageStreamResponse,
   isStepCount,
   safeValidateUIMessages,
@@ -112,6 +113,7 @@ export async function POST(request: Request) {
       stream: result.stream,
       tools: chatTools,
       originalMessages: validated,
+      generateMessageId: createIdGenerator({ prefix: "msg", size: 16 }),
       onError: (error) => {
         console.error("[api/chat] model error:", error);
         return toSafeErrorMessage(error);
