@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+import {
+  MAX_LOAD_ADJUSTMENT_PCT,
+  type LoadAdjustmentPhase,
+  type LoadAdjustmentSummary,
+} from "@/lib/loadAdjustment";
+
 /**
  * Shared contract for the AI chat tools: names, input schemas, and output shapes.
  * READ tools run automatically; WRITE tools require user approval (see WRITE_TOOL_NAMES).
@@ -61,10 +67,24 @@ export const createExerciseInput = z.object({
 
 export const startWorkoutInput = z.object({
   split: z.string().min(1).describe("Existing split name from listSplits"),
+  loadAdjustmentPercent: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAX_LOAD_ADJUSTMENT_PCT)
+    .optional()
+    .describe(
+      "Only when the user explicitly asks for a specific amount lighter (e.g. 'go 15% lighter'). Omit to use the automatic return-from-break adjustment.",
+    ),
+});
+
+export const getReturnPlanInput = z.object({
+  split: z.string().min(1).describe("Existing split name from listSplits"),
 });
 
 export type CreateExerciseInput = z.infer<typeof createExerciseInput>;
 export type StartWorkoutInput = z.infer<typeof startWorkoutInput>;
+export type GetReturnPlanInput = z.infer<typeof getReturnPlanInput>;
 
 // ---------- Outputs ----------
 
@@ -131,7 +151,28 @@ export type GetActiveDraftOutput = { draft: ActiveDraft | null };
 
 export type CreateExerciseOutput = { exerciseId: string; name: string; splits: string[] } | ToolError;
 
-export type StartWorkoutOutput = { workoutId: string; split: string; url: string } | ToolError;
+export type StartWorkoutOutput =
+  | { workoutId: string; split: string; url: string; adjustment: LoadAdjustmentSummary | null }
+  | ToolError;
+
+export type ReturnPlanExercise = {
+  exercise: string;
+  /** Null when the exercise has never been performed. */
+  gapDays: number | null;
+  /** Null when no adjustment applies (normal progression). */
+  phase: LoadAdjustmentPhase | null;
+  cutPct: number;
+  dropOneSet: boolean;
+  targetRir: number;
+};
+export type GetReturnPlanOutput =
+  | {
+      split: string;
+      daysSinceLastWorkout: number | null;
+      exercises: ReturnPlanExercise[];
+      summary: LoadAdjustmentSummary | null;
+    }
+  | ToolError;
 
 // ---------- Names ----------
 
@@ -143,6 +184,7 @@ export const READ_TOOL_NAMES = [
   "getPersonalRecords",
   "getTrainingProfile",
   "getActiveDraft",
+  "getReturnPlan",
 ] as const;
 
 export const WRITE_TOOL_NAMES = ["createExercise", "startWorkout"] as const;

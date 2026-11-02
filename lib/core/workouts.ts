@@ -1,4 +1,6 @@
+import type { GetReturnPlanOutput } from "@/lib/ai/contracts";
 import type { TrackingType } from "@/lib/database.types";
+import type { LoadAdjustments } from "@/lib/loadAdjustment";
 import {
   fetchPreviousWeightsBeforeDate,
   isWorkoutSplitsTableUnavailable,
@@ -192,7 +194,22 @@ function buildDraftSetInsertRows(
   });
 }
 
-export async function createWorkoutDraft(split: string): Promise<{ id: string }> {
+export type CreateWorkoutDraftOptions = {
+  /** Explicit percent lighter (0–30) for this session; overrides the automatic tier. */
+  loadAdjustmentPercent?: number;
+};
+
+/** Read-only preview of the return-from-break adjustment a new draft for `split` would get. */
+export async function previewReturnPlan(split: string): Promise<GetReturnPlanOutput> {
+  void split;
+  throw new Error("previewReturnPlan is not implemented yet");
+}
+
+export async function createWorkoutDraft(
+  split: string,
+  options: CreateWorkoutDraftOptions = {},
+): Promise<{ id: string; loadAdjustments: LoadAdjustments }> {
+  void options;
   const splitName = split.trim();
   if (!splitName) throw new Error("Choose a split");
 
@@ -288,7 +305,7 @@ export async function createWorkoutDraft(split: string): Promise<{ id: string }>
     throw new Error(sErr?.message ?? orderErr?.message);
   }
 
-  return { id: workout.id };
+  return { id: workout.id, loadAdjustments: {} };
 }
 
 /**

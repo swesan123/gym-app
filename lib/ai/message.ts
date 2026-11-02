@@ -7,6 +7,7 @@ import type {
   GetExerciseProgressOutput,
   GetPersonalRecordsOutput,
   GetRecentWorkoutsOutput,
+  GetReturnPlanOutput,
   GetTrainingProfileOutput,
   ListExercisesOutput,
   ListSplitsOutput,
@@ -16,6 +17,7 @@ import type {
   getExerciseProgressInput,
   getPersonalRecordsInput,
   getRecentWorkoutsInput,
+  getReturnPlanInput,
   getTrainingProfileInput,
   listExercisesInput,
   listSplitsInput,
@@ -31,6 +33,7 @@ export type ChatUITools = {
   getPersonalRecords: { input: z.input<typeof getPersonalRecordsInput>; output: GetPersonalRecordsOutput };
   getTrainingProfile: { input: z.input<typeof getTrainingProfileInput>; output: GetTrainingProfileOutput };
   getActiveDraft: { input: z.input<typeof getActiveDraftInput>; output: GetActiveDraftOutput };
+  getReturnPlan: { input: z.input<typeof getReturnPlanInput>; output: GetReturnPlanOutput };
   createExercise: { input: z.input<typeof createExerciseInput>; output: CreateExerciseOutput };
   startWorkout: { input: z.input<typeof startWorkoutInput>; output: StartWorkoutOutput };
 };

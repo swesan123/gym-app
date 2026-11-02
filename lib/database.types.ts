@@ -1,3 +1,5 @@
+import type { LoadAdjustments } from "@/lib/loadAdjustment";
+
 export type TrackingType = "weighted" | "assisted" | "bodyweight" | "timed";
 
 export type StretchKind = "none" | "dynamic" | "static";
@@ -194,6 +196,7 @@ export type Database = {
           created_at: string;
           completed_at: string | null;
           deleted_at: string | null;
+          load_adjustments: LoadAdjustments | null;
         };
         Insert: {
           id?: string;
@@ -205,6 +208,7 @@ export type Database = {
           created_at?: string;
           completed_at?: string | null;
           deleted_at?: string | null;
+          load_adjustments?: LoadAdjustments | null;
         };
         Update: {
           id?: string;
@@ -216,6 +220,7 @@ export type Database = {
           created_at?: string;
           completed_at?: string | null;
           deleted_at?: string | null;
+          load_adjustments?: LoadAdjustments | null;
         };
       };
       workout_sets: {
