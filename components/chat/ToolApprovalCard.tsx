@@ -60,7 +60,7 @@ const startWorkoutFields = (input: StartWorkoutInput): Field[] => [
 ];
 
 const describeAdjustment = (adjustment: LoadAdjustmentSummary): string => {
-  const gap = formatGap(adjustment.maxGapDays);
+  const gap = formatGap(adjustment.awayDays);
   const cut = formatCutRange(adjustment);
   if (adjustment.firstSessionBack) {
     return `${cut} lighter after ${gap} off${adjustment.droppedSets ? ", one fewer set" : ""}. Aim for about ${adjustment.targetRir} reps in reserve.`;

@@ -26,7 +26,7 @@ const getBannerCopy = (
       : "";
     const custom = summary.overridden ? " (custom amount)" : "";
     return {
-      title: `First session back after ${formatGap(summary.maxGapDays)}`,
+      title: `First session back after ${formatGap(summary.awayDays)}`,
       body: `Weights are ${range} lighter${sets}. Aim for about ${summary.targetRir} reps in reserve.${custom}`,
     };
   }
@@ -47,7 +47,7 @@ const getBannerCopy = (
 
   return {
     title: "Holding weights",
-    body: `It’s been ${formatGap(summary.maxGapDays)} since you last did some of these, so weights stay put instead of going up.`,
+    body: `It’s been ${formatGap(summary.awayDays)} since you last did some of these, so weights stay put instead of going up.`,
   };
 };
 

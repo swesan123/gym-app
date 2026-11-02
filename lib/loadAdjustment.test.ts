@@ -34,6 +34,7 @@ describe("summarizeLoadAdjustments", () => {
     expect(summary).toEqual({
       exercisesAdjusted: 3,
       maxGapDays: 60,
+      awayDays: 52,
       minCutPct: 0,
       maxCutPct: 15,
       firstSessionBack: true,

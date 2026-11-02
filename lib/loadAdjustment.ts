@@ -34,6 +34,8 @@ export type LoadAdjustments = Record<string, LoadAdjustment>;
 export type LoadAdjustmentSummary = {
   exercisesAdjusted: number;
   maxGapDays: number;
+  /** Time away to show the user: the shortest gap among first-session exercises (else all adjusted). */
+  awayDays: number;
   minCutPct: number;
   maxCutPct: number;
   firstSessionBack: boolean;
@@ -53,9 +55,12 @@ export function summarizeLoadAdjustments(
   if (entries.length === 0) return null;
 
   const cuts = entries.map((a) => a.cutPct);
+  const firstSession = entries.filter((a) => a.phase === "first-session");
+  const awayFrom = firstSession.length > 0 ? firstSession : entries;
   return {
     exercisesAdjusted: entries.length,
     maxGapDays: Math.max(...entries.map((a) => a.gapDays)),
+    awayDays: Math.min(...awayFrom.map((a) => a.gapDays)),
     minCutPct: Math.min(...cuts),
     maxCutPct: Math.max(...cuts),
     firstSessionBack: entries.some((a) => a.phase === "first-session"),

@@ -158,6 +158,7 @@ describe("startWorkout", () => {
       adjustment: {
         exercisesAdjusted: 1,
         maxGapDays: 49,
+        awayDays: 49,
         minCutPct: 15,
         maxCutPct: 15,
         firstSessionBack: true,
