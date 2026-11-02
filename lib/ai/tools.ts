@@ -7,17 +7,20 @@ import {
   getExerciseProgressInput,
   getPersonalRecordsInput,
   getRecentWorkoutsInput,
+  getReturnPlanInput,
   getTrainingProfileInput,
   listExercisesInput,
   listSplitsInput,
   startWorkoutInput,
   workoutUrl,
   type CreateExerciseOutput,
+  type GetReturnPlanOutput,
   type StartWorkoutOutput,
   type WriteToolName,
 } from "@/lib/ai/contracts";
 import { createExerciseCore } from "@/lib/core/exercises";
-import { createWorkoutDraft } from "@/lib/core/workouts";
+import { createWorkoutDraft, previewReturnPlan } from "@/lib/core/workouts";
+import { summarizeLoadAdjustments } from "@/lib/loadAdjustment";
 import {
   getActiveDraft,
   getExerciseProgress,
@@ -72,6 +75,18 @@ export const chatTools = {
     inputSchema: getActiveDraftInput,
     execute: () => getActiveDraft(),
   }),
+  getReturnPlan: tool({
+    description:
+      "Preview how the next workout for a split accounts for time off: days since each exercise was last done, and the automatic % lighter, held weights, or one fewer set. Call this when the user mentions a break or asks how their next workout will be adjusted, before startWorkout. Use exact split names from listSplits.",
+    inputSchema: getReturnPlanInput,
+    execute: async (input): Promise<GetReturnPlanOutput> => {
+      try {
+        return await previewReturnPlan(input.split);
+      } catch (error) {
+        return { error: toErrorMessage(error) };
+      }
+    },
+  }),
   createExercise: tool({
     description: `Create a new exercise and assign it to existing splits. Requires user approval (the UI shows an approval card). Call listSplits first; every entry in "splits" must be an existing split name. Do not ask for textual confirmation — call this tool directly.`,
     inputSchema: createExerciseInput,
@@ -111,16 +126,23 @@ export const chatTools = {
     },
   }),
   startWorkout: tool({
-    description: `Start a new workout draft for an existing split. Requires user approval (the UI shows an approval card). Call listSplits first and use an exact split name. Do not ask for textual confirmation — call this tool directly. Returns a link the user can open.`,
+    description: `Start a new workout draft for an existing split. Requires user approval (the UI shows an approval card). Call listSplits first and use an exact split name. Do not ask for textual confirmation — call this tool directly. The app automatically lightens loads after time off; only set loadAdjustmentPercent when the user explicitly asks for a specific amount lighter. Returns a link the user can open and a summary of any load adjustment.`,
     inputSchema: startWorkoutInput,
     execute: async (input): Promise<StartWorkoutOutput> => {
       try {
-        const { id } = await createWorkoutDraft(input.split);
+        const { id, loadAdjustments } = await createWorkoutDraft(input.split, {
+          loadAdjustmentPercent: input.loadAdjustmentPercent,
+        });
 
         revalidatePath("/");
         revalidatePath("/history");
 
-        return { workoutId: id, split: input.split, url: workoutUrl(id) };
+        return {
+          workoutId: id,
+          split: input.split,
+          url: workoutUrl(id),
+          adjustment: summarizeLoadAdjustments(loadAdjustments),
+        };
       } catch (error) {
         return { error: toErrorMessage(error) };
       }

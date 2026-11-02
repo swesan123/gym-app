@@ -111,6 +111,30 @@ const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "return-override",
+    prompt: "I've been off for about 7 weeks. Start my Push workout but go 15% lighter",
+    grade: (t) => {
+      const ok =
+        t.approvals.length === 1 &&
+        t.approvals[0].name === "startWorkout" &&
+        t.approvals[0].input.split === "Push" &&
+        t.approvals[0].input.loadAdjustmentPercent === 15;
+      return { pass: ok, why: ok ? "" : `approvals=${JSON.stringify(t.approvals)}` };
+    },
+  },
+  {
+    id: "return-auto",
+    prompt: "I haven't trained since September. Start my Push workout",
+    grade: (t) => {
+      const ok =
+        t.approvals.length === 1 &&
+        t.approvals[0].name === "startWorkout" &&
+        t.approvals[0].input.split === "Push" &&
+        t.approvals[0].input.loadAdjustmentPercent === undefined;
+      return { pass: ok, why: ok ? "" : `approvals=${JSON.stringify(t.approvals)}` };
+    },
+  },
+  {
     id: "create-exercise",
     prompt: "Add cable crossovers to my Push day for chest, 3 sets of 12 reps",
     grade: (t) => {
