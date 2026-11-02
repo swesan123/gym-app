@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ActiveWorkout } from "@/components/workout/ActiveWorkout";
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
 import { hasSupabaseEnv } from "@/lib/env";
+import type { LoadAdjustments } from "@/lib/loadAdjustment";
 import {
   fetchBodyWeight,
   fetchExerciseWeightPresetsMap,
@@ -12,6 +13,9 @@ import {
 import { createClient } from "@/lib/supabase/server";
 
 type Props = { params: Promise<{ workoutId: string }> };
+
+const isPlainObject = (value: unknown): value is LoadAdjustments =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
 export default async function WorkoutSessionPage({ params }: Props) {
   if (!hasSupabaseEnv()) {
@@ -41,6 +45,11 @@ export default async function WorkoutSessionPage({ params }: Props) {
     rows.map((r) => r.exercise_id),
   );
 
+  const loadAdjustments =
+    workout.status === "draft" && isPlainObject(workout.load_adjustments)
+      ? workout.load_adjustments
+      : null;
+
   return (
     <ActiveWorkout
       workoutId={workoutId}
@@ -51,6 +60,7 @@ export default async function WorkoutSessionPage({ params }: Props) {
       weightPresets={weightPresets}
       exercisePresetMap={exercisePresetMap}
       bodyWeight={bodyWeight}
+      loadAdjustments={loadAdjustments}
     />
   );
 }

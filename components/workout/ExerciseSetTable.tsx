@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { updateWorkoutSet } from "@/app/actions/workouts";
+import { LoadAdjustmentChip } from "@/components/workout/LoadAdjustmentChip";
 import { SetTableRow } from "@/components/workout/SetTableRow";
 import type { FlatSetRow } from "@/components/workout/groupSets";
 import {
@@ -13,10 +14,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import type { StretchKind, TrackingType } from "@/lib/database.types";
+import type { LoadAdjustment } from "@/lib/loadAdjustment";
 
 type Props = {
   exerciseName: string;
   exerciseNotes?: string | null;
+  loadAdjustment?: LoadAdjustment | null;
   trackingType: TrackingType;
   stretchKind: StretchKind;
   sets: { id: string; set_number: number }[];
@@ -53,6 +56,7 @@ type Props = {
 export function ExerciseSetTable({
   exerciseName,
   exerciseNotes,
+  loadAdjustment = null,
   trackingType,
   stretchKind,
   sets,
@@ -105,9 +109,12 @@ export function ExerciseSetTable({
     <>
       <section className="rounded-lg border border-[var(--gray-200)] bg-[var(--chalk-white)] dark:border-[var(--gray-100)] dark:bg-[var(--gray-50)]">
         <div className="border-b border-[var(--gray-100)] px-2 py-2 dark:border-[var(--gray-100)]">
-          <h2 className="text-base font-bold leading-tight text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
-            {exerciseName}
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="min-w-0 text-base font-bold leading-tight text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
+              {exerciseName}
+            </h2>
+            <LoadAdjustmentChip adjustment={loadAdjustment} />
+          </div>
           {exerciseNotes ? (
             <p className="mt-1 text-xs text-[var(--gray-600)] dark:text-[var(--gray-400)]">
               {exerciseNotes}

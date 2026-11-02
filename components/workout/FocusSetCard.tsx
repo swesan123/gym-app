@@ -2,6 +2,7 @@
 
 import type { FlatSetRow } from "@/components/workout/groupSets";
 import { Button } from "@/components/ui/button";
+import { LoadAdjustmentChip } from "@/components/workout/LoadAdjustmentChip";
 import {
   REPS_PRESETS,
   RIR_PRESETS,
@@ -12,11 +13,13 @@ import {
 } from "@/components/workout/setFieldPresets";
 import { useSetEditor } from "@/components/workout/useSetEditor";
 import { formatDurationSeconds } from "@/lib/duration";
+import type { LoadAdjustment } from "@/lib/loadAdjustment";
 import { useSetElapsed } from "@/lib/useSetElapsed";
 
 export function FocusSetCard({
   row,
   exerciseName,
+  loadAdjustment = null,
   weightPresets,
   durationPresets,
   showWeightCol,
@@ -38,6 +41,7 @@ export function FocusSetCard({
 }: {
   row: FlatSetRow;
   exerciseName: string;
+  loadAdjustment?: LoadAdjustment | null;
   weightPresets: number[];
   durationPresets: number[];
   showWeightCol: boolean;
@@ -129,9 +133,12 @@ export function FocusSetCard({
 
       <div className={`rounded-2xl border border-[var(--gray-200)] p-5 transition-colors dark:border-[var(--gray-100)] ${cardBg}`}>
         <div className="flex items-start justify-between gap-2">
-          <h2 className="text-2xl font-bold leading-tight text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
-            {exerciseName}
-          </h2>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <h2 className="text-2xl font-bold leading-tight text-[var(--steel-gray)] dark:text-[var(--chalk-white)]">
+              {exerciseName}
+            </h2>
+            <LoadAdjustmentChip adjustment={loadAdjustment} />
+          </div>
           <div className="flex shrink-0 items-center gap-2">
             {isDone ? (
               <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
