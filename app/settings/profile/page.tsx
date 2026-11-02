@@ -1,9 +1,10 @@
 import Link from "next/link";
 
+import { logout } from "@/app/actions/auth";
 import { saveTrainingProfile } from "@/app/actions/profile";
 import { MissingSupabaseConfig } from "@/components/MissingSupabaseConfig";
 import { Button } from "@/components/ui/button";
-import { hasSupabaseEnv } from "@/lib/env";
+import { hasAuthEnv, hasSupabaseEnv } from "@/lib/env";
 import { fetchTrainingProfile } from "@/lib/queries/read";
 
 export default async function ProfileSettingsPage() {
@@ -62,6 +63,13 @@ export default async function ProfileSettingsPage() {
             Backup your data →
           </Link>
         </p>
+        {hasAuthEnv() ? (
+          <form action={logout} className="mt-6">
+            <Button type="submit" variant="secondary">
+              Log out
+            </Button>
+          </form>
+        ) : null}
       </div>
     </div>
   );

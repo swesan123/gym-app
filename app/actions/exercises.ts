@@ -2,6 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
+import {
+  createExerciseCore,
+  type CreateExerciseCoreInput,
+} from "@/lib/core/exercises";
 import type { StretchKind, TrackingType } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { syncExerciseToActiveDraft } from "@/app/actions/workouts";
@@ -108,74 +112,13 @@ export async function updateExercise(input: {
   revalidatePath("/progress");
 }
 
-export async function createExercise(input: {
-  name: string;
-  muscle: string;
-  splits: string[];
-  default_sets: number;
-  tracking_type: TrackingType;
-  notes: string | null;
-  machine_start_weight: number | null;
-  machine_end_weight: number | null;
-  machine_increment: number | null;
-  default_reps: number | null;
-  progressive_overload_increment: number | null;
-  rest_seconds: number | null;
-  stretch_kind: StretchKind;
-  duration_start_seconds: number | null;
-  duration_end_seconds: number | null;
-  duration_step_seconds: number | null;
-}) {
-  const supabase = await createClient();
+export async function createExercise(input: CreateExerciseCoreInput) {
+  const { syncedDraftIds } = await createExerciseCore(input);
 
-  const { data: inserted, error } = await supabase
-    .from("exercises")
-    .insert({
-      name: input.name.trim(),
-      muscle: input.muscle.trim(),
-      default_sets: input.default_sets,
-      tracking_type: input.tracking_type,
-      notes: input.notes,
-      machine_start_weight: input.machine_start_weight,
-      machine_end_weight: input.machine_end_weight,
-      machine_increment: input.machine_increment,
-      default_reps: input.default_reps,
-      progressive_overload_increment: input.progressive_overload_increment,
-      rest_seconds: input.rest_seconds,
-      stretch_kind: input.stretch_kind,
-      duration_start_seconds: input.duration_start_seconds,
-      duration_end_seconds: input.duration_end_seconds,
-      duration_step_seconds: input.duration_step_seconds,
-      sort_order: 0,
-    })
-    .select("id")
-    .single();
-
-  if (error || !inserted) throw new Error(error?.message ?? "Failed to create exercise");
-
-  // Insert splits into junction table
-  const splitsToInsert = input.splits.map((splitName, idx) => ({
-    exercise_id: inserted.id,
-    split_name: splitName.trim(),
-    sort_order: idx,
-  }));
-
-  if (splitsToInsert.length > 0) {
-    const { error: insertErr } = await supabase
-      .from("exercise_splits")
-      .insert(splitsToInsert);
-
-    if (insertErr) {
-      // Clean up if split insert fails
-      await supabase.from("exercises").delete().eq("id", inserted.id);
-      throw new Error(insertErr.message);
-    }
+  for (const draftId of syncedDraftIds) {
+    revalidatePath(`/workout/${draftId}`);
+    revalidatePath("/");
   }
-
-  for (const splitName of input.splits) {
-    await syncExerciseToActiveDraft(inserted.id, splitName.trim());
-  }
-
   revalidatePath("/settings/exercises");
   revalidatePath("/workout/start");
   revalidatePath("/progress");
