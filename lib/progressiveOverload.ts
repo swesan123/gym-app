@@ -23,7 +23,7 @@ function nearestOnMachineGrid(
   return best;
 }
 
-function ceilOnMachineGrid(
+export function ceilOnMachineGrid(
   target: number,
   start: number,
   end: number,
@@ -40,7 +40,7 @@ function ceilOnMachineGrid(
   return Number(end.toFixed(6));
 }
 
-function floorOnMachineGrid(
+export function floorOnMachineGrid(
   target: number,
   start: number,
   end: number,
